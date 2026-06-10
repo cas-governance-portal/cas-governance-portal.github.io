@@ -1,0 +1,409 @@
+{
+  "catalogue_metadata": {
+    "repo_name": "ideas-to-life-cas",
+    "repo_version_or_commit": null,
+    "focus": "agentic-ai",
+    "generated_at": "2026-06-08T10:00:00Z",
+    "scope_notes": "Extraction focused on the CAS Runner orchestration logic, reasoning contracts, and semantic knowledge synthesis.",
+    "analysis_limits": [
+      "Limited to src/cas_runner and src/prompts",
+      "Focuses on the Python-based orchestrator, not the human-agent development loop"
+    ],
+    "default_domain": ["Architecture Governance", "Agentic Orchestration"],
+    "default_sources": ["src/cas_runner/runner.py", "src/cas_runner/orchestration/reasoning.py"]
+  },
+  "system_map": {
+    "overview": "CAS is a pipeline-based agentic system that transforms architectural signals into structured knowledge artifacts (AEM, AID) through schema-validated reasoning steps grounded in active governance rules.",
+    "agents": [
+      {
+        "name": "FlowRunner",
+        "role": "Central orchestrator managing the pipeline execution and shared context.",
+        "paths": ["src/cas_runner/runner.py"],
+        "inputs": ["Flow Name", "Project ID"],
+        "outputs": ["Execution Trace", "Persisted Artifacts"],
+        "depends_on": ["ReasoningExecutionContract", "KnowledgeProvider"]
+      },
+      {
+        "name": "ReasoningExecutionContract",
+        "role": "Agentic executor that manages LLM interactions, prompt versioning, and schema validation.",
+        "paths": ["src/cas_runner/orchestration/reasoning.py"],
+        "inputs": ["Step Name", "Runtime Context"],
+        "outputs": ["Validated JSON Response"],
+        "depends_on": ["LLMClient", "PromptRepository"]
+      },
+      {
+        "name": "AEMGenerator",
+        "role": "Synthesizes the Architecture Evolution Map from Architecture Work evidence.",
+        "paths": ["src/cas_runner/steps/aem_generator.py"],
+        "inputs": ["Architecture Work", "Rule Context"],
+        "outputs": ["AEM Structure"],
+        "depends_on": ["ReasoningExecutionContract"]
+      }
+    ],
+    "orchestration": {
+      "style": "centralised",
+      "description": "Sequential pipeline execution with shared context (Blackboard pattern) updated at each step.",
+      "evidence": ["src/cas_runner/runner.py#FlowRunner.run"]
+    },
+    "tools_and_integrations": [
+      {
+        "name": "LiteLLM",
+        "type": "llm",
+        "used_by": ["ReasoningExecutionContract"],
+        "purpose": "Provider-agnostic LLM gateway for multi-model support.",
+        "evidence": ["src/cas_runner/llm/litellm_client.py"]
+      },
+      {
+        "name": "KnowledgeProvider",
+        "type": "platform",
+        "used_by": ["FlowRunner", "LocalKnowledgeProvider"],
+        "purpose": "Abstraction for persisting and retrieving architectural state and rules.",
+        "evidence": ["src/cas_runner/io.py#KnowledgeProvider"]
+      }
+    ],
+    "state_and_memory": [
+      {
+        "kind": "persistent",
+        "description": "The 'Knowledge Layer' stored as Markdown/YAML files on the filesystem, acting as the system's long-term memory.",
+        "evidence": ["src/cas_runner/io.py#LocalKnowledgeProvider"]
+      },
+      {
+        "kind": "ephemeral",
+        "description": "The 'Runtime Context' maintained during flow execution, passed across steps.",
+        "evidence": ["src/cas_runner/runner.py#FlowRunner.context"]
+      }
+    ]
+  },
+  "patterns": [
+    {
+      "id": "reasoning-execution-contract",
+      "name": "Reasoning Execution Contract",
+      "type": "pattern",
+      "agentic_concern": "execution",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "absent",
+          "tool_calling": "present",
+          "notes": "Uses LiteLLM for tool/model calling with schema-based guidance.",
+          "evidence": ["src/cas_runner/llm/litellm_client.py"]
+        },
+        "optimisation_targets": {
+          "primary": "reliability",
+          "secondary": ["quality", "observability"],
+          "notes": "Focuses on ensuring LLM outputs match expected schemas."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "balanced",
+          "rationale": "Delegates semantic reasoning to LLMs while enforcing structural integrity via schemas."
+        }
+      },
+      "summary": "Encapsulate LLM interaction logic to ensure reliable, schema-validated agentic execution.",
+      "tags": ["reliability", "observability", "contract-design"],
+      "domain": ["Agentic AI", "Orchestration"],
+      "maturity": "stable",
+      "intent": "Ensures that agentic decisions are reliable, traceable, and adhere to structural contracts.",
+      "context": "Used as the primary execution engine for all reasoning steps in the CAS pipeline.",
+      "forces": [
+        "LLM output non-determinism",
+        "Need for structural validation in automated pipelines",
+        "Requirement for detailed telemetry and cost tracking"
+      ],
+      "solution": "A dedicated class that handles prompt discovery, context injection, LLM invocation via a provider gateway, and post-execution schema validation.",
+      "implementation_signals": [
+        "Class named ReasoningExecutionContract",
+        "Methods like .reason(step_name, inputs)",
+        "Integration with a PromptRepository and TelemetryProvider"
+      ],
+      "evidence": [
+        { "path": "src/cas_runner/orchestration/reasoning.py", "symbols": ["ReasoningExecutionContract"], "note": "Primary implementation of the reasoning engine." }
+      ],
+      "consequences": {
+        "benefits": ["Decouples reasoning logic from flow orchestration", "Enforces output reliability", "Standardizes telemetry"],
+        "costs": ["Increased architectural complexity", "Overhead of schema management"],
+        "failure_modes": ["Schema mismatch causes pipeline stalls", "Prompt versioning drift"]
+      },
+      "reuse_notes": "Can be adapted to any multi-step agentic system where structural reliability of LLM outputs is critical.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "foundational",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "semantic-deterministic-hybrid-loop",
+      "name": "Semantic-Deterministic Hybrid Loop",
+      "type": "heuristic",
+      "agentic_concern": "execution",
+      "agentic_profile": {
+        "system_shape": "hybrid",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Determined logic is hardcoded in Python; semantic logic is delegated to LLM.",
+          "evidence": []
+        },
+        "optimisation_targets": {
+          "primary": "quality",
+          "secondary": ["reliability"],
+          "notes": "Combines hard facts with soft reasoning for richer output."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "balanced",
+          "rationale": "Restricts LLM to qualitative synthesis while keeping quantitative logic in code."
+        }
+      },
+      "summary": "Combine deterministic data processing with LLM-based semantic reasoning to ensure grounded qualitative synthesis.",
+      "tags": ["hybrid-processing", "grounding", "accuracy"],
+      "domain": ["Data Synthesis", "Agentic Systems"],
+      "maturity": "stable",
+      "intent": "Prevent LLM hallucinations on quantitative data by pre-computing metrics and using them as anchors for reasoning.",
+      "context": "Used in state generation steps (AEM, AID) where metrics and stats are computed before synthesis.",
+      "forces": [
+        "LLM weakness in arithmetic and counting",
+        "Need for qualitative interpretation of quantitative trends",
+        "Desire for rich, human-readable narratives grounded in facts"
+      ],
+      "solution": "Execute deterministic logic first (e.g., counting statuses), inject results into the LLM context, and merge LLM qualitative output with deterministic quantitative state.",
+      "implementation_signals": [
+        "Methods computing summaries/counts before calling reason()",
+        "Merging dicts where one part comes from LLM and another from local code"
+      ],
+      "evidence": [
+        { "path": "src/cas_runner/steps/aem_generator.py", "symbols": ["AEMGenerator.execute", "AEMGenerator._compute_execution_summary"], "note": "Pre-computes summary before LLM reasoning." }
+      ],
+      "consequences": {
+        "benefits": ["Higher factual accuracy", "Richer interpretative narratives", "Clear boundary between fact and interpretation"],
+        "costs": ["Dual logic maintenance (Python + Prompts)"],
+        "failure_modes": ["Inconsistent state if LLM output contradicts deterministic facts"]
+      },
+      "reuse_notes": "Apply to any report-generation or state-synthesis agentic task.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "active-governance-context-injection",
+      "name": "Active Governance Context Injection",
+      "type": "pattern",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": { "present": "false", "mechanism": "unknown", "evidence": [] },
+        "tool_protocols": { "mcp": "absent", "tool_calling": "absent", "notes": "Context is injected via prompt templates.", "evidence": [] },
+        "optimisation_targets": { "primary": "safety", "secondary": ["reliability"], "notes": "Enforces architectural constraints." },
+        "simplicity_vs_autonomy": { "position": "simplicity", "rationale": "Rules act as hard constraints on agent autonomy." }
+      },
+      "summary": "Dynamically inject active rules and constraints into the agent's context to enforce governance during reasoning.",
+      "tags": ["governance", "constraints", "dynamic-context"],
+      "domain": ["Compliance", "Agentic AI"],
+      "maturity": "stable",
+      "intent": "Ensure agentic decisions adhere to evolving governance rules without requiring constant prompt re-engineering.",
+      "context": "Initial step in most CAS flows to set the guardrails for subsequent steps.",
+      "forces": [
+        "Evolving architectural rules",
+        "Need for context-aware enforcement",
+        "Decoupling of policy from execution logic"
+      ],
+      "solution": "A specialized step that loads active rules from the knowledge layer and adds them to the shared context used by all reasoning agents.",
+      "implementation_signals": [
+        "RulesContextLoader step",
+        "Context key named 'rule_context' passed to LLMs"
+      ],
+      "evidence": [
+        { "path": "src/cas_runner/steps/rules_context.py", "symbols": ["RulesContextLoader"], "note": "Loads rules into context." },
+        { "path": "src/cas_runner/steps/registry.py", "symbols": ["FLOWS"], "note": "Most flows start with rules-context-loader." }
+      ],
+      "consequences": {
+        "benefits": ["Centralized policy management", "Consistent enforcement across different agents", "Reduced prompt bloat"],
+        "costs": ["Increased token usage due to rule context"],
+        "failure_modes": ["Conflicting rules cause agent paralysis", "Rules context exceeds model window"]
+      },
+      "reuse_notes": "Applicable to any system requiring compliance or safety guardrails that are not static.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "evidence-first-state-synthesis",
+      "name": "Evidence-First State Synthesis",
+      "type": "pattern",
+      "agentic_concern": "memory",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": { "present": "false", "mechanism": "unknown", "evidence": [] },
+        "tool_protocols": { "mcp": "absent", "tool_calling": "absent", "notes": "Input is raw evidence data.", "evidence": [] },
+        "optimisation_targets": { "primary": "reliability", "secondary": ["quality"], "notes": "Grounds state in real work." },
+        "simplicity_vs_autonomy": { "position": "autonomy", "rationale": "Agent derives the system map from raw logs." }
+      },
+      "summary": "Derive high-level system state artifacts from objective records of work performed, ensuring a ground-truth-based knowledge system.",
+      "tags": ["grounding", "traceability", "knowledge-management"],
+      "domain": ["Architecture", "Agentic Systems"],
+      "maturity": "stable",
+      "intent": "Avoid the gap between 'as-built' and 'as-documented' by making documentation a derivative of work logs.",
+      "context": "The core loop of CAS: Architecture Work (AW) -> Architecture Evolution Map (AEM).",
+      "forces": [
+        "Documentation staleness",
+        "Lack of traceability in system evolution",
+        "Requirement for auditable architectural history"
+      ],
+      "solution": "Capture individual units of work (signals/AW) and use an agent to synthesize the updated global state (AEM) by aggregating these units.",
+      "implementation_signals": [
+        "Architecture Work (AW) as primary input to AEMGenerator",
+        "AEM containing references to AW items"
+      ],
+      "evidence": [
+        { "path": "src/cas_runner/steps/aem_generator.py", "symbols": ["AEMGenerator.prepare_inputs"], "note": "Loads architecture_work as primary input." }
+      ],
+      "consequences": {
+        "benefits": ["Automated documentation updates", "Strong traceability", "Objective system maps"],
+        "costs": ["Requires disciplined capture of work signals"],
+        "failure_modes": ["Missing signals lead to incomplete state", "Misinterpretation of signals by the agent"]
+      },
+      "reuse_notes": "Can be applied to any system where state is inferred from a stream of events or logs.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "foundational",
+        "reuse_potential": "medium",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "prompt-as-contract",
+      "name": "Prompt-as-Contract",
+      "type": "pattern",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": { "present": "false", "mechanism": "unknown", "evidence": [] },
+        "tool_protocols": { "mcp": "absent", "tool_calling": "absent", "notes": "Contract is defined in prompt frontmatter.", "evidence": [] },
+        "optimisation_targets": { "primary": "developer-velocity", "secondary": ["reliability"], "notes": "Enables safe prompt evolution." },
+        "simplicity_vs_autonomy": { "position": "balanced", "rationale": "Versioned prompts provide stability for autonomous agents." }
+      },
+      "summary": "Manage agent behavior evolution by versioning prompts and their associated schemas as unified semantic contracts.",
+      "tags": ["versioning", "contracts", "prompt-engineering"],
+      "domain": ["DevOps for AI", "Agentic Systems"],
+      "maturity": "stable",
+      "intent": "Prevent regression and breaking changes in agent behavior when updating prompt templates.",
+      "context": "PromptRepository discovery logic.",
+      "forces": [
+        "Fragility of LLM responses to prompt changes",
+        "Need for parallel development of prompts and code",
+        "Requirement for rollback and multi-version support"
+      ],
+      "solution": "Store prompts with explicit versioning (e.g., v1.md, v2.md) and include schema references and semantic contract IDs in the prompt's frontmatter.",
+      "implementation_signals": [
+        "Files named *.v1.md, *.v2.md",
+        "Frontmatter fields like cas.prompt_schema and cas.semantic_contract_version",
+        "PromptRepository.get_latest_versioned_prompt"
+      ],
+      "evidence": [
+        { "path": "src/cas_runner/orchestration/prompts.py", "symbols": ["PromptRepository", "ReasoningDefinition"], "note": "Handles versioned prompt discovery and metadata extraction." }
+      ],
+      "consequences": {
+        "benefits": ["Safe evolution of agentic behavior", "Clear boundary between prompt and code", "Enables A/B testing of prompts"],
+        "costs": ["Storage and discovery overhead", "Manual version management"],
+        "failure_modes": ["Orphaned prompt versions", "Schema/Prompt mismatch if not updated together"]
+      },
+      "reuse_notes": "Highly reusable for any system where prompts are not just hardcoded strings but evolved assets.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "schema-drift",
+      "name": "Schema Drift",
+      "agentic_risk": "broken-pipelines",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential"
+      },
+      "tags": ["reliability", "schema"],
+      "domain": ["Agentic Systems"],
+      "sources": ["src/cas_runner/orchestration/reasoning.py"],
+      "symptoms": [
+        "Step execution failure due to JSON schema validation errors",
+        "LLM output format changes but the static schema file is not updated"
+      ],
+      "where_observed": [
+        { "path": "src/cas_runner/orchestration/reasoning.py", "symbols": ["ReasoningExecutionContract._load_schema_for_step"], "note": "Static mapping of steps to schema files can lead to drift if steps are renamed or split." }
+      ],
+      "impact": ["Systematic failure of automated orchestration flows", "Opacity in reason for failure"],
+      "suggested_remediation": ["Auto-generate schemas from Pydantic models", "Link prompt versions directly to schema versions in frontmatter"],
+      "confidence": "high"
+    },
+    {
+      "id": "context-bloat",
+      "name": "Context Bloat",
+      "agentic_risk": "cost",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential"
+      },
+      "tags": ["performance", "cost"],
+      "domain": ["Agentic Systems"],
+      "sources": ["src/cas_runner/runner.py"],
+      "symptoms": [
+        "Increasing latency in later steps of a pipeline",
+        "High token usage for simple reasoning tasks"
+      ],
+      "where_observed": [
+        { "path": "src/cas_runner/runner.py", "symbols": ["FlowRunner.context", "FlowRunner._update_context"], "note": "Global context is updated by every step and passed to ReasoningExecutionContract, potentially including irrelevant data for a specific step." }
+      ],
+      "impact": ["Higher operational costs", "Potential context window overflow", "Dilution of signal in the prompt"],
+      "suggested_remediation": ["Implement 'step-specific' context filtering", "Use RAG to pull only relevant context for each step"],
+      "confidence": "medium"
+    }
+  ],
+  "cross_cutting_concerns": [
+    {
+      "concern": "Observability & Traceability",
+      "approach": "Unified telemetry provider starting spans for each reasoning step, recording model params, prompt versions, and validated outputs.",
+      "evidence": ["src/cas_runner/orchestration/reasoning.py#ReasoningExecutionContract.reason", "src/cas_runner/orchestration/telemetry.py"],
+      "notes": "Crucial for debugging non-deterministic agentic behavior.",
+      "confidence": "high"
+    },
+    {
+      "concern": "Output Validation",
+      "approach": "Post-execution JSON schema validation on all reasoning outputs before they are persisted or used by subsequent steps.",
+      "evidence": ["src/cas_runner/orchestration/reasoning.py#ReasoningExecutionContract._validate_against_schema"],
+      "notes": "Acts as a hard gate to prevent garbage-in-garbage-out in the knowledge system.",
+      "confidence": "high"
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "How to handle multi-agent parallel execution in the current FlowRunner architecture?",
+      "why_it_matters": "Latency reduction and complex task decomposition require parallelism.",
+      "evidence_gap": "FlowRunner is currently strictly sequential.",
+      "suggested_next_check": "Explore python asyncio or threading integration for step execution."
+    }
+  ]
+}
