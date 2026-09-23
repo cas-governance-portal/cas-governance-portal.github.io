@@ -20,7 +20,7 @@
     
     
       
-        <title>Reference Architecture: Architecture Work Registry as Authoritative Backlog - CAS Architecture Governance Portal</title>
+        <title>Reference Architecture: Architecture Work Registry Pattern - CAS Architecture Governance Portal</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#reference-architecture-architecture-work-registry-as-authoritative-backlog" class="md-skip">
+        <a href="#reference-architecture-architecture-work-registry-pattern" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Reference Architecture: Architecture Work Registry as Authoritative Backlog
+              Reference Architecture: Architecture Work Registry Pattern
             
           </span>
         </div>
@@ -3037,23 +3037,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-considered-and-set-aside" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives Considered and Set Aside
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3128,92 +3111,81 @@
 
 
 
-<h1 id="reference-architecture-architecture-work-registry-as-authoritative-backlog">Reference Architecture: Architecture Work Registry as Authoritative Backlog</h1>
+<h1 id="reference-architecture-architecture-work-registry-pattern">Reference Architecture: Architecture Work Registry Pattern</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Architecture Work Registry pattern establishes persistent, version-controlled architecture backlog artifacts as the authoritative single source of truth for planning, technical debt tracking, and strategic milestones. It cleanly separates durable architectural planning state from volatile, automated downstream synthesis runs, treating artifacts like Architecture Evolution Maps (AEM) and alignment summaries as disposable, reproducible projections.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Automated pipelines or generative agents regularly synthesize architecture reports, debt views, and compliance summaries that risk overwriting manually recorded planning state.</li>
-<li>Teams operate continuous architecture lifecycles requiring bi-directional auditability between high-level architectural proposals and implementation tasks.</li>
-<li>Governance demands that architectural intent, decisions, and debt mitigation tracking persist directly in Git alongside codebase repositories.</li>
-<li>Multiple downstream visualization tools (e.g., roadmaps, dashboards, alignment matrices) need consistent, structured input without becoming silos of uncommitted planning state.</li>
+<li>When managing continuous architecture evolution across multiple teams or initiatives where architectural planning state must remain authoritative, auditable, and decoupled from automated projection tooling.</li>
+<li>When automated pipelines regenerate architectural documentation, views, diagrams, or compliance scorecards frequently, requiring a single source of truth that is never overwritten by generative runs.</li>
+<li>When tracking architectural work packages, decision lifecycles, and technical debt remediation across long-lived repositories.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Small, single-developer projects or short-lived prototypes where ad-hoc issue tracking suffices without formalized architectural lifecycles.</li>
-<li>Organizations where corporate planning is strictly centralized and legally bound to monolithic enterprise issue trackers that reject Git-backed flat-file synchronization.</li>
-<li>Scenarios where architectural analysis is performed purely ad-hoc with zero automated generation or reporting workflows.</li>
+<li>Small, ephemeral scripts or single-developer proof-of-concept projects where the overhead of maintaining an authoritative planning registry exceeds project complexity.</li>
+<li>Organizations that enforce centralized monolithic project management systems (e.g., Jira, ServiceNow) as the sole transactional authority, where local repository-backed registry state is not permitted or maintained.</li>
+<li>Scenarios where architectural state changes at sub-second real-time streaming frequencies rather than during git-based architectural governance cycles.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    arch["Architect &amp; Engineering Leads (Container)"]
-    awRegistry[("Architecture Work Registry (Data store)")]
-    generatorEngine["Synthesis &amp; Synthesis Pipeline (Container)"]
-    aemProj["Architecture Evolution Map (Container)"]
-    alignmentReport["Alignment Reports (Container)"]
-    tracker["External Task Tracker (External System)"]
+    author["Architect / Engineer (User)"]
+    regStore[("Authoritative Work Registry (JSON / YAML Store)")]
+    projEngine["Projection Engine (CLI / CI Pipeline)"]
+    docOutputs["Derived Artifacts &amp; Dashboards (Static Views)"]
+    extGov["Enterprise Governance System (External System)"]
 
-    arch --&gt;|1. Maintain backlog files| awRegistry
-    generatorEngine --&gt;|2. Ingest canonical state| awRegistry
-    generatorEngine --&gt;|3. Compile projections| aemProj
-    generatorEngine --&gt;|4. Generate verification views| alignmentReport
-    awRegistry -.-&gt;|5. Bi-directional issue sync| tracker
+    author --&gt;|1. Commits architecture work items| regStore
+    projEngine --&gt;|2. Reads authoritative state| regStore
+    projEngine --&gt;|3. Compiles views and docs| docOutputs
+    projEngine --&gt;|4. Emits alignment metrics| extGov
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class arch,generatorEngine,aemProj,alignmentReport container
-    class awRegistry store
-    class tracker external</code></pre>
+    class projEngine container
+    class regStore store
+    class author,docOutputs,extGov external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Architecture Work Registry (<code>governance/architecture-work/</code>)</strong>: The authoritative store for all architectural backlog items, work packages, debt remediations, and strategic milestones, committed as structured, schema-validated files in Git.</li>
-<li><strong>Synthesis &amp; Generation Pipeline (<code>tools/synthesis-engine/</code>)</strong>: Automated engine executed during CI/CD or local analysis cycles. Ingests registry records, cross-references actual code components, and validates governance compliance.</li>
-<li><strong>Architecture Evolution Map Projection (<code>docs/architecture/evolution-map.md</code>)</strong>: A generated, disposable visual and tabular view depicting roadmap progress, component lifecycles, and dependency states.</li>
-<li><strong>External Task Tracker Adapter (<code>integrations/tracker-adapter/</code>)</strong>: An optional integration bridge synchronizing Git-backed work items with engineering task boards (e.g., Jira, Linear, GitHub Issues) to maintain developer alignment.</li>
+<li><strong>Authoritative Work Registry Store</strong> (<code>governance/architecture-work-registry.json</code>): Maintains immutable and validated schema-conforming records of architectural initiatives, work packages, debt items, and lifecycle states under version control.</li>
+<li><strong>Projection Engine</strong> (<code>tools/governance/projection-engine</code>): Parses authoritative registry records, validates consistency rules, and generates read-only representations such as roadmaps, markdown matrices, and compliance dashboards.</li>
+<li><strong>Derived Artifact Outputs</strong> (<code>docs/architecture/generated/</code>): Transient or committed read-only artifacts produced solely by projection runs; never directly edited by human contributors.</li>
+<li><strong>Enterprise Governance Ingestion Adapter</strong> (<code>tools/governance/adapters/enterprise-sync</code>): Pushes transformed architecture telemetry and status indicators to central enterprise reporting systems without bidirectional write-back to registry state.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<ul>
-<li><strong>Git Version Control</strong>: Canonical source of record. Pull request workflows provide mandatory governance reviews, cryptographically verifiable commit history, and zero-drift alignment with application code.</li>
-<li><strong>Schema-Enforced Formats (YAML/JSON Schema Draft-07)</strong>: Work items must follow standardized schemas to enable machine parsing, static validation, and reliable projection synthesis.</li>
-<li><strong>Projections as Ephemeral Artifacts</strong>: Markdown and SVG projections are automatically derived; manual changes to projections are prevented or flagged via pre-commit and CI assertions.</li>
-</ul>
-<h3 id="alternatives-considered-and-set-aside">Alternatives Considered and Set Aside</h3>
-<ul>
-<li><strong>Direct Jira/Issue Tracker Authoritative Backlog</strong>: Rejected because issue trackers live outside git commit history, diverge easily across branches, and suffer from manual schema drift.</li>
-<li><strong>Static Wiki/Confluence Documentation</strong>: Rejected due to chronic out-of-date documentation, lack of automated validation against code changes, and absence of pull-request gating.</li>
-</ul>
+<p>Recommended choices include JSON Schema (draft-07 or 2020-12) or strict Pydantic/TypeScript validation models to enforce schema compliance before commits enter trunk. Git serves as the distributed ledger for work record history, provenance, and pull-request-driven architectural reviews.</p>
+<p>Alternatives considered and set aside:
+- Direct editing in markdown-based roadmap tables: Set aside due to syntax drift, high merge conflict rates, and inability to cleanly project multiple views from tabular markdown.
+- External SaaS issue trackers as single source of truth: Set aside because offline analysis, repository co-location, branch-based architectural previews, and deterministic CI gate validations require repository-local authoritative state.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Colocated Monorepo</strong>: Work items live in the application repository under <code>governance/architecture-work/</code>. Best for cross-functional single teams owning full-stack services.</li>
-<li><strong>Federated Enterprise Registry</strong>: Work items are maintained in a dedicated architecture repository with automated sync submodules across microservice repositories.</li>
-<li><strong>Projection Guard Mode</strong>: CI pipeline runs in verification mode; if generated projections differ from checked-in projections, the pull request fails, forcing developers to regenerate artifacts from the registry.</li>
+<li><strong>Local Read-Heavy Projection</strong>: Developers invoke the projection engine via local CLI tasks or pre-commit hooks to inspect immediate documentation updates prior to pushing.</li>
+<li><strong>CI-Only Ephemeral Generation</strong>: Derived artifacts are not checked into Git; CI builds compile and publish documentation artifacts directly to static hosting sites upon merge to the default branch.</li>
+<li><strong>Strict Bifurcated Registry</strong>: Splitting active architecture work records from archived historic work files using a rolling annual or quarterly schema ledger to maintain low parsing latency in large repositories.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Guarantees zero state loss across pipeline iterations. Automated generation processes can crash or wipe target output folders without sacrificing architectural work records.</li>
-<li><strong>Performance &amp; Latency</strong>: Processing dozens of YAML records takes under 500ms; downstream generation runs seamlessly in standard pre-commit hooks and CI pipelines.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Eliminates redundant SaaS enterprise planning licensing fees for architectural tracking while lowering synchronization overhead.</li>
-<li><strong>Operability</strong>: Architecture changes are reviewed using standard code review tooling (e.g., GitHub PRs, GitLab MRs) with zero proprietary administrative burden.</li>
+<li><strong>Reliability</strong>: Very high; decoupling authoritative data from projection engines eliminates accidental state erasure during automated builds. Schema validation prevents corrupted entries.</li>
+<li><strong>Performance &amp; Latency</strong>: Registry parsing and artifact projection typically execute within seconds in standard CI pipelines. Monolithic parsing should be mitigated with indexed or partitioned JSON/YAML structures.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Minimal runtime cost; runs on standard repository hosting and CI compute without requiring dedicated transactional database clusters.</li>
+<li><strong>Operability</strong>: Transparent operator experience via standard git workflows (<code>git blame</code>, pull requests, branch protection rules). Clear error surfacing during pre-commit or CI validation phases.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Modifying Generated Projections Directly</strong>: Developers or architects edit the generated Markdown roadmap instead of updating the backing architecture work YAML item, resulting in loss of changes on subsequent builds. <em>Remedy: Insert prominent generation warnings in generated files and validate via CI.</em> </li>
-<li><strong>Unvalidated Work Records</strong>: Backlog records created without strict schema enforcement quickly suffer from missing fields, broken identifiers, and ambiguous statuses. <em>Remedy: Use schema validation tools (e.g., <code>ajv</code> or <code>yamale</code>) in pre-commit hooks.</em> </li>
-<li><strong>Decoupled Task Execution</strong>: Architecture items are maintained in Git but not mapped to sprint backlogs, leading to ignored architectural directives. <em>Remedy: Use automated webhooks or issue adapters to bridge registry records to team sprint boards.</em></li>
+<li><strong>Bi-directional Sync Pollution</strong>: Allowing projection engines to mutate the authoritative work registry during automated documentation passes, which causes race conditions and git divergence. <em>Remedy</em>: Enforce one-way data flow where projections are strictly read-only derivatives.</li>
+<li><strong>Schema Mutations Without Migration</strong>: Updating registry validation rules without providing automated migrations for existing work items, breaking pipeline projections. <em>Remedy</em>: Include automated schema migration scripts and backwards-compatibility regression tests.</li>
+<li><strong>Manual Editing of Derived Outputs</strong>: Team members directly modifying generated markdown files rather than the backing work registry, resulting in overwritten contributions on subsequent runs. <em>Remedy</em>: Embed machine-generated headers and establish pre-commit lint rules alerting authors to edit source registry definitions instead.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ol>
-<li><strong>Establish Schema and Registry Root</strong>: Create <code>governance/architecture-work/</code> and establish <code>architecture-work.schema.json</code>.</li>
-<li><strong>Capture Ongoing Initiatives</strong>: Ingest current technical debt items and planned migrations (such as <code>aw-ideas-to-life-cas-2026-05-31-001</code>) into structured files.</li>
-<li><strong>Integrate Generation Pipeline</strong>: Hook projection generation into local scripts and CI builds, directing outputs to generated doc directories.</li>
-<li><strong>Governance Assignment</strong>: Assign governance oversight to platform architecture leads or designated project stewards.</li>
-</ol>
+<p>Begin by establishing the schema specification for work registry entries in a central location (<code>governance/schemas/work-registry-schema.json</code>). Migrate current ad-hoc markdown roadmaps and backlog notes into initial registry entries using a bootstrap script. Configure CI workflows to execute automated schema validation on pull requests touching architecture records.</p>
+<p>Governance ownership:
+- <strong>Domain ID</strong>: <code>continuous-architecture-governance</code>
+- <strong>Initiative ID</strong>: <code>aw-ideas-to-life-cas-2026-05-31-001</code>
+- <strong>Owner</strong>: Architecture Practice Lead (<code>architecture-governance@internal.domain</code>)</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><strong>Architecture Work Item</strong>: <code>governance/architecture-work/aw-ideas-to-life-cas-2026-05-31-001.yaml</code></li>
-<li><strong>Architecture Evolution Map (AEM)</strong>: <code>docs/architecture/aem-ideas-to-life-cas-2026-09-23-01.md</code></li>
-<li><strong>Governance Alignment Report</strong>: <code>docs/governance/alignment-report-ideas-to-life-cas-2026-09-23-1.md</code></li>
+<li>Cross-reference: <code>governance/architecture-work-registry.json</code></li>
+<li>Architecture Decision Record: <code>docs/architecture/adr/ADR-004-derived-state-artifacts.md</code></li>
+<li>Source Project: <code>ideas-to-life-cas</code></li>
 </ul>
 
 

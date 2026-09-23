@@ -20,7 +20,7 @@
     
     
       
-        <title>Reference Architecture: Governance-Gated CI/CD Validation Pipeline - CAS Architecture Governance Portal</title>
+        <title>Reference Architecture: Governance-Gated CI Pipeline - CAS Architecture Governance Portal</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#reference-architecture-governance-gated-cicd-validation-pipeline" class="md-skip">
+        <a href="#reference-architecture-governance-gated-ci-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Reference Architecture: Governance-Gated CI/CD Validation Pipeline
+              Reference Architecture: Governance-Gated CI Pipeline
             
           </span>
         </div>
@@ -3081,6 +3081,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Adoption guidance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#starting-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governance-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governance &amp; Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3111,102 +3139,97 @@
 
 
 
-<h1 id="reference-architecture-governance-gated-cicd-validation-pipeline">Reference Architecture: Governance-Gated CI/CD Validation Pipeline</h1>
+<h1 id="reference-architecture-governance-gated-ci-pipeline">Reference Architecture: Governance-Gated CI Pipeline</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Governance-Gated CI/CD Validation Pipeline pattern structurally enforces architectural constraints, design invariants, and schema integrity directly within automated continuous integration pipelines prior to artifact synthesis or branch promotion.</p>
+<p>The Governance-Gated CI Pipeline pattern establishes automated, deterministic architectural, schema, and compliance verification checkpoints within continuous integration workflows prior to build artifact generation or deployment.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When software architectures are modified by autonomous agents or distributed engineering teams requiring deterministic enforcement of invariants.</li>
-<li>When architectural drift, schema violations, or unverified steering projections can corrupt downstream environments or shared state stores.</li>
-<li>When governance frameworks demand audit trails and verifiable guarantees that every committed contract adheres to predefined architectural standards.</li>
+<li>When changes across microservices, schema definitions, or infrastructure-as-code must adhere to non-negotiable architectural contracts before merging into release branches.</li>
+<li>In distributed multi-team environments where manual architectural reviews represent a recurring delivery bottleneck or inconsistent quality enforcement.</li>
+<li>For systems subject to compliance, auditability, and regulatory baselines that require immutable proof of automated control execution.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>In early exploratory research spikes or throwaway prototypes where constraints and schemas are rapidly changing and not yet formalized.</li>
-<li>For monolithic or low-complexity solo-developer scripts where automated gating introduces disproportionate operational overhead.</li>
-<li>When all invariants are managed via compiled language type systems without dynamic schemas or distributed metadata boundaries.</li>
+<li>During early exploratory prototyping or disposable proof-of-concept repositories where requirements and interfaces fluctuate hourly.</li>
+<li>For standalone, low-risk documentation repositories where non-deterministic or resource-heavy gates introduce unnecessary developer friction without risk reduction.</li>
+<li>When automated validation suites are non-deterministic, flaky, or lack clear remediation guidance, leading to gate fatigue.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    dev["Developer / Agent (Actor)"]
-    trigger["Pipeline Dispatcher (Workflow Trigger)"]
-    validator["Invariant Validator (Validation Runner)"]
-    gate["Verification Gate (Gate Controller)"]
-    breakglass["Break-Glass Controller (Emergency Bypass)"]
-    staging[("Proposal Staging (Store)")]
-    authoritative[("Authoritative Arch State (Git Store)")]
-    synthesis["Synthesis Engine (Downstream Synthesizer)"]
+    dev["Developer Workstation (External System)"]
+    vcs["Version Control Platform (Container)"]
+    runner["CI Validation Runner (Container)"]
+    policy["Policy &amp; Schema Engine (Container)"]
+    artifactStore[("Artifact Registry (Data store)")]
+    auditLog[("Governance Ledger (Data store)")]
 
-    dev --&gt;|1. Submit Changes| trigger
-    trigger --&gt;|2. Stage Proposal| staging
-    trigger --&gt;|3. Execute Rules| validator
-    validator --&gt;|4. Emit Verification| gate
-    breakglass -.-&gt;|Override| gate
-    gate --&gt;|5. Commit State| authoritative
-    authoritative --&gt;|6. Trigger Deploy| synthesis
+    dev --&gt;|1. Git Push / PR| vcs
+    vcs --&gt;|2. Trigger Workflow| runner
+    runner --&gt;|3. Evaluate Rules| policy
+    policy --&gt;|4. Log Assertions| auditLog
+    runner --&gt;|5. Publish Validated Artifact| artifactStore
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class trigger,validator,gate,breakglass,synthesis container
-    class staging,authoritative store
+    class vcs,runner,policy container
+    class artifactStore,auditLog store
     class dev external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Pipeline Dispatcher</strong> (<code>.github/workflows/cas-build-validation.yml</code>): Listens for repository events (pull requests, commits) and triggers validation matrices across pull request boundaries.</li>
-<li><strong>Invariant Validator</strong> (<code>tools/validators/arch_state_validator.py</code>): Executes programmatic schema checks, contract validations, and rule verification against staged changes.</li>
-<li><strong>Verification Gate</strong> (<code>.github/actions/verification-gate</code>): Evaluates validation run status and acts as a binary barrier preventing merge or state mutation upon invariant failure.</li>
-<li><strong>Break-Glass Controller</strong> (<code>.github/workflows/emergency-override.yml</code>): Provides an auditable, multi-party authorized bypass mechanism for critical emergency hotfixes.</li>
-<li><strong>Proposal Staging Store</strong> (<code>docs/architecture/proposals/</code>): Isolates incoming steering projections and draft documents from authoritative state until gates pass.</li>
-<li><strong>Authoritative State Store</strong> (<code>docs/architecture/current/</code>): Holds verified, active architectural models, ADRs, and configurations.</li>
+<li><strong>Version Control Platform</strong> (<code>.github/workflows</code>): Manages code repositories, monitors branch protection rules, and triggers webhook workflows upon pull request or push events.</li>
+<li><strong>CI Validation Runner</strong> (<code>.github/workflows/cas-build-validation.yml</code>): Executes build scripts, runs unit and contract tests, orchestrates governance validation tasks, and enforces gate assertions.</li>
+<li><strong>Policy &amp; Schema Engine</strong> (<code>policies/engine</code>): Evaluates declarative policy rules (e.g., Open Policy Agent, JSON Schema validators, linting suites) against repo configuration and artifacts.</li>
+<li><strong>Governance Ledger</strong> (<code>audit/records</code>): Stores signed attestation records, policy evaluation outcomes, and execution metadata for compliance auditing.</li>
+<li><strong>Artifact Registry</strong> (<code>deployments/artifacts</code>): Accepts immutable release packages and container images only when accompanied by signed governance assertions.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li><strong>CI Orchestration</strong>: GitHub Actions or GitLab CI for native branch protection integration, event-driven lifecycle webhooks, and granular security contexts.</li>
-<li><strong>Schema Validation Engine</strong>: JSON Schema Draft-07/2020-12 via fast validation libraries (e.g., Python <code>jsonschema</code> with <code>format-nongenerally</code> / Rust-based <code>draft-07</code> runners) to minimize CI pipeline latency.</li>
-<li><strong>Policy Enforcement</strong>: Open Policy Agent (OPA) / Conftest or custom deterministic CLI tools for linting declarative architecture specs.</li>
+<li><strong>Recommended Core Technologies:</strong></li>
+<li>Workflow Automation: GitHub Actions / GitLab CI for pipeline orchestration and deterministic runner environments.</li>
+<li>Policy-as-Code: Open Policy Agent (OPA/Rego) or Conftest for decoupling governance rules from pipeline shell scripts.</li>
+<li>Attestation &amp; Signing: Sigstore Cosign and in-toto for signing build outputs and verifying provenance.</li>
+<li><strong>Alternatives Considered and Set Aside:</strong></li>
+<li>Manual Pull Request Approvals: Rejected due to latency, human error, and lack of reproducible audit trails.</li>
+<li>Post-Deployment Audit Scanners: Set aside as a sole mechanism; while necessary for drift detection, they fail to prevent non-compliant code from entering production.</li>
 </ul>
-<p><em>Alternatives considered &amp; set aside</em>:
-- <strong>Manual Governance Review (Pull Request Approvals)</strong>: Set aside due to human error, latency, and susceptibility to hallucinated or inconsistent agent submissions.
-- <strong>Post-Merge Drift Scanners</strong>: Set aside because correcting state post-promotion creates transient corrupt states and race conditions downstream.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Strict Blocking Variant</strong>: Every commit requires 100% invariant passing before merge; downstream synthesis triggers automatically on trunk merge.</li>
-<li><strong>Proposal-Only Steering Isolation</strong>: Modifying steering projections allows merging into dedicated proposal branches without blocking, but isolates projections from authoritative synthesis until an explicit verification run approves promotion.</li>
-<li><strong>Break-Glass Emergency Variant</strong>: Allows authorized platform administrators to bypass specific contract validations during severe operational incidents with mandatory automated post-mortem issues opened.</li>
+<li><strong>Fail-Fast Synchronous Gate:</strong> Pipeline immediately terminates on the first failed assertion (e.g., contract schema mismatch). Best for fast PR feedback.</li>
+<li><strong>Comprehensive Audit Gate:</strong> Pipeline executes all checks to completion, generating a unified governance report detailing all non-compliant findings before failing the build.</li>
+<li><strong>Advisory / Permissive Transition Mode:</strong> Rules execute in warning mode without breaking the build during early rule onboarding to establish baseline adherence without disrupting engineering velocity.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Deterministic and idempotent test execution within isolated ephemeral runners; eliminates transient network failures via local schema caching.</li>
-<li><strong>Performance &amp; Latency</strong>: Sub-two-minute execution goal; validation matrices run in parallel, using dependency-caching layers to avoid redundant tool installation.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Minimal operational overhead through lightweight container runners or serverless actions without continuous compute requirements.</li>
-<li><strong>Operability &amp; Observability</strong>: Structured JSON logging and clear terminal diagnostic summaries indicating the exact line, path, and schema violation rule failed.</li>
+<li><strong>Reliability:</strong> Gate evaluations must be strictly deterministic; non-deterministic network checks should be mocked or pinned with hash validation to prevent flaky build failures.</li>
+<li><strong>Performance &amp; Latency:</strong> Execution targets for PR checks should stay under 5 minutes through layer caching, parallel job execution, and selective path-based triggers.</li>
+<li><strong>Cost &amp; Efficiency:</strong> Caching dependencies and running lightweight static checks prior to spinning up heavy integration environments minimizes runner compute consumption.</li>
+<li><strong>Operability:</strong> Gate failure outputs must emit actionable, line-specific remediation guidance, documentation links, and standardized error codes.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>The Unchecked Gatekeeper</strong>: Relying on unversioned or loosely defined governance rules that change without notice, breaking existing pipelines unexpectedly. <em>Remedy</em>: Version control governance rules alongside application code.</li>
-<li><strong>Monolithic Gating Bottleneck</strong>: Bundling slow end-to-end integration tests into the structural invariant check. <em>Remedy</em>: Decouple fast structural validation gates (&lt;120s) from slow operational tests.</li>
-<li><strong>Silent Break-Glass</strong>: Implementing emergency override flags without immutable logging or automated review alerts. <em>Remedy</em>: Require dual-custody signatures and automated incident issue generation upon bypass invocation.</li>
-<li><strong>Agent Desynchronization</strong>: Allowing generative AI agents to assume a proposal is active before the pipeline passes. <em>Remedy</em>: Keep output state proposal-scoped until verified promotion.</li>
+<li><strong>Gate Fatigue &amp; Flakiness:</strong> Flaky or slow third-party dependent checks running in the critical path. Remedy: Isolate external dependencies, stub external services, and ensure gate checks are hermetic.</li>
+<li><strong>Shadow Overrides:</strong> Engineering teams bypassing governance gates through administrative overrides without audit logging. Remedy: Restrict administrative override privileges and trigger automated escalation alerts when bypass tokens are utilized.</li>
+<li><strong>Monolithic Pipeline Scripts:</strong> Bundling complex policy rules into opaque bash scripts. Remedy: Standardize on declarative Policy-as-Code engines with versioned rule sets.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
+<h3 id="starting-points">Starting Points</h3>
 <ol>
-<li><strong>Baseline Phase</strong>: Codify existing architectural contracts into machine-readable JSON/YAML schemas and establish <code>.github/workflows/cas-build-validation.yml</code> in audit-only (warning) mode.</li>
-<li><strong>Enforcement Phase</strong>: Configure branch protection rules on main/trunk to require status checks from the validation pipeline before merging.</li>
-<li><strong>Isolation Phase</strong>: Restructure documentation directories into <code>proposals/</code> and <code>current/</code> to ensure downstream synthesizers only read from verified state.</li>
-<li>
-<p><strong>Operationalization</strong>: Implement the emergency break-glass procedure with platform engineering and architecture review board ownership.</p>
-</li>
-<li>
-<p><strong>Domain Ownership</strong>: Enterprise Architecture / Platform Infrastructure</p>
-</li>
-<li><strong>Target Initiative</strong>: System Reliability &amp; Architectural Integrity Framework</li>
+<li>Audit existing build workflows against control baseline <code>ctrl-cas-build-validation</code>.</li>
+<li>Adopt <code>.github/workflows/cas-build-validation.yml</code> as the standardized template.</li>
+<li>Implement in advisory (non-blocking) mode for one sprint to capture baseline metrics before flipping to enforcing mode.</li>
 </ol>
+<h3 id="governance-ownership">Governance &amp; Ownership</h3>
+<ul>
+<li><strong>Domain:</strong> Core Architecture &amp; Platform Engineering</li>
+<li><strong>Governance Initiative:</strong> aw-ideas-to-life-cas-2026-05-31-005</li>
+<li><strong>Lead Custodian:</strong> Architecture Review Board / Platform Security Guild</li>
+</ul>
 <h2 id="related">Related</h2>
 <ul>
-<li>Workflow Reference: <code>.github/workflows/cas-build-validation.yml</code></li>
-<li>Architecture Backlog Item: <code>docs/architecture/backlog/aw-ideas-to-life-cas-2026-05-31-005.md</code></li>
-<li>Discovery Backlog Item: <code>docs/architecture/backlog/aw-discovery-ideas-to-life-cas-4.md</code></li>
+<li><a href="../../../.github/workflows/cas-build-validation.yml">CI Build Validation Workflow</a></li>
+<li><a href="../../../controls/ctrl-cas-build-validation.md">Build Validation Control Specification</a></li>
+<li><a href="../../work/aw-ideas-to-life-cas-2026-05-31-005/" title="Architecture Work Record - CAS Build Governance">Architecture Work Record - CAS Build Governance</a></li>
 </ul>
 
 
