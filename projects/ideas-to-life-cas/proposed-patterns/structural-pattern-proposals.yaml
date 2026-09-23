@@ -178,3 +178,202 @@ pattern_proposals:
   - 'Force: Complex rule combinations create brittle status machines.'
   evidence_strength: high
   confidence: high
+- pattern_id: pydantic-domain-entity-modeling
+  name: Pydantic-Backed Typed Domain Entity Modeling
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, GovernanceRisks, ComplianceFinding, ComplianceMetrics, GovernanceException,
+      GovernanceAction) - Defines core typed models for governance state, action results,
+      and compliance metrics
+    - src/cas_runner/steering/models.py (CapabilityRecord, CapabilitySet, CapabilityLineage,
+      ArchitecturalDelta) - Models capability hierarchies and architectural deltas
+      with explicit structural models
+  description: Core continuous architecture entities, metrics, and actions are implemented
+    as immutable/strongly-typed Pydantic models to guarantee invariant checking and
+    boundary validation across layers.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that runtime governance entities such as GovernanceInventory,
+    ComplianceMetrics, and CapabilityRecord are structurally valid and self-describing
+    across execution stages.'
+  - 'Context: Architectural governance consumes and produces heterogeneous schema
+    data across file systems, CLI commands, and automated checks.'
+  - 'Force: Loose JSON/YAML dictionaries cause runtime KeyError failures'
+  - 'Force: Validation logic must remain coupled to entity definitions without polluting
+    orchestration code'
+  evidence_strength: high
+  confidence: high
+- pattern_id: transition-registry-state-machine
+  name: Transition Registry State Machine Pattern
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Encapsulates transition lookups and execution within a dedicated state engine
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Delegates execution validation to GovernanceActionEngine
+  description: Decouples lifecycle state transition definitions from execution engines
+    by using an explicit registry that determines allowed transitions and validation
+    gates.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Maintain deterministic architectural transition paths (e.g. proposed
+    -> accepted -> superseded) without embedding monolithic conditional trees inside
+    service classes.'
+  - 'Context: Architectural governance decisions progress through multi-stage lifecycles
+    that require compliance and validation hooks at each step.'
+  - 'Force: Hard-coded if/else state machines become brittle as new governance stages
+    are introduced'
+  - 'Force: Action executions need decoupled pre-condition validations'
+  evidence_strength: high
+  confidence: high
+- pattern_id: layered-service-engine-separation
+  name: Layered Service-Engine Architectural Separation
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Serves as orchestration boundary for governance actions
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Performs
+      pure compliance rule verification and metric aggregation
+  description: Splits business governance logic into a Service facade coordinating
+    workflows and an Engine implementing core mathematical and policy calculations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate external invocation, orchestration, and parameter handling from
+    underlying business compliance computation.'
+  - 'Context: The runner needs to execute governance operations from CLI commands
+    or CI workflows while keeping core calculation logic pure and testable.'
+  - 'Force: Coupling service orchestration with low-level metric math hinders unit
+    testability'
+  - 'Force: Engines should not be concerned with workspace bootstrap or CLI parameter
+    parsing'
+  evidence_strength: high
+  confidence: high
+- pattern_id: file-backed-knowledge-repository
+  name: File-Backed Knowledge Repository and Template Strategy
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/architecture_decision_record_template.md - Standardized
+      ADR template for GitOps governance
+    - src/cas_runner/bootstrap.py (init_workspace, bootstrap) - Scaffolds and validates
+      knowledge directory layout
+  description: Stores organizational architectural decisions, governance rules, and
+    signals in a version-controlled directory tree structured by scope (global vs
+    project).
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Treat architecture documents, signals, rules, and decisions as first-class,
+    Git-versioned assets rather than storing them in external opaque databases.'
+  - 'Context: Continuous architecture relies on PR reviews, Git tracking, and transparent
+    traceability of architecture evolution.'
+  - 'Force: External databases disconnect architectural documentation from code commits'
+  - 'Force: Human and automated agents must be able to read and modify architectural
+    artifacts uniformly'
+  evidence_strength: high
+  confidence: high
+- pattern_id: health-status-metric-aggregator
+  name: Health Status Metric Aggregation Heuristic
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Aggregates compliance findings into health status classifications
+  description: Evaluates architectural repository health via composite functional
+    evaluation over compliance findings, yielding deterministic qualitative status
+    states.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Translate granular quantitative compliance findings and metrics into
+    actionable health statuses (e.g. HEALTHY, DEGRADED, UNHEALTHY).'
+  - 'Context: Dashboard and CI/CD pipelines need a unified status indicator to block
+    or permit pull requests and pipeline runs.'
+  - 'Force: Raw metrics are too fine-grained for binary or tri-state CI gate decisions'
+  - 'Force: Explanations must be provided alongside binary green/red statuses'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pluggable-client-adapter-pattern
+  name: Pluggable External Client Adapter with Test Double
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-23'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production implementation
+      wrapping litellm provider
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - In-memory test double for
+      zero-dependency execution
+  description: Maintains production and mock implementations conforming to identical
+    interfaces to decouple high-cost infrastructure integrations from unit tests and
+    offline workflows.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable running runner governance and synthesis steps offline and during
+    deterministic unit tests without calling external endpoints.'
+  - 'Context: External model clients (LiteLLM) introduce network dependencies and
+    nondeterminism into testing pipelines.'
+  - 'Force: CI pipelines must run quickly and deterministically without external credentials'
+  - 'Force: Production runtime requires real remote API invocation'
+  evidence_strength: high
+  confidence: high
