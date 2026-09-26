@@ -1,36 +1,37 @@
 pattern_proposals:
 - pattern_id: pydantic-domain-entity-modeling
-  name: Pydantic Domain Entity & Metric Modeling
+  name: Pydantic Domain Entity Modeling
   pattern_classification: architectural
-  pattern_maturity: established
+  pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-24'
+    date: '2026-09-26'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
-      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
-      ComplianceMetrics, GovernanceException, GovernanceAction) - Complete domain
-      object aggregate defining the health, compliance, and metric entities of the
-      governance system.
-  description: Encapsulates architectural governance data, metrics, and health states
-    within strongly typed, schema-validated Pydantic domain models.
-  pattern_type: implemented
+      GovernanceHealth, GovernanceRisks, ComplianceFinding) - Provides formal structural
+      typing for governance state, health, metrics, and compliance items.
+    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, CapabilityRecord,
+      CapabilitySet, ArchitecturalDelta) - Models repository changes, architectural
+      capabilities, and deltas as typed schemas.
+  description: Formalizes domain concepts as strongly typed, immutable or validated
+    Pydantic data schemas across governance and steering domains.
+  pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Ensure schema integrity, runtime type-safety, and seamless serialization
-    across system boundaries for all governance assets.'
-  - 'Context: Governance audits produce structured findings, metrics, and risk assessments
-    that must be serialized to reports or consumed by compliance engines without type
-    ambiguity.'
-  - 'Force: Runtime safety across non-typed data feeds (YAML/JSON)'
-  - 'Force: Strict contract enforcement without extensive boilerplate validation logic'
-  - 'Force: Self-documenting domain schemas'
+  - 'Intent: Ensure strict type safety, input validation, and clear serialization
+    contracts across runtime boundaries.'
+  - 'Context: Governance, compliance, and steering pipelines parse heterogeneous JSON/YAML
+    files and need consistent in-memory representation.'
+  - 'Force: High variance in filesystem inputs requires rigorous validation before
+    execution'
+  - 'Force: Serialization/deserialization between disk representations and runtime
+    engines must be transparent and robust'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -41,26 +42,27 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-24'
+    date: '2026-09-26'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - TransitionRegistry governs state validity; GovernanceActionEngine coordinates
-      dispatch.
-  description: Decouples lifecycle state transition execution from action handling
-    using a dedicated transition registry.
+      - Maintains transition rules and drives deterministic action execution.
+  description: Decouples lifecycle state validations and transitions from execution
+    logic using an explicit registration map.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Manage discrete states and valid operational transitions for governance
-    actions through an explicit registry instead of hardcoded conditional logic.'
-  - 'Context: Governance action items transition through states (e.g., proposed, approved,
-    rejected, resolved) requiring specific operational constraints and side effects.'
-  - 'Force: Extensibility for new transition rules without modifying core engine flow'
-  - 'Force: Centralized validation of valid state progression'
+  - 'Intent: Centralize valid entity state transitions and their corresponding action
+    handlers to prevent illegal lifecycle moves.'
+  - 'Context: Governance artifacts (proposals, rules, decisions) transition through
+    distinct lifecycle phases that must trigger specific actions.'
+  - 'Force: Scattering conditional if/else blocks for lifecycle state checks leads
+    to fragile transitions'
+  - 'Force: New transitions must be registerable without modifying consumer execution
+    paths'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -187,5 +189,131 @@ pattern_proposals:
     to engineering teams without running specialized hosting servers.'
   - 'Force: Static hosting convenience (e.g. GitHub Pages)'
   - 'Force: Combining human-authored markdown with machine-generated governance dashboards'
+  evidence_strength: high
+  confidence: high
+- pattern_id: service-facade-orchestration
+  name: Service Facade Orchestration
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-26'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Acts as the application entry point coordinating compliance and action engines.
+  description: Aggregates fine-grained domain engines (compliance, action, transitions)
+    into a cohesive service facade for consumers.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a simplified, consolidated interface to complex sub-systems such
+    as compliance engines and action registries.'
+  - 'Context: Clients (CLI, background workflows) require single operation endpoints
+    to process governance lifecycle events without manually orchestrating engines.'
+  - 'Force: Consumers should not need to instantiate and chain ComplianceEngine and
+    GovernanceActionEngine directly'
+  - 'Force: Transactions and operational boundaries must be coordinated centrally'
+  evidence_strength: high
+  confidence: high
+- pattern_id: client-adapter-test-double
+  name: Client Adapter and Test Double
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-26'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production adapter calling
+      external LiteLLM APIs.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Offline test double providing
+      stubbed or simulated responses.
+  description: Separates real external network/API communication from test environments
+    via symmetric client interfaces.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Allow offline execution, deterministic testing, and CI validation without
+    calling live external provider APIs.'
+  - 'Context: External integrations (such as LiteLLM API providers) are costly, non-deterministic,
+    or unavailable during local builds and unit tests.'
+  - 'Force: Components requiring provider interaction must execute without active
+    internet connections or credentials'
+  - 'Force: Mock implementations must adhere to the identical call interface as real
+    clients'
+  evidence_strength: high
+  confidence: high
+- pattern_id: file-system-knowledge-repository
+  name: File-System Structured Knowledge Repository
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-26'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/ - Directory structure containing global, projects, runtime, and
+      templates sub-trees.
+    - src/cas_runner/bootstrap.py (init_workspace, merge_cas_governance_block) - Provisions
+      workspace directories and synchronizes governance files into target projects.
+  description: Employs an organized directory hierarchy of markdown, YAML, and JSON
+    files as the persistent source of truth.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Persist architecture decisions, rules, patterns, and runtimes directly
+    in version-controlled directory structures.'
+  - 'Context: Architecture knowledge must be transparent, reviewable via Git Pull
+    Requests, and easily inspectable by human architects and scripts.'
+  - 'Force: Databases add operational complexity and obscure Git-centric change tracking'
+  - 'Force: Hierarchical knowledge requires clear categorization (global, project-specific,
+    runtime, templates)'
+  evidence_strength: high
+  confidence: high
+- pattern_id: declarative-health-scoring-pipeline
+  name: Declarative Health Scoring Pipeline
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-26'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Functional evaluation of health states and human-readable diagnostic reasons.
+  description: Pure functional evaluation pipeline deriving health status and diagnostic
+    reasoning from state metrics.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Compute deterministic health states and diagnostic explanations from
+    input metrics without side effects.'
+  - 'Context: Dashboards and CLI tools require consistent, explainable health diagnostics
+    based on governance metrics.'
+  - 'Force: Health computation rules should be isolated from presentation and persistence
+    code'
+  - 'Force: Health status must provide actionable, human-readable explanations alongside
+    raw enum states'
   evidence_strength: high
   confidence: high
