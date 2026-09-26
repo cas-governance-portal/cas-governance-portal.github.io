@@ -1,527 +1,160 @@
 pattern_proposals:
-- pattern_id: dummy_string
-  name: dummy_string
-  pattern_classification: intelligence
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - dummy_string (dummy_string) - dummy_string
-  description: dummy_string
-  pattern_type: emerging
-  applies_to:
-  - dummy_string
-  rationale:
-  - 'Intent: dummy_string'
-  - 'Context: dummy_string'
-  - 'Force: dummy_string'
-  evidence_strength: high
-  confidence: high
-- pattern_id: declarative-agent-command-manifests
-  name: Declarative Agent Command Manifests
+- pattern_id: provider-agnostic-llm-facade
+  name: Provider-Agnostic LLM Facade
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-21'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - .agents/commands/speckit.specify.toml - Defines the specification agent task
-      declaration
-    - .agents/commands/speckit.plan.toml - Defines the planning agent command manifest
-  description: Agent behaviors, skills, and subcommands are declared in isolated TOML
-    configuration files to decouple prompting from runtime harnesses.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Provides consistent invocation
+      wrapper around LiteLLM for agent steps.
+  description: Encapsulates LLM interactions behind a unified client interface to
+    ensure provider portability and uniform call semantics across agent tasks.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Standardize agent invocations across different lifecycle phases (plan,
-    specify, clarify, tasks) using human-readable configuration.'
-  - 'Context: Used in `.agents/commands/` to control speckit agent skills (e.g. speckit.plan.toml,
-    speckit.specify.toml, speckit.tasks.toml).'
-  - 'Force: Need consistent command execution without hardcoding prompt strings into
-    python source'
-  - 'Force: Support rapid iteration on agent instructions without rebuilding binaries'
+  - 'Intent: Decouple agent business logic from specific model providers (OpenAI,
+    Anthropic, Ollama, etc.) while standardizing call contracts.'
+  - 'Context: Used across all runner steps and governance modules requiring LLM generation
+    or structured output parsing.'
+  - 'Force: Different model providers feature varying API schemas and error structures'
+  - 'Force: Pipeline components need uniform invocation mechanics without vendor coupling'
   evidence_strength: high
   confidence: high
-- pattern_id: governed-action-state-machine
-  name: Governed Action State Machine
+- pattern_id: deterministic-mock-evaluation-harness
+  name: Deterministic Mock Evaluation Harness
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-21'
+    date: '2026-09-24'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Implements deterministic
+      mock LLM interface for testing runner flows.
+  description: Provides a drop-in mock LLM client to execute agent pipelines deterministically
+    in CI/CD without network or model flakiness.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable fast, zero-cost, and deterministic end-to-end testing of agentic
+    workflows and governance decision flows.'
+  - 'Context: Implemented alongside the production LLM client to support offline unit
+    tests, regression suites, and CI pipelines.'
+  - 'Force: Live LLM calls in CI are nondeterministic, slow, and incur cost'
+  - 'Force: Agent pipelines must be validated end-to-end including state transitions
+    and schema validation'
+  evidence_strength: high
+  confidence: high
+- pattern_id: declarative-agent-command-registry
+  name: Declarative Agent Command Registry
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-24'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .agents/commands/speckit.plan.toml - Defines declarative command contract for
+      the planning agentic skill.
+    - .agents/commands/speckit.analyze.toml - Defines declarative specification for
+      analysis workflows.
+  description: Externalizes agent task specifications and skills into declarative
+    TOML manifests in the repository.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Standardize how agent capabilities (planning, specifying, analyzing,
+    migrating) are defined, shared, and triggered.'
+  - 'Context: Located in `.agents/commands/` and `.agents/skills/` to configure speckit
+    lifecycle operations.'
+  - 'Force: Hardcoded CLI commands make agent workflows rigid and difficult to configure
+    per project'
+  - 'Force: Agents and human developers need identical interfaces to invoke standardized
+    architectural skills'
+  evidence_strength: high
+  confidence: high
+- pattern_id: finite-state-governance-engine
+  name: Finite-State Governance Engine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Registry checks valid state transitions before applying governance actions
-    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - Service layer executing validated governance actions
-  description: Constrains autonomous mutations by routing all candidate operations
-    through a formal TransitionRegistry and GovernanceActionEngine.
+      - Encapsulates valid state transitions and gating rules for governance changes.
+    - src/cas_runner/governance/models.py (GovernanceAction, GovernanceHealth) - Provides
+      typed schema definitions for transitions and state tracking.
+  description: Constrains agent-driven architecture changes using a TransitionRegistry
+    and state transition engine that validates precondition constraints.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Prevent unauthorized or out-of-order state mutations proposed by LLMs
-    or automated tools.'
-  - 'Context: Employed in `src/cas_runner/governance/governance_action_engine.py`
-    to gate project state updates.'
-  - 'Force: LLMs can generate arbitrary actions that violate domain business logic'
-  - 'Force: State changes must be auditable and reproducible'
+  - 'Intent: Prevent agents or automated runs from transitioning architectural states
+    or closing compliance issues without meeting formal criteria.'
+  - 'Context: Implemented in `cas_runner.governance` to manage governance actions
+    and artifact statuses.'
+  - 'Force: Unconstrained LLM outputs can declare architecture tasks ''complete''
+    prematurely'
+  - 'Force: Transitions between architecture stages require formal invariant checking'
   evidence_strength: high
   confidence: high
-- pattern_id: agentic-merge-resolution
-  name: Agentic Merge and Conflict Resolution
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Performs merge
-      logic on agent outputs
-    - src/cas_runner/governance/models.py (ResolutionResult) - Typed contract containing
-      outcome of merge resolution
-  description: Resolves divergent agent-generated changes and branch specifications
-    through an automated semantic merge engine.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Resolve discrepancies between parallel agent workstreams without requiring
-    manual human git cherry-picking.'
-  - 'Context: Found in `src/cas_runner/governance/agentic_merger.py` handling concurrent
-    specs and artifact changes.'
-  - 'Force: Multiple agents or run steps can generate conflicting updates to project
-    specifications'
-  - 'Force: Simple textual 3-way git merges fail on semantic JSON/Markdown schema
-    conflicts'
-  evidence_strength: high
-  confidence: high
-- pattern_id: dual-client-llm-provider-abstraction
-  name: Dual-Client LLM Provider Abstraction
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production LLM client
-      utilizing litellm
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Offline test double ensuring
-      CI determinism
-  description: Decouples agent core logic from specific model providers by pairing
-    a multi-provider gateway with a strict mock client interface.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Provide swappable, observable LLM invocation with deterministic offline
-    mocking for fast local testing.'
-  - 'Context: Located in `src/cas_runner/llm/` supporting FlowRunner and governance
-    engines.'
-  - 'Force: Agent pipelines must run in CI/CD without making expensive and non-deterministic
-    real API calls'
-  - 'Force: Production runtime requires multi-model flexibility across OpenAI, Anthropic,
-    Bedrock, etc.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: typed-governance-data-contracts
-  name: Typed Governance Data Contracts
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
-      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
-      ComplianceMetrics, GovernanceException, GovernanceAction) - Comprehensive typed
-      schemas governing all system metrics and action results
-  description: All state transitions, metrics, health indicators, and findings are
-    represented as strongly-typed Pydantic domain models.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Eliminate unstructured string manipulation and enforce compile-time/runtime
-    validation for agent data exchanges.'
-  - 'Context: Concentrated in `src/cas_runner/governance/models.py`.'
-  - 'Force: Agents generate text that easily diverges from required formats'
-  - 'Force: Downstream dashboards and analyzers require predictable data shapes'
-  evidence_strength: high
-  confidence: high
-- pattern_id: sequential-flow-runner-orchestration
-  name: Sequential Flow Runner Orchestration
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/runner.py (FlowRunner) - Main pipeline runner coordinating multi-step
-      execution
-    - src/cas_runner/cli.py (main) - CLI command dispatcher launching FlowRunner flows
-  description: Executes multi-step agentic procedures sequentially with a shared execution
-    context passed along the step chain.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Coordinate step-by-step agent activities with deterministic order and
-    context propagation.'
-  - 'Context: Implemented in `src/cas_runner/runner.py` via `FlowRunner`.'
-  - 'Force: Complex agent operations (e.g. assess, plan, specify, validate) must run
-    in strict sequence'
-  - 'Force: Later steps require access to artifacts produced by earlier steps'
-  evidence_strength: high
-  confidence: high
-- pattern_id: continuous-compliance-evaluator
-  name: Continuous Compliance Evaluator
-  pattern_classification: governance
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluator
-      executing architectural rules against project state
-    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
-      Standardized finding and metric containers
-  description: Regularly evaluates the system state against architectural invariants
-    and generates structured compliance findings.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Detect architectural drift, broken links, and policy violations created
-    during agent or human modifications.'
-  - 'Context: Implemented in `src/cas_runner/governance/compliance_engine.py`.'
-  - 'Force: Uncontrolled agent edits can slowly degrade architectural consistency'
-  - 'Force: Manual audits are too slow to keep pace with rapid agentic updates'
-  evidence_strength: high
-  confidence: high
-- pattern_id: composite-health-scoring-heuristic
-  name: Composite Health Scoring Heuristic
-  pattern_classification: governance
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-21'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
-      - Health calculation logic and descriptive reason extractors
-  description: Computes project architecture health using weighted metrics and generates
-    human-readable health reasons.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Synthesize diverse compliance findings, risks, and inventory metrics
-    into an interpretable status grade.'
-  - 'Context: Implemented in `src/cas_runner/dashboard/health_model.py`.'
-  - 'Force: Raw metrics lists are overwhelming for operators to digest quickly'
-  - 'Force: LLMs need concrete feedback signals to gauge whether a change improved
-    or damaged project health'
-  evidence_strength: high
-  confidence: high
-- pattern_id: agentic-knowledge-merger
-  name: Agentic Knowledge Merger
+- pattern_id: reconciliation-agentic-merger
+  name: Reconciliation Agentic Merger
   pattern_classification: intelligence
   pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-23'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Defines agent-based
-      merge mechanism using LLM clients to reconcile governance changes.
-    - src/cas_runner/governance/models.py (ResolutionResult) - Typed contract containing
-      resolution state, merged content, and diagnostic notes.
-  description: Delegates semantic conflict reconciliation and knowledge base integration
-    to an LLM agent that outputs validated resolution artifacts.
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Performs semantic
+      reconciliation between conflicting architectural states.
+    - src/cas_runner/governance/models.py (ResolutionResult) - Encapsulates merge
+      resolution outcome and metadata.
+  description: Employs an LLM-assisted reconciliation component to merge diverging
+    architectural specifications and code artifacts into a cohesive state.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Resolve divergent governance blocks and architecture documentation without
-    manual text merging by using prompt-contextualized agent synthesis.'
-  - 'Context: Used during repository synchronization and steering updates when branch
-    artifacts or governance docs diverge.'
-  - 'Force: Git merge conflicts in narrative or JSON knowledge files break automated
-    CI pipelines'
-  - 'Force: Pure mechanical diff tools fail to capture domain semantics in architecture
-    documentation'
+  - 'Intent: Resolve discrepancies between human-authored architectural decisions
+    and agent-generated implementation models.'
+  - 'Context: Located in `src/cas_runner/governance/agentic_merger.py`.'
+  - 'Force: Multi-branch agent edits and parallel human modifications create structural
+    schema conflicts'
+  - 'Force: Standard git merge drivers fail on semantic JSON/YAML architectural projections'
   evidence_strength: high
   confidence: high
-- pattern_id: state-transition-registry-guardrail
-  name: State Transition Registry Guardrail
-  pattern_classification: governance
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Encapsulates valid transition definitions and checks every action against
-      registered routes.
-  description: Constrains governance and agent actions through an explicit transition
-    registry that validates allowed state mutations before execution.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Prevent LLM or autonomous processes from executing arbitrary state transitions
-    or skipping required compliance gates.'
-  - 'Context: Surrounds all governance actions and lifecycle changes in cas_runner.'
-  - 'Force: Autonomous agents need to progress architecture artifacts through lifecycles'
-  - 'Force: Directly allowing agents to set arbitrary status allows governance bypass'
-  evidence_strength: high
-  confidence: high
-- pattern_id: prompt-fact-steering-projection
-  name: Prompt-Fact Steering Projection
-  pattern_classification: intelligence
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/steering/models.py (PromptFact, RawGitDelta, SteeringRuntimeIndex)
-      - Provides data structures linking raw git changes to structured facts.
-    - docs/architecture/cas-steering-projection-e2e.md - Documents the end-to-end
-      projection flow from git delta to steering index.
-  description: Transforms raw VCS change sets and codebase deltas into structured,
-    typed prompt facts before feeding them to downstream reasoning steps.
-  pattern_type: emerging
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Ground agent reasoning on verified changes rather than unconstrained
-    raw diff strings.'
-  - 'Context: Used in steering calculation to determine architectural impact of git
-    modifications.'
-  - 'Force: Raw diffs can overflow context windows and contain irrelevant whitespace
-    changes'
-  - 'Force: Agents hallucinate architectural intent without factual grounding in code
-    deltas'
-  evidence_strength: high
-  confidence: high
-- pattern_id: provider-agnostic-llm-adapter
-  name: Provider-Agnostic LLM Adapter with Mock Isolation
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production implementation
-      delegating to litellm.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation allowing
-      local and CI test execution without real API credentials.
-  description: Abstracts LLM invocations behind a uniform adapter using LiteLLM alongside
-    a mirrored mock client for offline testing and deterministic runs.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Decouple orchestration and agent logic from specific model providers
-    while allowing cost-free offline verification.'
-  - 'Context: Core dependency for FlowRunner and AgenticMerger across development
-    and production environments.'
-  - 'Force: Binding agent logic directly to vendor SDKs limits model agility'
-  - 'Force: CI pipelines cannot reliably make external paid API calls due to cost
-    and non-determinism'
-  evidence_strength: high
-  confidence: high
-- pattern_id: compliance-first-guardrail-engine
-  name: Compliance-First Guardrail Engine
-  pattern_classification: governance
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluates
-      compliance rules against current workspace inventory.
-    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
-      Models encapsulating compliance infractions and aggregate score metrics.
-  description: Executes rule evaluation prior to artifact promotion, generating structured
-    compliance metrics and findings that govern workflow completion.
-  pattern_type: emerging
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Ensure all agentic modifications and governance assets adhere to architectural
-    constraints prior to merging or deployment.'
-  - 'Context: Executed as a mandatory step in cas_runner prior to governance actions.'
-  - 'Force: Autonomous code and doc modifications can introduce violations of organizational
-    rules'
-  - 'Force: Manual review of every minor change creates an operational bottleneck'
-  evidence_strength: high
-  confidence: high
-- pattern_id: capability-lineage-provenance
-  name: Capability Lineage and Provenance Tracking
-  pattern_classification: intelligence
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/steering/models.py (CapabilityLineage, CapabilityRecord, ArchitecturalDelta)
-      - Formal models defining capability tracking and lineage across modifications.
-  description: Attaches explicit provenance and lineage metadata to generated architectural
-    records, tracing origins to specific diffs and facts.
-  pattern_type: emerging
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Maintain an immutable record of why, how, and from which inputs an agent
-    produced or updated an architectural capability.'
-  - 'Context: Instantiated in the steering model whenever capabilities and architectural
-    deltas are calculated.'
-  - 'Force: Agent-generated outputs become opaque over time without provenance'
-  - 'Force: Debugging hallucinated requirements requires tracing the exact prompt
-    inputs that generated them'
-  evidence_strength: high
-  confidence: high
-- pattern_id: diagnostic-health-reflection
-  name: Diagnostic Health Reflection Loop
-  pattern_classification: governance
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
-      - Evaluates health state and returns explanatory reason strings.
-    - src/cas_runner/governance/models.py (GovernanceHealth, TraceableMetric) - Data
-      structures representing aggregate health score and constituent metrics.
-  description: Computes health status and structured explanations over governance
-    and pipeline metrics to provide reflective feedback for subsequent runs.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Provide quantitative feedback on steering efficacy and flag degradation
-    in repository architecture health.'
-  - 'Context: Embedded in the dashboard and runner telemetry loop to evaluate governance
-    vitality.'
-  - 'Force: Steering processes may execute successfully at runtime while underlying
-    system architecture degrades'
-  - 'Force: Agents require objective feedback metrics to calibrate future decisions'
-  evidence_strength: high
-  confidence: high
-- pattern_id: template-driven-heuristic-evolution
-  name: Template-Driven Heuristic Evolution
-  pattern_classification: intelligence
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - cas-knowledge/templates/heuristic-to-pattern_template.md - Template defining
-      criteria and format for promoting an observed heuristic to a pattern.
-    - docs/architecture/cas-pattern-evolution-flow.md - Describes the operational
-      lifecycle flow from signal to heuristic to pattern.
-  description: Codifies a progressive evolution lifecycle where informal heuristics
-    are promoted to verified patterns using structured markdown templates.
-  pattern_type: emerging
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Prevent premature codification of unverified patterns while creating
-    a clear pipeline from observation to formal rule.'
-  - 'Context: Governs the knowledge repository under cas-knowledge/templates/ and
-    pattern evolution flows.'
-  - 'Force: Directly creating rigid patterns leads to overfitted architecture rules'
-  - 'Force: Unstructured heuristics get lost without a formalized promotion path'
-  evidence_strength: high
-  confidence: high
-- pattern_id: sequential-pipeline-runner
+- pattern_id: sequential-pipeline-flow-runner
   name: Sequential Pipeline Flow Runner
   pattern_classification: intelligence
   pattern_maturity: established
@@ -529,281 +162,122 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-23'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/runner.py (FlowRunner) - Main execution coordinator organizing
-      workflow steps and error propagation.
-    - docs/architecture/cas-automated-run-flow.md - Sequence diagram documenting linear
-      orchestration of cas-runner stages.
-  description: Executes steering routines as a sequential pipeline where discrete
-    stages read, process, and mutate execution context under top-level supervision.
+    - src/cas_runner/runner.py (FlowRunner) - Coordinates execution of workflow steps
+      and accumulates execution context.
+    - src/cas_runner/cli.py (main) - Serves as the entrypoint invoking FlowRunner
+      for CLI commands.
+  description: Executes discrete agentic and verification steps sequentially through
+    an orchestrator passing updated execution context.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Coordinate multi-stage steering processes predictably with unified error
-    handling and context propagation.'
-  - 'Context: The central execution entry point in src/cas_runner/runner.py invoked
-    by CLI commands.'
-  - 'Force: Complex distributed orchestration is difficult to trace and debug in CI
-    environments'
-  - 'Force: Steering phases depend strictly on output artifacts produced by previous
-    stages'
+  - 'Intent: Coordinate multi-stage architectural assessment and generation tasks
+    with deterministic ordering and failure handling.'
+  - 'Context: Implemented in `src/cas_runner/runner.py` via `FlowRunner`.'
+  - 'Force: Complex agent tasks require clear ordering (e.g. assess -> plan -> specify
+    -> implement)'
+  - 'Force: Uncontrolled agent self-looping can lead to infinite execution cycles
+    and high token spend'
   evidence_strength: high
   confidence: high
-- pattern_id: steering-projection-injection
-  name: Steering Projection Context Injection
+- pattern_id: schema-enforced-domain-contracts
+  name: Schema-Enforced Domain Contracts
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-23'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/bootstrap.py (merge_cas_governance_block, bootstrap) - Merges
-      authoritative CAS governance blocks into target agent markdown documents.
-    - .github/workflows/cas-managed-steering-sync.yml - Automated workflow synchronizing
-      managed steering projections across workspace files.
-  description: Injects centrally managed governance rules, capability bounds, and
-    architectural constraints directly into agent entry points.
+    - src/cas_runner/governance/models.py (GovernanceInventory, ComplianceFinding,
+      GovernanceHealth, GovernanceRisks, GovernanceAction) - Defines rigid contracts
+      for state, action payloads, and compliance results.
+  description: Enforces strict Pydantic and JSON Schema models for all governance
+    entities, ensuring agent outputs are validated prior to consumption.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Constrain autonomous agent decision-making within architectural and operational
-    guardrails by synchronizing knowledge blocks into instruction files.'
-  - 'Context: Used during workspace bootstrapping and synchronization workflows (e.g.,
-    AGENTS.md, CLAUDE.md, GEMINI.md).'
-  - 'Force: Agents lose architectural alignment when context windows omit enterprise
-    guidelines.'
-  - 'Force: Manually copying rules to every agent profile creates drift.'
+  - 'Intent: Eliminate malformed, incomplete, or hallucinated payloads generated by
+    LLM steps before modifying repository state.'
+  - 'Context: Defined across `src/cas_runner/governance/models.py` and validated by
+    `ComplianceEngine`.'
+  - 'Force: LLMs frequently omit required attributes or produce inconsistent data
+    structures'
+  - 'Force: Downstream visualization and health calculators expect strongly-typed
+    models'
   evidence_strength: high
   confidence: high
-- pattern_id: schema-enforced-governance-engine
-  name: Schema-Enforced Governance Action Engine
+- pattern_id: telemetry-observable-agent-steps
+  name: Telemetry-Observable Agent Steps
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-23'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Enforces state transition rules and executes validated governance actions.
-    - src/cas_runner/governance/models.py (GovernanceAction, ComplianceFinding, ResolutionResult)
-      - Typed models defining structural constraints for all governance operations.
-  description: Restricts agent and system lifecycle changes to pre-registered state
-    transitions validated against strongly-typed schemas.
+    - pyproject.toml - Includes opentelemetry-api and opentelemetry-sdk dependencies.
+    - src/cas_runner/governance/models.py (TraceableMetric) - Encapsulates metric
+      records carrying trace context.
+  description: Instruments pipeline execution and agent interactions with OpenTelemetry
+    to track latency, token usage, and step errors.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Prevent invalid status progressions or unauthorized mutations during
-    automated architecture modifications.'
-  - 'Context: Governing architectural decisions, exceptions, and promotions in cas-knowledge.'
-  - 'Force: Unchecked agent actions can corrupt lifecycle metadata or bypass review
-    stages.'
-  - 'Force: Free-text LLM evaluations lack deterministic guarantees.'
+  - 'Intent: Provide comprehensive visibility into the latency, cost, and error boundaries
+    of agentic runs.'
+  - 'Context: Integrated via OpenTelemetry SDK dependencies configured in the runner
+    runtime.'
+  - 'Force: Multi-step agent pipelines suffer from opacity when failures occur inside
+    nested LLM calls'
+  - 'Force: Debugging cost spikes and slow steps requires distributed trace context'
   evidence_strength: high
   confidence: high
-- pattern_id: pluggable-llm-gateway-mock-fallback
-  name: Pluggable LLM Gateway with Mock Fallback
+- pattern_id: ci-driven-steering-projection
+  name: CI-Driven Steering Projection
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-23'
+    date: '2026-09-24'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Wraps multi-provider
-      LLM calls via litellm.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Provides fixture-driven
-      deterministic mock responses for agent operations.
-  description: Abstracts LLM invocation behind a unified client protocol that allows
-    seamless swapping between production model routing and local deterministic mocks.
+    - .github/workflows/cas-build-steering-projection.yml - Automates projection generation
+      on repository events.
+    - .github/workflows/cas-continuous-architecture.yml - Triggers continuous architecture
+      analysis and governance validation.
+  description: Leverages continuous integration workflows to trigger agentic projection
+    tasks that synchronize architecture docs, diagrams, and health dashboards.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Allow agent flows to run seamlessly in cost-free CI environments and
-    local unit tests while retaining multi-provider flexibility in production.'
-  - 'Context: LLM client integration used across runner evaluation flows and agentic
-    merging.'
-  - 'Force: CI pipelines cannot reliably or affordably depend on external LLM APIs
-    with fluctuating rate limits and tokens.'
-  - 'Force: Code tightly coupled to specific LLM SDKs resists model migrations.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: agentic-semantic-merge-reconciliation
-  name: Agentic Semantic Merge Reconciliation
-  pattern_classification: intelligence
-  pattern_maturity: strategic_direction
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Reconciles conflicting
-      document versions using LLM reasoning.
-    - src/cas_runner/governance/models.py (ResolutionResult) - Captures the structured
-      outcome of an agentic merge operation.
-  description: Employs an agentic resolver to reconcile semantic conflicts across
-    distributed architectural documentation and governance blocks.
-  pattern_type: emerging
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Resolve complex textual and structural conflicts in architecture artifacts
-    that standard 3-way git merges fail to handle gracefully.'
-  - 'Context: Reconciling conflicting decisions and governance updates across feature
-    branches.'
-  - 'Force: Git merges create text collision markers that break YAML/Markdown parsing.'
-  - 'Force: Architecture updates contain semantic nuance requiring domain context
-    to merge accurately.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: git-delta-capability-lineage
-  name: Git Delta Capability Lineage Derivation
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/steering/models.py (RawGitDelta, CapabilityRecord, CapabilitySet,
-      CapabilityLineage, ArchitecturalDelta) - Defines typed structures tracking capability
-      evolution mapped to Git commits.
-  description: Derives agent capabilities and architectural evolution directly from
-    immutable Git change deltas rather than transient conversational state.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Ground architectural state transitions and agent context in verifiable
-    repository changes.'
-  - 'Context: Tracking system evolution across commits to generate steering runtime
-    indices and capability sets.'
-  - 'Force: Agent summaries suffer from drift and hallucination over time.'
-  - 'Force: Manual tracking of system capabilities is seldom maintained by developers.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: sequential-pipeline-orchestration
-  name: Sequential Pipeline Orchestration with Context Propagation
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/runner.py (FlowRunner) - Implements the central execution runner
-      coordinating steering tasks.
-    - src/cas_runner/cli.py (main) - Entrypoint initiating FlowRunner commands.
-  description: Executes governance, evaluation, and merge operations in a controlled
-    multi-stage sequence passing strongly-typed state context across steps.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Coordinate multi-stage architectural evaluation and sync operations with
-    explicit sequencing and rollback capability.'
-  - 'Context: Executing CAS CLI runs, projection building, and automated compliance
-    checks.'
-  - 'Force: Ad-hoc step invocation leads to unvalidated changes entering production
-    branches.'
-  - 'Force: Monolithic scripts obscure where execution failures happen.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: declarative-template-governed-knowledge
-  name: Declarative Template-Governed Knowledge Artifacts
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - cas-knowledge/templates/architecture_decision_record_template.md - Standardized
-      ADR layout for agent generation.
-    - cas-knowledge/templates/pattern_template.md - Canonical pattern schema including
-      forces, context, and consequences.
-    - cas-knowledge/templates/promotion_decision.md - Formal schema for promoting
-      heuristics to established patterns.
-  description: Enforces strict document schematization across human and agent outputs
-    using standardized markdown templates and frontmatter.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Maintain uniform structure and semantic parseability across diverse architectural
-    artifacts (ADRs, patterns, signals, decisions) created by LLMs and humans.'
-  - 'Context: cas-knowledge template definitions used to prompt and validate agent
-    outputs.'
-  - 'Force: LLMs produce inconsistent documentation layouts when given open-ended
-    instructions.'
-  - 'Force: Static JSON schemas fail to support rich prose and architectural diagram
-    embeddings.'
-  evidence_strength: high
-  confidence: high
-- pattern_id: multi-metric-governance-health-evaluator
-  name: Multi-Metric Governance Health Evaluator
-  pattern_classification: intelligence
-  pattern_maturity: established
-  knowledgeType: signal
-  decision:
-    status: proposed
-    decided_by: system
-    date: '2026-09-23'
-  derived_from:
-    signals: []
-    architecture_work: []
-    supporting_evidence:
-    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
-      - Evaluates compliance health status and computes diagnostic failure explanations.
-    - src/cas_runner/governance/models.py (GovernanceHealth, ComplianceMetrics) -
-      Models holding aggregated risk metrics and status records.
-  description: Computes composite governance health and risk categorizations using
-    transparent mathematical heuristics over compliance metrics.
-  pattern_type: implemented
-  applies_to:
-  - ideas-to-life-cas
-  rationale:
-  - 'Intent: Transform raw compliance findings into actionable categorical health
-    evaluations to gate CI/CD and agent workflows.'
-  - 'Context: Dashboard calculation and PR gating checks.'
-  - 'Force: Raw metric counts overwhelm human reviewers and downstream CI bots.'
-  - 'Force: Subjective agent ratings of ''health'' lack reproducibility.'
+  - 'Intent: Maintain continuous synchronization between evolving code and architectural
+    governance projections without manual documentation overhead.'
+  - 'Context: Configured across GitHub Actions workflows in `.github/workflows/` (e.g.
+    `cas-build-steering-projection.yml`, `cas-continuous-architecture.yml`).'
+  - 'Force: Architecture documentation and C4 diagrams quickly drift from actual code
+    without automated synchronization'
+  - 'Force: Running continuous background agent daemons is costly and complex'
   evidence_strength: high
   confidence: high

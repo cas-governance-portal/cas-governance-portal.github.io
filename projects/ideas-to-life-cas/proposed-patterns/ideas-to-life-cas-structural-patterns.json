@@ -3,71 +3,110 @@
     "repo_name": "ideas-to-life-cas",
     "repo_version_or_commit": "0.1.0",
     "focus": "general-structural-architecture",
-    "generated_at": "2026-09-23T21:25:00Z",
-    "scope_notes": "Structural, domain, and behavioral patterns extracted from the cas_runner codebase, excluding LLM prompt flows and agent orchestration.",
+    "generated_at": "2026-09-24T21:30:00Z",
+    "scope_notes": "Analysis covers core Python modules in cas_runner, governance engines, health models, and dashboard infrastructure while strictly excluding agentic prompt/LLM-orchestration mechanics.",
     "analysis_limits": [
-      "Analysis conducted strictly on provided repository manifest, directory tree, and module symbols.",
-      "Implementation details inferred from class definitions, symbol names, and documentation artifacts."
+      "Repository source files were reviewed based on file structure manifests and key file exports.",
+      "Agentic-specific workflow specifications (e.g. speckit agent skills) were omitted in accordance with focus constraints."
     ],
     "default_domain": [
-      "Continuous Architecture",
-      "Software Governance",
-      "Static Analysis & Compliance"
+      "Architecture Governance",
+      "Software Systems Architecture",
+      "Continuous Compliance"
     ],
     "default_sources": [
       "pyproject.toml",
-      "src/cas_runner/governance/models.py",
-      "src/cas_runner/steering/models.py",
-      "src/cas_runner/governance/governance_action_engine.py",
-      "src/cas_runner/governance/governance_action_service.py",
-      "src/cas_runner/dashboard/health_model.py"
+      "src/cas_runner"
     ]
   },
   "system_map": {
-    "overview": "Layered continuous architecture and operational governance runtime that parses git deltas, evaluates compliance rules, models capability sets, and drives governance actions across repository lifecycles.",
+    "overview": "cas_runner provides automated architectural governance, compliance verification, and health projection for software systems. It follows a multi-tier architectural style comprising a CLI/Runner execution layer, an application service/engine layer, a domain entity model, and an infrastructure adapter layer integrating static site generation (MkDocs) and external service clients.",
     "layers": [
       {
-        "name": "Presentation / CLI Layer",
-        "purpose": "Command-line interface entry points for invoking runner flows and bootstrap procedures.",
+        "name": "presentation",
+        "purpose": "Command-line interface and static portal visualization",
         "paths": [
-          "src/cas_runner/cli.py"
+          "src/cas_runner/cli.py",
+          "portal/docs/static/js/dashboard.js"
         ]
       },
       {
-        "name": "Application & Orchestration Layer",
-        "purpose": "Coordinates governance workflows, state transitions, workspace bootstrap, and dashboard projections.",
+        "name": "application",
+        "purpose": "Flow execution and service orchestration for governance operations",
         "paths": [
           "src/cas_runner/runner.py",
-          "src/cas_runner/bootstrap.py",
           "src/cas_runner/governance/governance_action_service.py"
         ]
       },
       {
-        "name": "Domain Layer",
-        "purpose": "Core business models, typed governance abstractions, health indicators, and transition logic.",
+        "name": "domain",
+        "purpose": "Core governance entities, compliance verification engines, and deterministic health calculation",
         "paths": [
           "src/cas_runner/governance/models.py",
-          "src/cas_runner/steering/models.py",
-          "src/cas_runner/governance/governance_action_engine.py",
           "src/cas_runner/governance/compliance_engine.py",
+          "src/cas_runner/governance/governance_action_engine.py",
           "src/cas_runner/dashboard/health_model.py"
         ]
       },
       {
-        "name": "Infrastructure & Storage Layer",
-        "purpose": "File-system layout storage for knowledge templates, git change capture, and pluggable client adapters.",
+        "name": "infrastructure",
+        "purpose": "I/O client adapters, static site generation, and OpenTelemetry instrumentation",
         "paths": [
-          "cas-knowledge/",
           "src/cas_runner/llm/litellm_client.py",
           "src/cas_runner/llm/mock_client.py"
         ]
+      }
+    ],
+    "components": [
+      {
+        "name": "FlowRunner",
+        "layer": "application",
+        "description": "Coordinates lifecycle execution passes for compliance verification and governance resolution."
+      },
+      {
+        "name": "GovernanceActionEngine",
+        "layer": "domain",
+        "description": "Manages discrete state transitions and rule resolutions via a registered transition lookup."
+      },
+      {
+        "name": "ComplianceEngine",
+        "layer": "domain",
+        "description": "Evaluates metrics and architectural state against declared compliance rules."
+      },
+      {
+        "name": "HealthModel",
+        "layer": "domain",
+        "description": "Provides pure functional health calculation based on traceable compliance findings and risk factors."
+      }
+    ],
+    "orchestration": {
+      "execution_style": "Synchronous deterministic pipeline driven by FlowRunner and GitHub Actions workflow triggers."
+    },
+    "tools_and_integrations": [
+      {
+        "name": "Pydantic",
+        "role": "Schema validation and strongly typed domain modeling"
+      },
+      {
+        "name": "OpenTelemetry",
+        "role": "Telemetry SDK and API tracing across execution flows"
+      },
+      {
+        "name": "MkDocs Material",
+        "role": "Documentation-as-code portal compilation and projection"
+      }
+    ],
+    "state_and_memory": [
+      {
+        "type": "In-memory domain models",
+        "persistence": "File-system serialization to Markdown/JSON architectural artifacts"
       }
     ]
   },
   "patterns": [
     {
       "id": "pydantic-domain-entity-modeling",
-      "name": "Pydantic Domain Entity Modeling",
+      "name": "Pydantic Domain Entity & Metric Modeling",
       "type": "pattern",
       "structural_profile": {
         "layer": "domain",
@@ -75,19 +114,29 @@
         "coupling": "loose",
         "extensibility": "high"
       },
-      "summary": "Core governance entities and architectural concepts are modeled as strongly-typed Pydantic classes with explicit serialization and validation rules.",
-      "intent": "Ensure robust data integrity, schema enforcement, and seamless serialization across system boundaries without relying on unstructured dictionaries.",
-      "context": "The system processes compliance findings, governance health scores, steering capability records, and git deltas that must be serialized to JSON/YAML or passed between domain services.",
-      "forces": [
-        "Need for runtime type checking and validation of input configurations",
-        "Requirement to serialize domain models into knowledge store markdown/YAML files",
-        "Desire to avoid loose dictionary structures prone to KeyError exceptions"
+      "summary": "Encapsulates architectural governance data, metrics, and health states within strongly typed, schema-validated Pydantic domain models.",
+      "tags": [
+        "domain-driven-design",
+        "data-modeling",
+        "validation"
       ],
-      "solution": "Define data transfer objects and domain models using Pydantic models (e.g. `GovernanceInventory`, `ComplianceFinding`, `CapabilityRecord`, `ArchitecturalDelta`) to enforce strict types and default initializers.",
+      "domain": [
+        "Architecture Governance",
+        "Data Validation"
+      ],
+      "maturity": "stable",
+      "intent": "Ensure schema integrity, runtime type-safety, and seamless serialization across system boundaries for all governance assets.",
+      "context": "Governance audits produce structured findings, metrics, and risk assessments that must be serialized to reports or consumed by compliance engines without type ambiguity.",
+      "forces": [
+        "Runtime safety across non-typed data feeds (YAML/JSON)",
+        "Strict contract enforcement without extensive boilerplate validation logic",
+        "Self-documenting domain schemas"
+      ],
+      "solution": "Define domain models using Pydantic BaseModel, providing validation, immutability where applicable, and standardized serializability.",
       "implementation_signals": [
-        "Imports of pydantic BaseModel",
-        "Model classes defined in models.py files",
-        "Typed attributes with default values and validation constraints"
+        "Inheritance from BaseModel",
+        "Field type annotations and validators",
+        "Composition of Metric and Finding sub-models"
       ],
       "evidence": [
         {
@@ -104,38 +153,23 @@
             "GovernanceException",
             "GovernanceAction"
           ],
-          "note": "Defines domain structures for governance evaluation, risks, actions, and findings."
-        },
-        {
-          "path": "src/cas_runner/steering/models.py",
-          "symbols": [
-            "GitChangeType",
-            "RawGitDelta",
-            "PromptFact",
-            "SteeringRuntimeIndex",
-            "CapabilityCategory",
-            "CapabilityRecordType",
-            "CapabilityRecord",
-            "CapabilitySet",
-            "CapabilityLineage",
-            "ArchitecturalDelta"
-          ],
-          "note": "Defines architectural capability sets and steering index records."
+          "note": "Complete domain object aggregate defining the health, compliance, and metric entities of the governance system."
         }
       ],
       "consequences": {
         "benefits": [
-          "Eliminates parsing ambiguity across CLI and workflow boundaries",
-          "Automatic schema validation during deserialization from disk"
+          "Eliminates parsing ambiguities between serialized file states and memory structures.",
+          "Clear boundary definitions for compliance reporting."
         ],
         "costs": [
-          "Runtime validation overhead on object instantiation",
-          "Dependency on Pydantic v2 data model structures"
+          "Introduces dependency on Pydantic v2 core.",
+          "Serialization overhead when operating over very large metric collections."
         ],
         "failure_modes": [
-          "ValidationError exceptions when disk templates or files contain schema drift"
+          "ValidationError exceptions crash pipelines if schemas evolve without backwards compatibility."
         ]
       },
+      "reuse_notes": "Reusable across any architecture governance platform processing YAML/JSON steering files.",
       "confidence": "high"
     },
     {
@@ -148,17 +182,27 @@
         "coupling": "moderate",
         "extensibility": "high"
       },
-      "summary": "State transitions for governance actions and architectural lifecycles are registered in an explicit transition registry decoupled from execution.",
-      "intent": "Maintain deterministic and auditable state transitions for governance tasks while allowing extensible registration of new state changes.",
-      "context": "Governance tasks move through distinct lifecycle phases (e.g., detected, evaluated, resolved, exempted) that require explicit transition gates.",
-      "forces": [
-        "Need to prevent illegal state changes across long-running governance lifecycles",
-        "Extensibility for adding custom domain transitions without altering the core engine"
+      "summary": "Decouples lifecycle state transition execution from action handling using a dedicated transition registry.",
+      "tags": [
+        "state-machine",
+        "registry",
+        "decoupling"
       ],
-      "solution": "Encapsulate lifecycle states and valid transitions in a `TransitionRegistry` managed by `GovernanceActionEngine`.",
+      "domain": [
+        "Workflow Management",
+        "State Transition"
+      ],
+      "maturity": "emerging",
+      "intent": "Manage discrete states and valid operational transitions for governance actions through an explicit registry instead of hardcoded conditional logic.",
+      "context": "Governance action items transition through states (e.g., proposed, approved, rejected, resolved) requiring specific operational constraints and side effects.",
+      "forces": [
+        "Extensibility for new transition rules without modifying core engine flow",
+        "Centralized validation of valid state progression"
+      ],
+      "solution": "Implement a TransitionRegistry that indexes permissible transitions and delegates handling to specialized action processors within GovernanceActionEngine.",
       "implementation_signals": [
-        "Presence of a TransitionRegistry class",
-        "Separation of transition validation from action execution logic"
+        "Registry class mapping source and target states",
+        "Engine dispatching actions based on registered transition handlers"
       ],
       "evidence": [
         {
@@ -167,183 +211,22 @@
             "TransitionRegistry",
             "GovernanceActionEngine"
           ],
-          "note": "TransitionRegistry manages valid state mutations and actions executed by GovernanceActionEngine."
+          "note": "TransitionRegistry governs state validity; GovernanceActionEngine coordinates dispatch."
         }
       ],
       "consequences": {
         "benefits": [
-          "Explicit catalog of valid governance lifecycle transitions",
-          "Centralized audit point for state transition rules"
+          "Prevents illegal lifecycle transitions.",
+          "Simplifies unit testing of individual state transition handlers."
         ],
         "costs": [
-          "Requires state transitions to be declared prior to execution"
+          "Additional indirection layer compared to simple procedural state updates."
         ],
         "failure_modes": [
-          "Unregistered transitions cause workflow halts or unhandled domain exceptions"
+          "Unregistered states cause silent drop or unhandled transition exceptions."
         ]
       },
-      "confidence": "high"
-    },
-    {
-      "id": "service-facade-engine-separation",
-      "name": "Service Facade and Engine Separation",
-      "type": "pattern",
-      "structural_profile": {
-        "layer": "application",
-        "complexity": "medium",
-        "coupling": "moderate",
-        "extensibility": "medium"
-      },
-      "summary": "Application services coordinate business flows by delegating computational and rule verification logic to dedicated domain engines.",
-      "intent": "Isolate high-level orchestration, coordination, and IO from deterministic domain rule evaluation and action engines.",
-      "context": "Execution requires evaluating compliance rules and applying governance actions against current workspace models.",
-      "forces": [
-        "Separation of concerns between orchestration logic and rule evaluation",
-        "Enables unit testing domain engines independently of outer service workflows"
-      ],
-      "solution": "Expose `GovernanceActionService` as an application layer entry point that orchestrates `GovernanceActionEngine` and `ComplianceEngine` instances.",
-      "implementation_signals": [
-        "Coexistence of Service classes and Engine classes in the same module namespace",
-        "Service layer delegating computational calls to engine classes"
-      ],
-      "evidence": [
-        {
-          "path": "src/cas_runner/governance/governance_action_service.py",
-          "symbols": [
-            "GovernanceActionService"
-          ],
-          "note": "Coordinates operations by delegating domain mutations to engine instances."
-        },
-        {
-          "path": "src/cas_runner/governance/compliance_engine.py",
-          "symbols": [
-            "ComplianceEngine"
-          ],
-          "note": "Encapsulates deterministic compliance evaluation rules."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Clean separation between transaction orchestration and domain rule validation",
-          "Easier mocking and isolation in unit tests"
-        ],
-        "costs": [
-          "Extra layer of indirection between caller and domain engines"
-        ],
-        "failure_modes": [
-          "Service becoming a pass-through layer if domain engine boundaries are not maintained"
-        ]
-      },
-      "confidence": "high"
-    },
-    {
-      "id": "declarative-file-system-knowledge-repository",
-      "name": "Declarative File-System Knowledge Repository",
-      "type": "pattern",
-      "structural_profile": {
-        "layer": "infrastructure",
-        "complexity": "low",
-        "coupling": "tight",
-        "extensibility": "high"
-      },
-      "summary": "System architectural knowledge, rules, decisions, and signals are persisted declaratively as structured files within a standardized folder hierarchy.",
-      "intent": "Enable human-readable, version-controlled architecture governance artifacts alongside code without mandatory database infrastructure.",
-      "context": "Architecture continuous governance relies on ADRs, patterns, rules, and runtime profiles that must be inspectable and auditable in Git.",
-      "forces": [
-        "Need for version-controlled knowledge persistence using standard Git workflows",
-        "Ease of templating and manual developer contributions"
-      ],
-      "solution": "Establish a standardized folder tree (`cas-knowledge/global/`, `cas-knowledge/projects/`, `cas-knowledge/runtime/`, `cas-knowledge/templates/`) containing markdown, yaml, and json files with corresponding bootstrap scaffolding.",
-      "implementation_signals": [
-        "Dedicated cas-knowledge directory tree with subdirectories for decisions, rules, and patterns",
-        "Template markdown files in templates/ directory",
-        "Bootstrap utilities to initialize and merge workspace blocks"
-      ],
-      "evidence": [
-        {
-          "path": "cas-knowledge/templates/",
-          "symbols": [
-            "architecture_decision_record_template.md",
-            "rule_template.md",
-            "pattern_template.md"
-          ],
-          "note": "Standardized templates for persisting architecture knowledge on disk."
-        },
-        {
-          "path": "src/cas_runner/bootstrap.py",
-          "symbols": [
-            "bootstrap",
-            "init_workspace",
-            "merge_cas_governance_block"
-          ],
-          "note": "Utilities ensuring file structures and governance blocks are scaffolded."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Zero external database dependency; native Git auditability and PR reviews",
-          "Easily processed by static site generators (MkDocs)"
-        ],
-        "costs": [
-          "File system I/O latency and potential concurrent write collisions",
-          "Risk of manual file corruption bypassing programmatic validators"
-        ],
-        "failure_modes": [
-          "Directory layout drift or missing required template keys when modified directly on disk"
-        ]
-      },
-      "confidence": "high"
-    },
-    {
-      "id": "pluggable-provider-adapter",
-      "name": "Pluggable Provider Adapter",
-      "type": "pattern",
-      "structural_profile": {
-        "layer": "infrastructure",
-        "complexity": "low",
-        "coupling": "loose",
-        "extensibility": "high"
-      },
-      "summary": "External integration points are abstracted behind common interfaces with concrete live and mock implementations.",
-      "intent": "Decouple domain business logic from remote network clients, allowing offline execution, deterministic testing, and interchangeable backends.",
-      "context": "The platform requires client integrations (e.g., LiteLLM) that may fail in offline or CI environments.",
-      "forces": [
-        "Need for reliable unit and integration testing without network calls or API keys",
-        "Interchangeability of concrete underlying client implementations"
-      ],
-      "solution": "Provide parallel client implementations (such as LiteLLMClient and MockLLMClient) that conform to the expected client interface.",
-      "implementation_signals": [
-        "Paired client classes like LiteLLMClient and MockLLMClient in the client module",
-        "Conditional instantiation based on execution profile or environment"
-      ],
-      "evidence": [
-        {
-          "path": "src/cas_runner/llm/litellm_client.py",
-          "symbols": [
-            "LiteLLMClient"
-          ],
-          "note": "Production implementation wrapping LiteLLM API."
-        },
-        {
-          "path": "src/cas_runner/llm/mock_client.py",
-          "symbols": [
-            "MockLLMClient"
-          ],
-          "note": "Test double providing predictable mock responses without external calls."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Allows testing workflows in air-gapped or CI environments",
-          "Isolates external dependency upgrades from domain logic"
-        ],
-        "costs": [
-          "Maintenance burden of keeping mock implementations in sync with live adapters"
-        ],
-        "failure_modes": [
-          "Mock client behavior diverging from production client behavior"
-        ]
-      },
+      "reuse_notes": "Can be applied to any lifecycle-driven entity tracking workflow approvals or architectural changes.",
       "confidence": "high"
     },
     {
@@ -356,17 +239,28 @@
         "coupling": "loose",
         "extensibility": "medium"
       },
-      "summary": "Health metrics calculation is separated into side-effect-free pure functions that map domain inventory and finding states to health enumerations.",
-      "intent": "Ensure deterministic, testable, and transparent health status derivation without mutable state or hidden side effects.",
-      "context": "The governance dashboard requires real-time health assessment and diagnostic reasons derived from current project governance inventories.",
-      "forces": [
-        "Need for clear traceability between underlying compliance findings and top-level health indicators",
-        "Avoidance of mutable calculation states in dashboard rendering"
+      "summary": "Evaluates architectural and repository health status using side-effect-free, deterministic calculation functions.",
+      "tags": [
+        "functional-programming",
+        "domain-logic",
+        "determinism"
       ],
-      "solution": "Implement stateless calculation functions (`calculate_health`, `get_health_reasons`) that accept domain inputs and return typed `HealthStatus` enumerations and explanation strings.",
+      "domain": [
+        "Health Calculation",
+        "Metrics"
+      ],
+      "maturity": "stable",
+      "intent": "Provide consistent, easily testable health score and status derivations without coupling to database, file system, or network states.",
+      "context": "Health dashboards require unambiguous status calculation (e.g. GREEN, YELLOW, RED) along with transparent human-readable explanations based on input metrics.",
+      "forces": [
+        "Calculation must be strictly reproducible given identical metrics",
+        "Diagnostic reasoning must accompany health score changes"
+      ],
+      "solution": "Isolate health calculation into pure functions that accept domain metrics and return typed status enums and diagnostic reason lists.",
       "implementation_signals": [
-        "Stateless functions named calculate_* in dashboard/health_model.py",
-        "Return of immutable Enum values (HealthStatus)"
+        "Top-level calculation functions without global state mutation",
+        "Enumeration for status classifications",
+        "Dual functions for score derivation and diagnostic reason extraction"
       ],
       "evidence": [
         {
@@ -376,120 +270,274 @@
             "calculate_health",
             "get_health_reasons"
           ],
-          "note": "Functional evaluation of health states and human-readable diagnostic reasons."
+          "note": "Deterministic health assessment driven by inputs without I/O dependencies."
         }
       ],
       "consequences": {
         "benefits": [
-          "High testability with predictable outputs given specific inputs",
-          "No risk of race conditions or state pollution between evaluations"
+          "Trivial to test via parameterized unit tests.",
+          "Decoupled from visualization and I/O mechanisms."
         ],
         "costs": [
-          "Requires caller to assemble and pass full domain state snapshots"
+          "Caller is responsible for gathering all requisite state prior to evaluation."
         ],
         "failure_modes": [
-          "Incomplete input snapshots yielding false healthy statuses"
+          "Incomplete input metric objects lead to partial or skewed health assessments."
         ]
       },
+      "reuse_notes": "Adopt whenever computing composite status indicators from disparate telemetry signals.",
       "confidence": "high"
     },
     {
-      "id": "delta-based-change-modeling",
-      "name": "Delta-Based Change Modeling",
+      "id": "swappable-client-adapter",
+      "name": "Swappable Client Adapter with Mock Implementation",
       "type": "pattern",
       "structural_profile": {
-        "layer": "domain",
+        "layer": "infrastructure",
         "complexity": "low",
         "coupling": "loose",
         "extensibility": "high"
       },
-      "summary": "Repository mutations are ingested and represented as explicit discrete delta models rather than diffing snapshots continuously.",
-      "intent": "Provide a first-class domain representation of code and architecture changes to trigger precise steering and governance checks.",
-      "context": "Continuous governance needs to inspect pull requests and git commits to determine which architectural capabilities are affected.",
-      "forces": [
-        "Diff operations are raw text and lack domain context",
-        "Downstream governance engines need structured representations of changes"
+      "summary": "Abstracts external network service interactions behind concrete client adapters paired with local mock equivalents for zero-dependency testing.",
+      "tags": [
+        "adapter-pattern",
+        "testability",
+        "infrastructure"
       ],
-      "solution": "Model changes using `RawGitDelta`, `GitChangeType`, and `ArchitecturalDelta` entities that capture paths, change types, and architectural impact metadata.",
+      "domain": [
+        "Infrastructure Abstraction",
+        "Integration"
+      ],
+      "maturity": "stable",
+      "intent": "Isolate external provider network dependencies and enable fast, deterministic unit and offline test runs.",
+      "context": "External API calls require network connectivity and credentials; local test suites and isolated CI environments require predictable local stubs.",
+      "forces": [
+        "Testing without external service credentials or internet access",
+        "Swappable provider implementations without modifying core domain callers"
+      ],
+      "solution": "Provide parallel client implementations adhering to an implicit or explicit protocol, allowing runtime substitution of live clients with mock clients.",
       "implementation_signals": [
-        "Dedicated delta models in steering/models.py",
-        "Enumerations representing change types (GitChangeType)"
+        "Parallel classes matching method signatures (e.g. LiteLLMClient vs MockLLMClient)",
+        "Mock client generating synthetic responses without network invocation"
       ],
       "evidence": [
         {
-          "path": "src/cas_runner/steering/models.py",
+          "path": "src/cas_runner/llm/litellm_client.py",
           "symbols": [
-            "GitChangeType",
-            "RawGitDelta",
-            "ArchitecturalDelta"
+            "LiteLLMClient"
           ],
-          "note": "Encapsulates repository mutations into structured domain entities."
+          "note": "Production network adapter calling external LLM proxies."
+        },
+        {
+          "path": "src/cas_runner/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ],
+          "note": "Test-double client enabling offline execution without API keys."
         }
       ],
       "consequences": {
         "benefits": [
-          "Standardizes change analysis across different VCS sources",
-          "Enables filtering and targeted rule execution based on affected file types"
+          "Guarantees CI pipeline execution without third-party network egress.",
+          "Decouples service consumers from third-party vendor libraries."
         ],
         "costs": [
-          "Requires pre-processing step to convert git diffs into typed delta models"
+          "Mock client must be maintained in sync with production adapter API drift."
         ],
         "failure_modes": [
-          "Inaccurate parsing of complex git diffs or file renames resulting in malformed deltas"
+          "Mock divergence from real network responses leading to false positives in test suites."
         ]
       },
+      "reuse_notes": "Generalize across all infrastructure integration boundaries (e.g., git clients, artifact storage).",
+      "confidence": "high"
+    },
+    {
+      "id": "layered-governance-service-facade",
+      "name": "Layered Governance Service Facade",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "medium",
+        "coupling": "moderate",
+        "extensibility": "medium"
+      },
+      "summary": "Exposes a high-level application service facade orchestrating discrete domain engines for governance actions and compliance checks.",
+      "tags": [
+        "facade-pattern",
+        "service-layer",
+        "orchestration"
+      ],
+      "domain": [
+        "Application Layer",
+        "Architecture Governance"
+      ],
+      "maturity": "emerging",
+      "intent": "Present a cohesive application interface to presentation layers (CLI/Runner) while coordinating underlying domain engines.",
+      "context": "Executing a governance action involves validating compliance rules, evaluating state transitions, and persisting findings across multiple sub-systems.",
+      "forces": [
+        "Prevent CLI commands from orchestrating low-level engine details",
+        "Maintain clear boundary between domain rule calculation and transaction orchestration"
+      ],
+      "solution": "Introduce GovernanceActionService to orchestrate ComplianceEngine and GovernanceActionEngine, handling data flow and aggregate persistence.",
+      "implementation_signals": [
+        "Service class depending on multiple engine components",
+        "Higher-level business transaction methods coordinating engine executions"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/governance_action_service.py",
+          "symbols": [
+            "GovernanceActionService"
+          ],
+          "note": "Coordinates governance action execution and compliance engine checks."
+        },
+        {
+          "path": "src/cas_runner/governance/compliance_engine.py",
+          "symbols": [
+            "ComplianceEngine"
+          ],
+          "note": "Domain engine leveraged by the service facade."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Simplifies entrypoint logic in CLI and FlowRunner.",
+          "Encapsulates transactional boundaries."
+        ],
+        "costs": [
+          "Risk of accumulating procedural 'god class' behavior if domain rules leak into the service."
+        ],
+        "failure_modes": [
+          "Service methods bypassing domain engine validation for convenience."
+        ]
+      },
+      "reuse_notes": "Standard application layer pattern for domain-driven Python architectures.",
+      "confidence": "high"
+    },
+    {
+      "id": "docs-as-code-portal-projection",
+      "name": "Documentation-as-Code Portal Projection",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "presentation",
+        "complexity": "medium",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Compiles structured domain outputs and governance diagrams into a versioned, static documentation portal using MkDocs and client-side visualization scripts.",
+      "tags": [
+        "docs-as-code",
+        "static-site",
+        "visualization"
+      ],
+      "domain": [
+        "Documentation",
+        "Reporting"
+      ],
+      "maturity": "stable",
+      "intent": "Project architectural health and compliance state into an accessible, searchable developer portal without requiring a dedicated dynamic web backend.",
+      "context": "Architectural guidelines and live compliance metrics need to be transparent to engineering teams without running specialized hosting servers.",
+      "forces": [
+        "Static hosting convenience (e.g. GitHub Pages)",
+        "Combining human-authored markdown with machine-generated governance dashboards"
+      ],
+      "solution": "Leverage MkDocs Material plugins (drawio, ezlinks, glightbox) combined with client-side JavaScript to render structured governance data directly within static documentation.",
+      "implementation_signals": [
+        "MkDocs dependencies in pyproject.toml",
+        "Static JS files loading local JSON/reports into interactive DOM elements",
+        "Automated CI workflows publishing docs on steering sync"
+      ],
+      "evidence": [
+        {
+          "path": "pyproject.toml",
+          "symbols": [
+            "mkdocs",
+            "mkdocs-material",
+            "mkdocs-drawio"
+          ],
+          "note": "Tooling dependencies supporting static architectural portal generation."
+        },
+        {
+          "path": "portal/docs/static/js/dashboard.js",
+          "symbols": [],
+          "note": "Client-side interactive visualization script for portal dashboard metrics."
+        },
+        {
+          "path": ".github/workflows/cas-portal-publish.yml",
+          "symbols": [],
+          "note": "CI deployment pipeline compiling and publishing the static portal."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Zero backend maintenance for internal developer governance portal.",
+          "Documentation lives alongside source code and version control history."
+        ],
+        "costs": [
+          "Data updates require portal re-build or static client-side fetching.",
+          "Limited real-time interactivity compared to dynamic single-page applications."
+        ],
+        "failure_modes": [
+          "Build pipeline failure due to broken markdown links or schema mismatches in generated metrics."
+        ]
+      },
+      "reuse_notes": "Ideal for enterprise architecture repositories delivering continuous architecture visibility.",
       "confidence": "high"
     }
   ],
   "anti_patterns": [
     {
-      "id": "filesystem-path-coupling",
-      "name": "Coupling Domain Services to Concrete File Paths",
+      "id": "untyped-static-dashboard-contract",
+      "name": "Untyped Static Dashboard Data Contract",
       "symptoms": [
-        "Hardcoded relative folder paths across multiple modules (e.g. cas-knowledge/global/...)",
-        "Direct disk access dispersed across services rather than behind a repository interface"
+        "JavaScript visualization logic in portal/docs/static/js/dashboard.js parsing raw attributes without shared runtime JSON schema validation.",
+        "Disconnection between Python Pydantic models and client-side DOM rendering scripts."
       ],
       "impact": [
-        "Difficulty executing tests in temporary or in-memory file systems",
-        "Fragility when altering the workspace folder structure"
+        "Schema changes in Python models can silently break frontend dashboard charts or status indicators without compile-time or lint-time warnings."
       ],
       "suggested_remediation": [
-        "Introduce an AbstractKnowledgeStore interface that abstracts file system operations behind get/put methods.",
-        "Pass configured workspace roots via dependency injection to services."
+        "Export JSON Schema definitions from Pydantic models and validate emitted JSON artifacts during build steps.",
+        "Add automated end-to-end portal smoke tests asserting dashboard rendering against mock models."
       ],
       "confidence": "medium"
     },
     {
-      "id": "anemic-domain-model-risk",
-      "name": "Anemic Domain Models with Dispersed Engine Logic",
+      "id": "split-client-interface-conformance",
+      "name": "Implicit Duck-Typed Client Protocol",
       "symptoms": [
-        "Domain models primarily behave as passive data bags (Pydantic models with only field definitions)",
-        "Business operations and state validation residing strictly in external Engine classes"
+        "LiteLLMClient and MockLLMClient implement matching methods without explicitly inheriting from an abstract base class (abc.ABC) or typing.Protocol."
       ],
       "impact": [
-        "Risk of creating invalid entity states when instantiated outside engine workflows",
-        "Duplication of domain logic across different services"
+        "Signature drift between live and mock clients during refactoring can go undetected by typecheckers until runtime."
       ],
       "suggested_remediation": [
-        "Encapsulate invariants and core validation logic directly within the domain entity classes using Pydantic model validators."
+        "Define an explicit ClientProtocol or AbstractClient base class defining required execution methods.",
+        "Enforce type checking using mypy or pyright in CI lint workflows."
       ],
-      "confidence": "low"
+      "confidence": "medium"
     }
   ],
   "cross_cutting_concerns": [
     {
-      "name": "Observability & Telemetry",
-      "description": "Dependencies on opentelemetry-api and opentelemetry-sdk provide distributed tracing and metric collection across workflow executions."
+      "concern": "Observability and Distributed Tracing",
+      "implementation": "OpenTelemetry API and SDK integrated via pyproject.toml to trace lifecycle runner passes and governance checks.",
+      "paths": [
+        "pyproject.toml"
+      ]
     },
     {
-      "name": "Documentation as Artifacts",
-      "description": "Integration with MkDocs, mkdocs-material, and drawio plugins to compile knowledge repository markdown artifacts into interactive documentation portals."
+      "concern": "Static Code Quality & Standards Enforcement",
+      "implementation": "Centralized Ruff configuration enforcing pycodestyle, pyflakes, isort, and bugbear lint rules.",
+      "paths": [
+        "pyproject.toml"
+      ]
     }
   ],
   "open_questions": [
     {
-      "question": "How are concurrent filesystem writes coordinated when multiple actions execute in parallel?",
-      "context": "The repository uses local file-based storage under cas-knowledge without visible file locking primitives."
+      "question": "How are persistence transactions coordinated between the local file system and governance action engines in failure scenarios?",
+      "rationale": "While models and action engines are defined, atomic rollback mechanisms across multi-file markdown/JSON mutations are not explicitly apparent from manifests."
     }
   ]
 }
