@@ -1,8 +1,7 @@
 - id: flow:workflow:github:cas-build-steering-projection
   name: CAS Build Steering Projection
   type: workflow
-  description: GitHub Actions workflow generating proposal-only steering projections
-    on completion of CAS Build Validation.
+  description: GitHub Actions workflow defined in .github/workflows/cas-build-steering-projection.yml
   trigger:
     type: event
     event: push, workflow_run, workflow_dispatch
@@ -123,8 +122,7 @@
 - id: flow:workflow:github:cas-build-validation
   name: CAS Build Validation
   type: workflow
-  description: Validates CAS contracts, runs tests, executes governance checks, and
-    blocks downstream synthesis on failure.
+  description: GitHub Actions workflow defined in .github/workflows/cas-build-validation.yml
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -187,11 +185,25 @@
     confidence: high
     control_roles:
     - Correct
-  - id: step:6:run-governance-validator
-    name: Run Governance Validator
+  - id: step:6:prepare-validation-output
+    name: Prepare validation output
     sequence: 6
     depends_on:
     - step:5:install-dependencies
+    implementation: 'mkdir -p cas-knowledge/governance/build/validation
+
+      '
+    evidence_ids:
+    - ev-wf-cas-build-validation
+    confidence: high
+    control_roles:
+    - Generate
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:run-governance-validator
+    name: Run Governance Validator
+    sequence: 7
+    depends_on:
+    - step:6:prepare-validation-output
     implementation: 'uv run cas run governance-validator --project ideas-to-life-cas
 
       '
@@ -199,11 +211,11 @@
     - ev-wf-cas-build-validation
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:run-build-and-contract-validat
+  - id: step:8:run-build-and-contract-validat
     name: Run build and contract validation
-    sequence: 7
+    sequence: 8
     depends_on:
-    - step:6:run-governance-validator
+    - step:7:run-governance-validator
     implementation: 'set -uo pipefail
 
       mkdir -p cas-knowledge/governance/build/validation
@@ -215,41 +227,42 @@
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
-    - Generate
     - Detect
+    - Generate
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:write-validation-summary
+  - id: step:9:write-validation-summary
     name: Write validation summary
-    sequence: 8
+    sequence: 9
     depends_on:
-    - step:7:run-build-and-contract-validat
-    implementation: "{\n  echo \"# CAS Build Validation\"\n  echo \"\"\n  echo \"\
-      - Branch: $GITHUB_REF_NAME\"\n  echo \"- Commit: $GITHUB_SHA\"\n  echo \"- Result:\
-      \ ${{ job.status }}\"\n  echo \"\"\n  echo \"Validation gate blocks steering\
-      \ projection until the test suite and contract checks pass.\"\n} > cas-knowledge/governance/build/validation/validation-summary.md\n"
+    - step:8:run-build-and-contract-validat
+    implementation: "mkdir -p cas-knowledge/governance/build/validation\n{\n  echo\
+      \ \"# CAS Build Validation\"\n  echo \"\"\n  echo \"- Branch: $GITHUB_REF_NAME\"\
+      \n  echo \"- Commit: $GITHUB_SHA\"\n  echo \"- Result: ${{ job.status }}\"\n\
+      \  echo \"\"\n  echo \"Validation gate blocks steering projection until the\
+      \ test suite and contract checks pass.\"\n} > cas-knowledge/governance/build/validation/validation-summary.md\n"
     evidence_ids:
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
-    - Generate
     - Prevent
     - Detect
+    - Generate
     invokes_flow_id: flow:cli:cas:main
-  - id: step:9:upload-validation-report
+  - id: step:10:upload-validation-report
     name: Upload validation report
-    sequence: 9
+    sequence: 10
     depends_on:
-    - step:8:write-validation-summary
+    - step:9:write-validation-summary
     implementation: actions/upload-artifact@v4
     evidence_ids:
     - ev-wf-cas-build-validation
     confidence: high
   component_ids: []
   control_roles:
-  - Correct
-  - Generate
-  - Prevent
   - Detect
+  - Prevent
+  - Generate
+  - Correct
   artefacts: []
   implementation:
   - .github/workflows/cas-build-validation.yml
@@ -260,7 +273,7 @@
 - id: flow:workflow:github:cas-continuous-architecture-loop
   name: CAS Continuous Architecture Loop
   type: workflow
-  description: Executes full continuous architecture synthesis loop on PR creation/update.
+  description: GitHub Actions workflow defined in .github/workflows/cas-continuous-architecture.yml
   trigger:
     type: event
     event: pull_request
@@ -345,11 +358,24 @@
     control_roles:
     - Prevent
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:commit-and-push-changes
-    name: Commit and Push changes
+  - id: step:7:run-pattern-lifecycle-flow
+    name: Run Pattern Lifecycle Flow
     sequence: 7
     depends_on:
     - step:6:run-continuous-architecture-lo
+    implementation: "# Execute end-to-end pattern discovery, classification, promotion\
+      \ recommendations, and reference architecture staging\nuv run cas run pattern-lifecycle-flow\
+      \ \\\n  --project ideas-to-life-cas \\\n  --override '{\"governance_fail_on_error\"\
+      : false}'\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:commit-and-push-changes
+    name: Commit and Push changes
+    sequence: 8
+    depends_on:
+    - step:7:run-pattern-lifecycle-flow
     implementation: 'git config --global user.name "CAS Bot"
 
       git config --global user.email "cas-bot@users.noreply.github.com"
@@ -364,19 +390,19 @@
     - ev-wf-cas-continuous-architecture
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:upload-artifacts
+  - id: step:9:upload-artifacts
     name: Upload Artifacts
-    sequence: 8
+    sequence: 9
     depends_on:
-    - step:7:commit-and-push-changes
+    - step:8:commit-and-push-changes
     implementation: actions/upload-artifact@v4
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
   component_ids: []
   control_roles:
-  - Correct
   - Prevent
+  - Correct
   artefacts: []
   implementation:
   - .github/workflows/cas-continuous-architecture.yml
@@ -387,8 +413,7 @@
 - id: flow:workflow:github:cas-managed-steering-sync
   name: CAS Managed Steering Sync
   type: workflow
-  description: Applies projected managed steering sections to README and steering
-    guidance artifacts.
+  description: GitHub Actions workflow defined in .github/workflows/cas-managed-steering-sync.yml
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -562,9 +587,9 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Generate
     - Prevent
     - Correct
+    - Generate
   - id: step:15:inspect-projection
     name: Inspect Projection
     sequence: 15
@@ -599,8 +624,8 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Correct
     - Detect
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:17:commit-changes
     name: Commit Changes
@@ -637,14 +662,14 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Generate
     - Correct
+    - Generate
   component_ids: []
   control_roles:
-  - Correct
-  - Generate
   - Prevent
   - Detect
+  - Correct
+  - Generate
   artefacts: []
   implementation:
   - .github/workflows/cas-managed-steering-sync.yml
@@ -655,8 +680,7 @@
 - id: flow:workflow:github:cas-governance-portal-publish
   name: CAS Governance Portal Publish
   type: workflow
-  description: Preprocesses governance knowledge and publishes the MkDocs material
-    portal.
+  description: GitHub Actions workflow defined in .github/workflows/cas-portal-publish.yml
   trigger:
     type: event
     event: push, workflow_dispatch, repository_dispatch
@@ -788,11 +812,10 @@
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-  component_ids:
-  - comp-portal-preprocessor
+  component_ids: []
   control_roles:
-  - Generate
   - Prevent
+  - Generate
   artefacts: []
   implementation:
   - .github/workflows/cas-portal-publish.yml
@@ -803,8 +826,7 @@
 - id: flow:workflow:github:cas-governance-validation
   name: CAS Governance Validation
   type: workflow
-  description: Validates governance integrity on branches and triggers automated validation
-    findings upload.
+  description: GitHub Actions workflow defined in .github/workflows/governance-validation.yml
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -883,8 +905,8 @@
     confidence: high
   component_ids: []
   control_roles:
-  - Correct
   - Prevent
+  - Correct
   artefacts: []
   implementation:
   - .github/workflows/governance-validation.yml
@@ -939,8 +961,7 @@
     command: diagram
     evidence_id: ev-reg-src-cas_runner-portal_preprocessor.py-relationship_map
   steps: []
-  component_ids:
-  - comp-portal-preprocessor
+  component_ids: []
   control_roles: []
   artefacts: []
   implementation:
@@ -964,8 +985,7 @@
     command: rule
     evidence_id: ev-reg-src-cas_runner-portal_preprocessor.py-relationship_map
   steps: []
-  component_ids:
-  - comp-portal-preprocessor
+  component_ids: []
   control_roles: []
   artefacts: []
   implementation:
@@ -989,8 +1009,7 @@
     command: adr
     evidence_id: ev-reg-src-cas_runner-portal_preprocessor.py-relationship_map
   steps: []
-  component_ids:
-  - comp-portal-preprocessor
+  component_ids: []
   control_roles: []
   artefacts: []
   implementation:
@@ -1087,8 +1106,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1372,11 +1390,10 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
-  - Correct
   - Prevent
+  - Correct
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1419,8 +1436,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1465,8 +1481,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1511,8 +1526,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1557,8 +1571,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1603,8 +1616,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1649,8 +1661,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1695,8 +1706,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1741,8 +1751,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1787,8 +1796,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1833,8 +1841,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1906,8 +1913,7 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   artefacts: []
@@ -1952,10 +1958,306 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Generate
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/registry.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-registry.py:extract-agentic-patterns
+  name: extract-agentic-patterns
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  entrypoint:
+    path: src/cas_runner/steps/registry.py
+    symbol: FLOWS
+    command: extract-agentic-patterns
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  steps:
+  - id: step:1:rules-context-loader
+    name: rules-context-loader
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:rules-context-loader
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:agentic-patterns-extractor
+    name: agentic-patterns-extractor
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:agentic-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/registry.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-registry.py:extract-structural-patterns
+  name: extract-structural-patterns
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  entrypoint:
+    path: src/cas_runner/steps/registry.py
+    symbol: FLOWS
+    command: extract-structural-patterns
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  steps:
+  - id: step:1:rules-context-loader
+    name: rules-context-loader
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:rules-context-loader
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:structural-patterns-extractor
+    name: structural-patterns-extractor
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:structural-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/registry.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-registry.py:patterns-extraction-flow
+  name: patterns-extraction-flow
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  entrypoint:
+    path: src/cas_runner/steps/registry.py
+    symbol: FLOWS
+    command: patterns-extraction-flow
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  steps:
+  - id: step:1:rules-context-loader
+    name: rules-context-loader
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:rules-context-loader
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:agentic-patterns-extractor
+    name: agentic-patterns-extractor
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:agentic-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:structural-patterns-extractor
+    name: structural-patterns-extractor
+    sequence: 3
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:structural-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:pattern-catalogue-to-proposals
+    name: pattern-catalogue-to-proposals
+    sequence: 4
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:pattern-catalogue-to-proposals
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/registry.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-registry.py:reference-architecture-flow
+  name: reference-architecture-flow
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  entrypoint:
+    path: src/cas_runner/steps/registry.py
+    symbol: FLOWS
+    command: reference-architecture-flow
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  steps:
+  - id: step:1:rules-context-loader
+    name: rules-context-loader
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:rules-context-loader
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:reference-architecture-generator
+    name: reference-architecture-generator
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:reference-architecture-generator
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/registry.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-registry.py:pattern-lifecycle-flow
+  name: pattern-lifecycle-flow
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  entrypoint:
+    path: src/cas_runner/steps/registry.py
+    symbol: FLOWS
+    command: pattern-lifecycle-flow
+    evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
+  steps:
+  - id: step:1:rules-context-loader
+    name: rules-context-loader
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:rules-context-loader
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:agentic-patterns-extractor
+    name: agentic-patterns-extractor
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:agentic-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:structural-patterns-extractor
+    name: structural-patterns-extractor
+    sequence: 3
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:structural-patterns-extractor
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:pattern-catalogue-to-proposals
+    name: pattern-catalogue-to-proposals
+    sequence: 4
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:pattern-catalogue-to-proposals
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:signal-to-pattern-proposals
+    name: signal-to-pattern-proposals
+    sequence: 5
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:signal-to-pattern-proposals
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:pattern-scope-classifier
+    name: pattern-scope-classifier
+    sequence: 6
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:pattern-scope-classifier
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:pattern-promotion-workflow
+    name: pattern-promotion-workflow
+    sequence: 7
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:pattern-promotion-workflow
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:reference-architecture-generator
+    name: reference-architecture-generator
+    sequence: 8
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:reference-architecture-generator
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Prevent
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -2029,6 +2331,204 @@
   - src/cas_runner/steps/architecture_work_assessment.py
   evidence_ids:
   - ev-reg-src-cas_runner-steps-architecture_work_assessment.py-governance_health
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:promotion_criteria_missing
+  name: promotion_criteria_missing
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:decision_data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-decision_data
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: decision_data
+    command: promotion_criteria_missing
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-decision_data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-decision_data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:chained_adrs
+  name: chained_adrs
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:stats
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: stats
+    command: chained_adrs
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:chained_patterns
+  name: chained_patterns
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:stats
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: stats
+    command: chained_patterns
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:promotion_evidence
+  name: promotion_evidence
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:cand
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: cand
+    command: promotion_evidence
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  steps:
+  - id: step:1:ratified-reference-architecture-in-archgov
+    name: Ratified Reference Architecture in ArchGov
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/governance/governance_action_service.py:Ratified
+      Reference Architecture in ArchGov
+    evidence_ids:
+    - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:promotion_criteria_met
+  name: promotion_criteria_met
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:cand
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: cand
+    command: promotion_criteria_met
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  steps:
+  - id: step:1:governance-maturity
+    name: governance maturity
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/governance/governance_action_service.py:governance
+      maturity
+    evidence_ids:
+    - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:ratified-reference-architecture
+    name: ratified reference architecture
+    sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/governance/governance_action_service.py:ratified
+      reference architecture
+    evidence_ids:
+    - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:governance_risks
+  name: governance_risks
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:cand
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: cand
+    command: governance_risks
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-cand
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-patterns-proposal_projection.py:applies_to
+  name: applies_to
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/patterns/proposal_projection.py:proposal
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-patterns-proposal_projection.py-proposal
+  entrypoint:
+    path: src/cas_runner/steps/patterns/proposal_projection.py
+    symbol: proposal
+    command: applies_to
+    evidence_id: ev-reg-src-cas_runner-steps-patterns-proposal_projection.py-proposal
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/patterns/proposal_projection.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-patterns-proposal_projection.py-proposal
   confidence: high
   status: discovered
 - id: flow:declared_flow:src-cas_runner-steps-forensic-flow_extractor.py:evidence_ids
