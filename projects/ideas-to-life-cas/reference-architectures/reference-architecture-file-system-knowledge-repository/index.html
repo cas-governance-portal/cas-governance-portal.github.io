@@ -3063,10 +3063,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#alternatives-considered-and-set-aside" class="md-nav__link">
+  <a href="#alternatives-considered-set-aside" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Alternatives Considered and Set Aside
+        Alternatives Considered &amp; Set Aside
       
     </span>
   </a>
@@ -3098,6 +3098,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Non-functional characteristics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reliability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reliability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance &amp; Latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost &amp; Efficiency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3124,10 +3174,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#migration-path" class="md-nav__link">
+  <a href="#migration-path-starting-points" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Migration Path
+        Migration Path &amp; Starting Points
       
     </span>
   </a>
@@ -3135,10 +3185,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#governance-ownership" class="md-nav__link">
+  <a href="#ownership-governance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Governance &amp; Ownership
+        Ownership &amp; Governance
       
     </span>
   </a>
@@ -3181,97 +3231,111 @@
 <h1 id="reference-architecture-file-system-structured-knowledge-repository">Reference Architecture: File-System Structured Knowledge Repository</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
 <h3 id="purpose">Purpose</h3>
-<p>The File-System Structured Knowledge Repository pattern establishes a transparent, version-controlled directory hierarchy using standard human-readable and machine-parseable formats (Markdown, YAML, JSON) as the definitive primary source of truth for architectural knowledge, ADRs, runtime states, and governance rules without relying on external opaque databases.</p>
+<p>The File-System Structured Knowledge Repository pattern establishes an organized, version-controlled hierarchy of flat files (Markdown, YAML, and JSON) directly within source control as the authoritative architectural source of truth. It guarantees transparency, auditable revision histories, and team-wide governance via standard Git pull-request review workflows without incurring operational database overhead.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When architecture decisions, operational rules, patterns, and runtimes require Git-centric pull request reviews and versioning alongside application code.</li>
-<li>When multi-tenant or multi-project governance requires strict hierarchical scoping (e.g., global corporate rules, project-specific overrides, and runtime metadata).</li>
-<li>In automated agentic workflows and local CLI development where zero external database overhead and fully offline inspection are paramount.</li>
-<li>When transparent audibility, blame tracking, and diff inspection are essential for compliance and governance reviews.</li>
+<li>When architecture decisions (ADRs), system models, schemas, and design guidelines must be reviewable using standard peer code-review processes (e.g., GitHub PRs, GitLab MRs).</li>
+<li>When development workflows and automated agents require zero-friction offline reads and writes without managing database connections, migrations, or access credentials.</li>
+<li>When team structures require transparent branching, merging, and distributed revision control for governance artifacts alongside production application code.</li>
+<li>When building agentic or automated workflows that parse, generate, and ingest structured metadata as static schema-validated files.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>When data access patterns demand high-frequency, millisecond-level concurrent writes across hundreds of distributed nodes (high lock/merge contention).</li>
-<li>For large binary artifacts or multi-gigabyte analytical datasets better suited for object storage (e.g., S3, GCS) or data warehouses.</li>
-<li>When complex ad-hoc relational joins, full-text inverted indexing at petabyte scale, or sub-millisecond atomic transactions are mandatory.</li>
+<li>High-frequency transactional mutations: Systems requiring hundreds or thousands of concurrent transactional writes per minute will encounter severe Git merge conflicts and write serialization bottlenecks.</li>
+<li>Dynamic ad-hoc querying across millions of records: Complex multi-variable joins, analytical aggregation queries, or low-latency index lookups across enterprise-scale data sets require purpose-built SQL/NoSQL or document databases.</li>
+<li>Granular field-level access control: Environments that enforce column-level or row-level dynamic security boundaries that cannot be mapped to repository directory or branch permission boundaries.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    cli["CAS Runner CLI (Container)"]
-    bootstrap["Bootstrap Engine (Container)"]
-    provider["LocalKnowledgeProvider (Container)"]
-    repo[("File-System Knowledge Repository (Data store)")]
+    user["Architect / Engineer (Person)"]
+    bootstrap["Workspace Bootstrapper (Container)"]
+    repo[("File-System Knowledge Repository (Data Store)")]
     git["Git Version Control (External System)"]
+    ci["CI / PR Governance Pipeline (Container)"]
 
-    cli --&gt;|1. Executes workflow| bootstrap
-    bootstrap --&gt;|2. Reads and writes knowledge| provider
-    provider --&gt;|3. Resolves hierarchical paths| repo
-    repo --&gt;|4. Commits and version tracks| git
+    user --&gt;|1. Authors/Edits Markdown &amp; YAML| repo
+    bootstrap --&gt;|2. Initializes taxonomy &amp; templates| repo
+    repo --&gt;|3. Persists revision history| git
+    ci --&gt;|4. Validates schemas &amp; links| repo
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class cli,bootstrap,provider container
+    class bootstrap,ci container
     class repo store
-    class git external</code></pre>
+    class git,user external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Knowledge Repository Directory Hierarchy (<code>cas-knowledge/</code>)</strong>: Houses persistent Markdown, YAML, and JSON structures partitioned into global, project-specific, runtime, and template scopes.</li>
-<li><strong>LocalKnowledgeProvider (<code>src/cas_runner/io.py</code>)</strong>: Abstracts file-system I/O, parsing FrontMatter, validating schema definitions, and caching read access across repository boundaries.</li>
-<li><strong>Bootstrap Synchronization Engine (<code>src/cas_runner/bootstrap.py</code>)</strong>: Provisions workspace directories, merges governance blocks, and synchronizes baseline architectural patterns into target project workspaces.</li>
-<li><strong>Git Tracking &amp; Review Pipeline (<code>.git/</code>)</strong>: Manages branch merges, audit trails, multi-architect review processes, and cryptographic commit history for all architectural changes.</li>
+<li><strong>Knowledge Hierarchy Store (<code>cas-knowledge/</code>)</strong>: Authoritative tree partitioning architecture artifacts into distinct scopes: global taxonomies, project-specific models, runtime telemetry, and template baselines.</li>
+<li><strong>Workspace Bootstrapper &amp; Synchronizer (<code>src/cas_runner/bootstrap.py</code>)</strong>: Provisions foundational directory topologies (<code>init_workspace</code>) and synchronizes centralized governance blocks into downstream repositories (<code>merge_cas_governance_block</code>).</li>
+<li><strong>Schema Validation Engine (<code>src/cas_runner/validation/</code>)</strong>: Executes declarative JSON Schema and Markdown syntax validation across all repository files during local development and automated CI stages.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
 <h3 id="recommended-choices">Recommended Choices</h3>
 <ul>
-<li><strong>Storage Format</strong>: Extended CommonMark Markdown with YAML frontmatter for human-authored documentation; strict JSON Schema-validated files for machine configurations and catalog entries.</li>
-<li><strong>Directory Hierarchy</strong>: Layered filesystem partitioning (<code>global/</code>, <code>projects/</code>, <code>runtime/</code>, <code>templates/</code>) mapping directly to governance scopes.</li>
-<li><strong>Parsing Engine</strong>: Python standard library <code>pathlib</code> combined with <code>PyYAML</code> and <code>pydantic</code> for strict contract and schema validation.</li>
+<li><strong>Storage Formats</strong>: YAML for structured configuration/metadata (human-readable, dense), JSON Schema for deterministic contracts, and Markdown for human-oriented narrative architecture documentation.</li>
+<li><strong>Version Control Engine</strong>: Git with native branching, diff tools, and commit signing to guarantee immutability and provenance tracking.</li>
+<li><strong>Validation Tools</strong>: Python jsonschema, yamllint, and markdownlint integrated into pre-commit hooks and GitHub Actions pipelines.</li>
 </ul>
-<h3 id="alternatives-considered-and-set-aside">Alternatives Considered and Set Aside</h3>
+<h3 id="alternatives-considered-set-aside">Alternatives Considered &amp; Set Aside</h3>
 <ul>
-<li><strong>Relational Database (PostgreSQL)</strong>: Set aside due to operational deployment overhead, barrier to offline development, and loss of native Git-based Pull Request diffing.</li>
-<li><strong>Document Store (MongoDB)</strong>: Set aside because binary and proprietary persistence makes code review and manual architectural editing opaque.</li>
-<li><strong>Centralized Wiki (Confluence/Notion API)</strong>: Set aside due to network latency, lack of deterministic branch-isolated validation in CI/CD, and vendor lock-in.</li>
+<li><strong>Relational / Document Databases (PostgreSQL, MongoDB)</strong>: Rejected due to unnecessary operational complexity, connection lifecycle management, lack of integrated code-review workflows, and difficulty maintaining branching coherence with application code.</li>
+<li><strong>Enterprise Wiki Solutions (Confluence, Notion)</strong>: Rejected due to vendor lock-in, proprietary APIs, inability to natively bind schema checks into automated continuous integration pipelines, and friction for automated AI/agentic pipelines.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Embedded In-Repo Variant</strong>: Knowledge files reside directly within the application repository under a designated root directory (e.g., <code>cas-knowledge/</code>), ensuring atomic releases of architecture and code.</li>
-<li><strong>Central Governance Submodule Variant</strong>: Knowledge repository is maintained in a centralized repository and linked into individual project repositories via Git submodules or automated bootstrap sync.</li>
-<li><strong>Dual-State Cache Variant</strong>: The file system remains the authoritative source of truth, while an ephemeral in-memory index (e.g., SQLite or DuckDB) is hydrated on startup for accelerated query and search operations.</li>
+<li><strong>Monorepo Co-location Variant</strong>: Architecture knowledge files live directly inside the primary application repository (<code>docs/architecture/</code> or <code>cas-knowledge/</code>), ensuring atomic commits when code changes require simultaneous architectural specification updates.</li>
+<li><strong>Dedicated Centralized Governance Submodule Variant</strong>: Architecture artifacts reside in a dedicated corporate governance repository that downstream projects consume as a version-pinned Git submodule or package dependency.</li>
+<li><strong>Static-Site Generated (SSG) Variant</strong>: A headless documentation pipeline (e.g., MkDocs Material, Astro) monitors file system changes and continuously publishes rendered documentation to an internal static portal.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
+<h3 id="reliability">Reliability</h3>
 <ul>
-<li><strong>Reliability</strong>: High durability guaranteed through distributed Git clones; zero remote database dependency ensures complete operational availability offline.</li>
-<li><strong>Performance &amp; Latency</strong>: Local disk I/O provides sub-millisecond retrieval for single-file reads; bulk scans scale linearly with repository tree depth and benefit from in-memory frontmatter caching.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Zero infrastructure licensing or hosted database costs; negligible storage overhead consisting entirely of raw text and metadata.</li>
-<li><strong>Operability</strong>: Trivial debugging and disaster recovery via standard POSIX utilities (<code>find</code>, <code>grep</code>, <code>git diff</code>); simplified backup workflows mirroring standard source code management.</li>
+<li>Highly resilient against network partitions and service outages; fully functional offline.</li>
+<li>Immutability and point-in-time recovery are guaranteed natively via Git commit history and SHA hashes.</li>
+</ul>
+<h3 id="performance-latency">Performance &amp; Latency</h3>
+<ul>
+<li>Local disk reads and schema validation complete within milliseconds.</li>
+<li>Zero network latency for local agentic tooling and development tasks.</li>
+</ul>
+<h3 id="cost-efficiency">Cost &amp; Efficiency</h3>
+<ul>
+<li>Negligible cost: utilizes existing source control hosting (GitHub, GitLab) with zero database compute or storage licensing fees.</li>
+<li>Highly efficient storage footprints through text compression and Git blob packing.</li>
+</ul>
+<h3 id="operability">Operability</h3>
+<ul>
+<li>Minimal maintenance surface: standard Git maintenance (e.g., <code>git gc</code>) applies.</li>
+<li>Universal tool support: editable by any standard text editor, IDE, or CLI utility without bespoke database drivers.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Monolithic Multi-Megabyte Metadata Files</strong>: Packing all global decisions into a single YAML/JSON file leads to frequent merge conflicts and parsing overhead. <em>Remedy</em>: Partition by domain and individual ADR/pattern files.</li>
-<li><strong>Unvalidated FrontMatter Schema</strong>: Allowing free-form YAML headers causes drift across teams. <em>Remedy</em>: Enforce Pydantic or JSON schema validation during CI pipeline execution.</li>
-<li><strong>Dual Master Synchronization</strong>: Updating both a database and filesystem repository independently without a single authoritative master leads to state divergence. <em>Remedy</em>: Designate the Git filesystem repository as the immutable primary source.</li>
+<li><strong>Unchecked Parallel Branch Concurrency</strong>: Multiple autonomous agents or team members submitting uncoordinated pull requests modifying the exact same YAML index, generating frequent merge conflicts.</li>
+<li><em>Remedy</em>: Partition knowledge into domain-segregated directories or date-partitioned signal files rather than monolithic shared index files.</li>
+<li><strong>Schema-Free Free-Form Rot</strong>: Allowing unconstrained Markdown authoring without automated schema validation, resulting in broken links and drift.</li>
+<li><em>Remedy</em>: Enforce strict JSON/YAML schema validation and link checkers in blocking CI gate pipelines.</li>
+<li><strong>Binary &amp; Media Bloat</strong>: Storing large design binaries, screen recordings, or uncompressed exports in the repository.</li>
+<li><em>Remedy</em>: Enforce Git LFS or direct external object storage links (e.g., S3) for heavy media assets.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<h3 id="migration-path">Migration Path</h3>
+<h3 id="migration-path-starting-points">Migration Path &amp; Starting Points</h3>
 <ol>
-<li>Initialize the standardized root directory structure using <code>src/cas_runner/bootstrap.py:init_workspace</code>.</li>
-<li>Export legacy documentation and decision records into Markdown files containing standardized YAML frontmatter.</li>
-<li>Implement automated linting via CI actions to validate schema compliance on every Pull Request.</li>
-<li>Route read/write access through <code>KnowledgeProvider</code> abstraction to prevent direct unvalidated disk coupling.</li>
+<li>Initialize a clean directory structure under <code>cas-knowledge/</code> using <code>src/cas_runner/bootstrap.py</code>.</li>
+<li>Define foundational directory contracts (<code>global/</code>, <code>projects/</code>, <code>runtime/</code>, <code>templates/</code>).</li>
+<li>Establish pre-commit validation hooks with JSON Schema to enforce metadata consistency prior to repository commits.</li>
+<li>Connect continuous integration (CI) linting to validate cross-references and reject non-conforming changes.</li>
 </ol>
-<h3 id="governance-ownership">Governance &amp; Ownership</h3>
+<h3 id="ownership-governance">Ownership &amp; Governance</h3>
 <ul>
-<li><strong>Domain</strong>: Enterprise Architecture Governance</li>
-<li><strong>Initiative</strong>: Architecture As Code (<code>ideas-to-life-cas</code>)</li>
-<li><strong>Owner</strong>: Core Platform Architecture Team</li>
+<li><strong>Domain ID</strong>: Core Architecture &amp; Governance (<code>arch-core</code>)</li>
+<li><strong>Initiative ID</strong>: Automated Governance &amp; Knowledge Persistence (<code>cas-init-01</code>)</li>
+<li><strong>Owner</strong>: Enterprise Architecture Governance Guild</li>
 </ul>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../src/cas_runner/bootstrap.py">Bootstrap Synchronization Engine</a></li>
-<li><a href="../../../src/cas_runner/io.py">Local Knowledge Provider Implementation</a></li>
-<li><a href="../../../cas-knowledge">Root Knowledge Repository</a></li>
+<li>Bootstrap Implementation: <code>src/cas_runner/bootstrap.py</code></li>
+<li>Knowledge Base Taxonomy: <code>cas-knowledge/</code></li>
 </ul>
 
 
@@ -3279,9 +3343,6 @@
 
 
 
-
-  
-  
 
 
 

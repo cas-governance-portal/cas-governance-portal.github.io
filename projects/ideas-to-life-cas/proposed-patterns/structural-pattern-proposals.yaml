@@ -7,60 +7,62 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-09-28'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceInventory, ComplianceFinding,
-      GovernanceAction) - Defines core architectural governance entities with type
-      validation
-    - src/cas_runner/steering/models.py (CapabilityRecord, CapabilitySet, ArchitecturalDelta)
-      - Defines steering graph and git change delta structures
-  description: Encapsulates architectural governance, steering indices, and health
-    attributes as typed, validated Pydantic models.
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
+      ComplianceMetrics, GovernanceException, GovernanceAction) - Defines rich data
+      structures for tracking governance metrics and findings.
+    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, PromptFact, SteeringRuntimeIndex,
+      CapabilityCategory, CapabilityRecordType, CapabilityRecord, CapabilitySet, CapabilityLineage,
+      ArchitecturalDelta) - Models version control changes and steering capability
+      lineage.
+  description: Encapsulation of architectural facts, metrics, and governance entities
+    into strongly typed, declarative Pydantic schemas.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide strongly typed schema guarantees and serialization across the
-    file ingestion and runtime boundaries.'
-  - 'Context: The system processes YAML/JSON configuration files, rule contexts, and
-    Git deltas across heterogeneous CLI commands.'
-  - 'Force: Need for schema validation at system boundaries without boilerplate parsing
-    code.'
-  - 'Force: Need immutability or deterministic state inspection across pipeline stages.'
+  - 'Intent: Ensure immutable contracts and schema validation at runtime boundaries
+    for all architectural governance entities.'
+  - 'Context: The system processes structured governance artifacts, deltas, and compliance
+    checks from file repositories and external tools.'
+  - 'Force: Complex rule contexts with varying schema versions.'
+  - 'Force: Need for strict serialization to and from JSON/YAML.'
+  - 'Force: Prevention of malformed runtime telemetry or metrics.'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
   name: Transition Registry State Machine
-  pattern_classification: architectural
+  pattern_classification: governance
   pattern_maturity: emerging
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-09-28'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - TransitionRegistry maintains allowed transitions consumed by GovernanceActionEngine
-    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - Service layer facade invoking action engine transitions
-  description: Decouples lifecycle state mutations and valid governance steps through
-    a centralized transition registry.
+      - Separates state transition rules from action execution.
+  description: Registry-based state transition mapping that decouples governance action
+    execution from state machine definitions.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Maintain an extensible registry of allowed architectural transitions
-    and operations without hardcoding conditional branching.'
-  - 'Context: Architectural artifacts progress through varying lifecycle states (e.g.,
-    proposed, accepted, deprecated, promoted).'
-  - 'Force: Need to validate that governance actions follow allowable transition rules.'
-  - 'Force: Desire to add new transitions without modifying the core execution engine.'
+  - 'Intent: Provide a centralized, pluggable table of permissible governance state
+    transitions to control artifact promotion.'
+  - 'Context: Architectural artifacts (proposals, rules, decisions) transition across
+    statuses (draft, approved, rejected, retired) via governance actions.'
+  - 'Force: Hardcoding transitions in conditionals causes branching complexity.'
+  - 'Force: New governance lifecycles need to be introduced without modifying existing
+    execution code.'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -799,5 +801,161 @@ pattern_proposals:
     databases.'
   - 'Force: Knowledge structures require standard templates to guide documentation
     consistency.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: application-service-facade
+  name: Application Service Facade
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Coordinates governance action execution across engines.
+  description: Encapsulation of governance workflows behind a single coarse-grained
+    service interface.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide entrypoints like CLI and external automation with a clean, cohesive
+    boundary to complex governance engines.'
+  - 'Context: The CLI and workflows need to execute complex multi-step operations
+    (e.g. evaluating compliance, updating registers, and calculating health).'
+  - 'Force: Presentation layer must not leak knowledge of engines or transition registries.'
+  - 'Force: Business operations require multi-engine coordination.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pure-health-evaluation-pipeline
+  name: Pure Health Evaluation Pipeline
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Implements deterministic health calculation and diagnosis without I/O dependencies.
+  description: Isolating health score computations and diagnosis reasoning into pure,
+    side-effect-free evaluation functions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple metric aggregation and health classification from I/O and state
+    storage.'
+  - 'Context: Dashboards and CI jobs need to determine workspace architectural health
+    from runtime inventories without mutating workspace files.'
+  - 'Force: Health checks must run quickly and deterministically across different
+    execution contexts.'
+  - 'Force: Testing health calculations should not require mocking filesystem or network
+    calls.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: hierarchical-file-backed-knowledge-store
+  name: Hierarchical File-Backed Knowledge Store
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/ - Holds organization-wide decisions, governance, models,
+      patterns, rules, and signals.
+    - cas-knowledge/projects/ - Holds project-level contextual models and architectural
+      assertions.
+    - cas-knowledge/runtime/ - Maintains execution profiles, evaluations, and runtime
+      traces.
+  description: Directory-level separation of global governance, project-specific overrides,
+    runtime artifacts, and templates directly in the Git tree.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Treat architectural knowledge and governance policies as version-controlled
+    code artifacts without an external database.'
+  - 'Context: Continuous architecture governance relies on versioned decisions, rules,
+    and metrics distributed across projects.'
+  - 'Force: Need version control, diffing, and PR-based approvals for architectural
+    governance.'
+  - 'Force: Global organizational policies must coexist with project-level exceptions
+    and runtime traces.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pluggable-infrastructure-client-adapter
+  name: Pluggable Infrastructure Client Adapter
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production implementation
+      wrapping LiteLLM API.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - In-memory test double mimicking
+      client behavior without external network access.
+  description: Adapter pattern isolating external provider implementations behind
+    uniform client contracts.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple external provider calls from business execution and allow seamless
+    test stubbing.'
+  - 'Context: The system communicates with external model APIs but requires hermetic
+    offline runs for local tests and CI validation.'
+  - 'Force: Third-party API dependencies introduce network flakiness and cost during
+    test runs.'
+  - 'Force: Runtime configuration must switch between mock and real execution transparently.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: workspace-bootstrap-merger
+  name: Workspace Bootstrap Merger
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, bootstrap, init_workspace)
+      - Handles safe project onboarding and governance structure initialization.
+  description: Programmatic initialization and governance block injection for managed
+    workspaces.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure target projects have valid governance definitions merged into
+    their repository configurations before runner execution.'
+  - 'Context: Repositories onboarding to CAS require a standardized governance harness
+    and directory structure.'
+  - 'Force: Manual repository setup leads to omitted governance markers.'
+  - 'Force: Overwriting existing user configuration causes data loss.'
   evidence_strength: high
   confidence: high

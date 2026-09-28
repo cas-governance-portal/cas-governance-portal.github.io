@@ -383,33 +383,34 @@ pattern_proposals:
   confidence: high
 - pattern_id: rule-grounded-compliance-evaluation
   name: Rule-Grounded Compliance Evaluation
-  pattern_classification: governance
-  pattern_maturity: established
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-09-28'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Implements
-      validation rules and collects compliance metrics.
-    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, GovernanceHealth)
-      - Defines schemas for audit findings and overall health evaluation.
-  description: Computes deterministic compliance findings and health scores on architectural
-    assets prior to agent state promotion.
-  pattern_type: implemented
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluator
+      applying rules to codebase deltas
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
+      Data contracts for individual violations and composite scores
+  description: Evaluates code and architectural delta compliance by evaluating diffs
+    against codified rule contexts and generating structured finding metrics.
+  pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Prevent downstream agents from acting on corrupted, non-compliant, or
-    incomplete architectural configurations.'
-  - 'Context: Evaluated during FlowRunner governance verification cycles and workspace
-    bootstrapping.'
-  - 'Force: Relying on LLMs to self-evaluate compliance creates hallucinated approvals.'
-  - 'Force: Unstructured validation errors make automated remediation difficult.'
+  - 'Intent: Continuously verify whether repository changes conform to organizational
+    architectural standards before PR merge.'
+  - 'Context: Within CI workflows (e.g. cas-build-validation.yml), PRs must be audited
+    against cas-knowledge architectural rules.'
+  - 'Force: Human architectural reviews are infrequent and slow down deployment velocity.'
+  - 'Force: Purely static linting tools cannot evaluate architectural intent or semantic
+    compliance.'
   evidence_strength: high
   confidence: high
 - pattern_id: agentic-state-reconciliation-merger
@@ -1266,5 +1267,236 @@ pattern_proposals:
   - 'Force: User or agent edits can accidentally delete critical system prompt steering
     directives'
   - 'Force: Standardized templates must be maintained across multiple target repositories'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pluggable-llm-provider-abstraction
+  name: Pluggable LLM Provider Abstraction
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production implementation
+      for multi-provider invocation
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Deterministic test mock
+      implementation
+  description: Wraps LLM invocations in a standardized client interface enabling transparent
+    switching between production multi-provider models and deterministic test mock
+    clients.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple orchestration and governance agents from provider-specific APIs
+    while facilitating deterministic local testing.'
+  - 'Context: Agentic components (merger, compliance engine) require model completions
+    but must remain agnostic to specific LLM endpoints and testable without active
+    API keys.'
+  - 'Force: Need multi-model flexibility across distinct providers without changing
+    prompt consumption logic.'
+  - 'Force: Requirement to test agent pipelines offline in CI without consuming API
+    budget.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: registry-guarded-governance-state-machine
+  name: Registry-Guarded Governance State Machine
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Registry and execution engine enforcing state lifecycle transitions
+    - src/cas_runner/governance/models.py (GovernanceAction, GovernanceException)
+      - Action descriptors and domain exception types for illegal actions
+  description: Constrains autonomous actions and artifact state progressions through
+    an explicit transition registry that validates preconditions before allowing state
+    shifts.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent LLM or autonomous workers from promoting or transitioning architectural
+    artifacts into invalid states.'
+  - 'Context: Architectural artifacts (patterns, rules, decisions) must adhere to
+    defined lifecycles (e.g. exploring -> validating -> stable) and cannot skip governance
+    checks.'
+  - 'Force: Autonomous agents must execute actions while preventing unauthorized or
+    invalid state transitions.'
+  - 'Force: Traceability of state transitions must be retained for audits.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: structured-fact-projection-indexing
+  name: Structured Fact Projection Indexing
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (PromptFact, SteeringRuntimeIndex, CapabilityRecord,
+      ArchitecturalDelta) - Typed models defining fact indexing and runtime projection
+  description: Extracts and indexes typed capability facts and architectural deltas
+    from repository history, projecting them into prompt-ready structured contexts
+    for agent reasoning.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Supply agents with factual, verifiable context without flooding prompts
+    with unstructured data or ungrounded knowledge.'
+  - 'Context: Agents analyzing git changes and governance compliance require precise
+    context regarding capability lineages and repository deltas.'
+  - 'Force: LLMs hallucinate context when provided ambiguous or unstructured raw git
+    dumps.'
+  - 'Force: Prompt token budgets require concise, relevant summaries of current system
+    architecture.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: sequential-flow-orchestration-pipeline
+  name: Sequential Flow Orchestration Pipeline
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Centralized execution runner managing
+      stage lifecycles
+    - src/cas_runner/cli.py (main) - CLI driver delegating arguments to FlowRunner
+  description: Coordinates multistep architectural governance and compliance execution
+    through a centralized sequential pipeline passing shared context between stages.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure deterministic ordering and dependency propagation across initialization,
+    analysis, evaluation, and publishing stages.'
+  - 'Context: Continuous architecture analysis involves multi-stage tasks (bootstrap,
+    lint/validation, LLM evaluation, report generation) where downstream steps rely
+    on upstream outputs.'
+  - 'Force: Uncoordinated multi-agent parallel execution can cause race conditions
+    on file-based state.'
+  - 'Force: Failures in early validation steps must immediately short-circuit expensive
+    LLM operations.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: agentic-reconciliation-merger
+  name: Agentic Reconciliation Merger
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Core class orchestrating
+      LLM-based governance reconciliation
+    - src/cas_runner/governance/models.py (ResolutionResult) - Structured contract
+      capturing merged output and resolution details
+  description: Employs an LLM-assisted reconciliation agent to analyze semantic conflicts
+    across governance configurations and produce a unified, resolved state.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Resolve semantic divergences in governance blocks that standard git or
+    text-based line mergers cannot intelligently resolve.'
+  - 'Context: Multiple project repositories generate localized governance configurations
+    or rules that need to be harmonized into the global cas-knowledge base.'
+  - 'Force: Mechanical text merging produces syntactically valid but semantically
+    conflicting architecture rules.'
+  - 'Force: Manual human reconciliation of rule changes across multiple projects creates
+    operational bottlenecks.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: traceable-metric-telemetry-envelope
+  name: Traceable Metric Telemetry Envelope
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (TraceableMetric, GovernanceHealth, GovernanceThroughput)
+      - Models embedding traceability envelopes for metrics
+    - pyproject.toml - opentelemetry-api and opentelemetry-sdk declared as core runtime
+      dependencies
+  description: Envelopes agent evaluation outputs, health scores, and throughput in
+    traceable metric models backed by OpenTelemetry spans to guarantee auditability.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Maintain continuous traceability for agentic decisions, compliance calculations,
+    and governance state shifts.'
+  - 'Context: Agent decisions in autonomous governance must be verifiable by human
+    auditors and linked to concrete execution traces.'
+  - 'Force: Autonomous agent decisions without traceability create operational opacity
+    and regulatory risk.'
+  - 'Force: Diagnostic debugging of complex agent runs requires linked metadata.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: steering-block-workspace-bootstrapping
+  name: Steering Block Workspace Bootstrapping
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-09-28'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, bootstrap, init_workspace)
+      - Logic inserting and updating CAS steering blocks into workspace agent files
+    - AGENTS.md - Workspace agent guidelines file managed by CAS steering
+  description: Injects standardized governance and architectural steering prompt blocks
+    into target workspaces during environment bootstrap to ground external developer
+    agents.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that localized AI tools (such as Claude Code, GitHub Copilot,
+    Gemini CLI) adhere to system architecture guidelines from project initialization.'
+  - 'Context: External coding assistants in developer workspaces lack awareness of
+    project-specific architecture rules unless explicitly prompted.'
+  - 'Force: Developers forget to feed architectural guidelines into their localized
+    AI coding prompts.'
+  - 'Force: Manual copying of prompt guidelines leads to divergence across repositories.'
   evidence_strength: high
   confidence: high
