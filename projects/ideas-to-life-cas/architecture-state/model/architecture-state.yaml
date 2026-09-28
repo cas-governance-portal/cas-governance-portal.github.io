@@ -1,24 +1,29 @@
-id: cas-arch-state-ideas-to-life-cas-2026-09-27
+id: cas-arch-state-ideas-to-life-cas-2026-09-28
 project: ideas-to-life-cas
-date: '2026-09-27'
+date: '2026-09-28'
 status: discovered
 confidence: high
 system_boundary:
   name: Ideas To Life Cas System
-  description: Architecture state reconstruction for ideas-to-life-cas
+  description: Continuous Architecture Steering (CAS) runner and governance platform
+    providing automated architecture discovery, evaluation, reconciliation, and steering
+    projections.
   external_actors:
   - User
   - Architect
+  - Developer
   external_systems:
   - GitHub
   - CI/CD Pipeline
+  - LLM Providers
+  - ArchGov API
 containers:
 - id: ideas-to-life-cas-core
   name: Ideas To Life Cas Core
   type: application
   technology: Python
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   status: active
 components:
 - id: comp-clean_io_state
@@ -29,7 +34,7 @@ components:
   - Ensures each test starts with a clean IO state and no environment leakage.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-knowledge_base
   container_id: ideas-to-life-cas-core
@@ -39,7 +44,7 @@ components:
   - Creates a mock knowledge base structure in a temporary directory.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-merge_cas_governance_block
   container_id: ideas-to-life-cas-core
@@ -49,110 +54,99 @@ components:
   - Merges CAS governance block into existing file content additively and idempotently.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-bootstrap
   container_id: ideas-to-life-cas-core
   name: bootstrap
   path: src/cas_runner/bootstrap.py
   responsibilities:
-  - 'Initializes or updates CAS governance substrate in the target directory.
-
-    Default behavior is non-destructive and additive.'
+  - Initializes or updates CAS governance substrate in the target directory additively.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-init_workspace
   container_id: ideas-to-life-cas-core
   name: init_workspace
   path: src/cas_runner/bootstrap.py
   responsibilities:
-  - Initializes the CAS Knowledge Workspace (Understanding & Evolution) using an "Attach"
-    model.
+  - Initializes the CAS Knowledge Workspace using an Attach model.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-flowrunner
   container_id: ideas-to-life-cas-core
   name: FlowRunner
   path: src/cas_runner/runner.py
   responsibilities:
-  - Core system responsibility
+  - Core orchestration runtime executing multi-step continuous architecture workflows.
   interfaces:
   - __init__
   - run
   - _execute_evaluation
   - _update_context
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-safe_mkdir
   container_id: ideas-to-life-cas-core
   name: safe_mkdir
   path: src/cas_runner/io.py
   responsibilities:
-  - 'Robust version of Path.mkdir that handles broken symlinks.
-
-    If a part of the path is a broken symlink, it will be unlinked and created as
-    a directory.'
+  - Robust directory creation handling broken symlinks and edge conditions.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-get_default_base
   container_id: ideas-to-life-cas-core
   name: get_default_base
   path: src/cas_runner/io.py
   responsibilities:
-  - 'Returns the default base path for the knowledge layer.
-
-    Priority: CAS_KNOWLEDGE_WORKSPACE env var > <project_root>/knowledge > <project_root>/cas-knowledge.'
+  - Resolves default knowledge base path across environment variables and fallbacks.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-get_workspace_name
   container_id: ideas-to-life-cas-core
   name: get_workspace_name
   path: src/cas_runner/io.py
   responsibilities:
-  - 'Returns the canonical workspace name (basename of the workspace root).
-
-    Used in telemetry/logs to avoid leaking full filesystem paths.'
+  - Extracts canonical workspace name to prevent path leakage in telemetry.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-targetprojectcontext
   container_id: ideas-to-life-cas-core
   name: TargetProjectContext
   path: src/cas_runner/io.py
   responsibilities:
-  - Core system responsibility
+  - Authoritative isolation context for project root, workspace, and evidence roots.
   interfaces:
   - __post_init__
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-resolve_target_project_context
   container_id: ideas-to-life-cas-core
   name: resolve_target_project_context
   path: src/cas_runner/io.py
   responsibilities:
-  - Resolves authoritative TargetProjectContext including project_id, project_root,
-    and evidence_root.
+  - Resolves authoritative TargetProjectContext from CLI arguments and config files.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-knowledgeprovider
   container_id: ideas-to-life-cas-core
   name: KnowledgeProvider
   path: src/cas_runner/io.py
   responsibilities:
-  - Architectural abstraction for governance knowledge persistence and retrieval.
+  - Abstract interface for knowledge retrieval and artifact persistence.
   interfaces:
   - load_architecture_state
   - load_conversation
@@ -180,14 +174,14 @@ components:
   - load_capability_inventory
   - persist_capability_inventory
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-localknowledgeprovider
   container_id: ideas-to-life-cas-core
   name: LocalKnowledgeProvider
   path: src/cas_runner/io.py
   responsibilities:
-  - Local filesystem implementation of the KnowledgeProvider.
+  - Local filesystem implementation of KnowledgeProvider for workspace IO.
   interfaces:
   - __init__
   - load_architecture_state
@@ -215,94 +209,106 @@ components:
   - persist_capability_lineage
   - persist_capability_inventory
   - persist_evaluation
-  - _parse_markdown_with_frontmatter
-  - _persist_collection
-  - _persist_file
-  - _persist_yaml
-  - _persist_upsert_proposals
-  - _persist_json_as_yaml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-get_provider
   container_id: ideas-to-life-cas-core
   name: get_provider
   path: src/cas_runner/io.py
   responsibilities:
-  - Returns the active knowledge provider based on configuration.
+  - Returns active knowledge provider based on runtime configuration.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-get_workspace_root
   container_id: ideas-to-life-cas-core
   name: get_workspace_root
   path: src/cas_runner/io.py
   responsibilities:
-  - Returns the base path of the active knowledge provider.
+  - Returns the base directory of the active knowledge workspace.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-get_telemetry_root
   container_id: ideas-to-life-cas-core
   name: get_telemetry_root
   path: src/cas_runner/io.py
   responsibilities:
-  - 'Returns the root directory for telemetry traces.
-
-    Priority: KNOWLEDGE_TELEMETRY_OUTPUT_DIR env var > cas-config.yaml telemetry.output_dir
-    > workspace_root/runtime/traces'
+  - Resolves root directory for OpenTelemetry and runtime traces.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-load_architecture_state
   container_id: ideas-to-life-cas-core
   name: load_architecture_state
   path: src/cas_runner/io.py
   responsibilities:
-  - Core system responsibility
+  - Loads architecture state models from project knowledge repository.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-load_baseline_assessment
   container_id: ideas-to-life-cas-core
   name: load_baseline_assessment
   path: src/cas_runner/io.py
   responsibilities:
-  - Core system responsibility
+  - Loads baseline architecture assessments.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-load_conversation
   container_id: ideas-to-life-cas-core
   name: load_conversation
   path: src/cas_runner/io.py
   responsibilities:
-  - Core system responsibility
+  - Loads conversation logs for synthesis into architecture work.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
 - id: comp-load_foundational_assets
   container_id: ideas-to-life-cas-core
   name: load_foundational_assets
   path: src/cas_runner/io.py
   responsibilities:
-  - Core system responsibility
+  - Loads project foundational assets within the positive evidence boundary.
   interfaces: []
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
   confidence: high
-dependencies: []
+dependencies:
+- source_id: comp-flowrunner
+  target_id: comp-localknowledgeprovider
+  type: import
+  evidence_ids:
+  - ev-manifest-789138
+- source_id: comp-bootstrap
+  target_id: comp-safe_mkdir
+  type: import
+  evidence_ids:
+  - ev-manifest-789138
+- source_id: comp-localknowledgeprovider
+  target_id: comp-knowledgeprovider
+  type: import
+  evidence_ids:
+  - ev-manifest-789138
+- source_id: comp-resolve_target_project_context
+  target_id: comp-targetprojectcontext
+  type: import
+  evidence_ids:
+  - ev-manifest-789138
 flows:
 - id: flow:workflow:github:cas-build-steering-projection
   name: CAS Build Steering Projection
   type: workflow
   description: GitHub Actions workflow defined in .github/workflows/cas-build-steering-projection.yml
+    generating steering projection artifacts on build completion.
   trigger:
     type: event
     event: push, workflow_run, workflow_dispatch
@@ -424,6 +430,7 @@ flows:
   name: CAS Build Validation
   type: workflow
   description: GitHub Actions workflow defined in .github/workflows/cas-build-validation.yml
+    verifying contracts and running test suites.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -528,8 +535,8 @@ flows:
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
-    - Detect
     - Generate
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:9:write-validation-summary
     name: Write validation summary
@@ -545,9 +552,9 @@ flows:
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
-    - Prevent
-    - Detect
     - Generate
+    - Detect
+    - Prevent
     invokes_flow_id: flow:cli:cas:main
   - id: step:10:upload-validation-report
     name: Upload validation report
@@ -560,10 +567,10 @@ flows:
     confidence: high
   component_ids: []
   control_roles:
-  - Detect
-  - Prevent
-  - Generate
   - Correct
+  - Detect
+  - Generate
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-build-validation.yml
@@ -574,7 +581,8 @@ flows:
 - id: flow:workflow:github:cas-continuous-architecture-loop
   name: CAS Continuous Architecture Loop
   type: workflow
-  description: GitHub Actions workflow defined in .github/workflows/cas-continuous-architecture.yml
+  description: Continuous architecture loop triggered on pull requests to analyze
+    architecture deltas and evaluate rules.
   trigger:
     type: event
     event: pull_request
@@ -702,8 +710,8 @@ flows:
     confidence: high
   component_ids: []
   control_roles:
-  - Prevent
   - Correct
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-continuous-architecture.yml
@@ -714,7 +722,8 @@ flows:
 - id: flow:workflow:github:cas-managed-steering-sync
   name: CAS Managed Steering Sync
   type: workflow
-  description: GitHub Actions workflow defined in .github/workflows/cas-managed-steering-sync.yml
+  description: Synchronizes managed steering sections into repository documentation
+    via pull requests.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -754,8 +763,8 @@ flows:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Prevent
     - Detect
+    - Prevent
   - id: step:3:set-up-python
     name: Set up Python
     sequence: 3
@@ -888,9 +897,9 @@ flows:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Prevent
     - Correct
     - Generate
+    - Prevent
   - id: step:15:inspect-projection
     name: Inspect Projection
     sequence: 15
@@ -925,8 +934,8 @@ flows:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Detect
     - Correct
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:17:commit-changes
     name: Commit Changes
@@ -967,10 +976,10 @@ flows:
     - Generate
   component_ids: []
   control_roles:
-  - Prevent
-  - Detect
   - Correct
+  - Detect
   - Generate
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-managed-steering-sync.yml
@@ -981,7 +990,8 @@ flows:
 - id: flow:workflow:github:cas-governance-portal-publish
   name: CAS Governance Portal Publish
   type: workflow
-  description: GitHub Actions workflow defined in .github/workflows/cas-portal-publish.yml
+  description: Preprocesses governance artifacts and builds/deploys the MkDocs documentation
+    portal.
   trigger:
     type: event
     event: push, workflow_dispatch, repository_dispatch
@@ -1115,8 +1125,8 @@ flows:
     confidence: high
   component_ids: []
   control_roles:
-  - Prevent
   - Generate
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-portal-publish.yml
@@ -1127,7 +1137,7 @@ flows:
 - id: flow:workflow:github:cas-governance-validation
   name: CAS Governance Validation
   type: workflow
-  description: GitHub Actions workflow defined in .github/workflows/governance-validation.yml
+  description: Validation workflow enforcing governance rules and metrics across branches.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -1206,8 +1216,8 @@ flows:
     confidence: high
   component_ids: []
   control_roles:
-  - Prevent
   - Correct
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/governance-validation.yml
@@ -1218,7 +1228,7 @@ flows:
 - id: flow:cli:cas:main
   name: cas
   type: cli
-  description: Console script 'cas' pointing to cas_runner.cli:main
+  description: Console script 'cas' pointing to cas_runner.cli:main CLI entrypoint.
   trigger:
     type: cli_command
     event: cas
@@ -1357,7 +1367,8 @@ flows:
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:orchestration-flow
   name: orchestration-flow
   type: declared_flow
-  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS executing rules
+    loader, AEM, alignment, and intent generator.
   trigger:
     type: unknown
     event: unspecified
@@ -1693,8 +1704,8 @@ flows:
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Prevent
   - Correct
+  - Prevent
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -2155,7 +2166,8 @@ flows:
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:continuous-architecture-loop
   name: continuous-architecture-loop
   type: declared_flow
-  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  description: Continuous loop declared in steps/registry.py chaining AEM, alignment,
+    intent, and governance validator.
   trigger:
     type: unknown
     event: unspecified
@@ -2470,7 +2482,8 @@ flows:
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:pattern-lifecycle-flow
   name: pattern-lifecycle-flow
   type: declared_flow
-  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  description: Comprehensive flow governing discovery, cataloging, classifying, recommending,
+    and generating reference architectures.
   trigger:
     type: unknown
     event: unspecified
@@ -2966,34 +2979,34 @@ controls:
   type: prevent
   enforcement_point: .github/workflows/cas-managed-steering-sync.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 - id: ctrl-cas-portal-publish
   type: prevent
   enforcement_point: .github/workflows/cas-portal-publish.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 - id: ctrl-cas-continuous-architecture
   type: prevent
   enforcement_point: .github/workflows/cas-continuous-architecture.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 - id: ctrl-cas-build-validation
   type: prevent
   enforcement_point: .github/workflows/cas-build-validation.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 - id: ctrl-governance-validation
   type: prevent
   enforcement_point: .github/workflows/governance-validation.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 - id: ctrl-cas-build-steering-projection
   type: prevent
   enforcement_point: .github/workflows/cas-build-steering-projection.yml
   evidence_ids:
-  - ev-manifest-746064
+  - ev-manifest-789138
 evidence:
-- id: ev-manifest-746064
+- id: ev-manifest-789138
   path: pyproject.toml
   type: manifest
   reference: pyproject.toml
@@ -3005,7 +3018,7 @@ evidence:
     mkdocs-drawio>=1.16.1\",\n    \"opentelemetry-api>=1.42.1\",\n    \"opentelemetry-sdk>=1.42.1\"\
     ,\n    \"mkdocs-glightbox>=0.5.2\",\n]\n"
   confidence: high
-- id: ev-wf-39970
+- id: ev-wf-258080
   path: .github/workflows/cas-managed-steering-sync.yml
   type: workflow
   reference: cas-managed-steering-sync.yml
@@ -3016,7 +3029,7 @@ evidence:
     \  workflow_dispatch:\n    inputs:\n      projection_id:\n        description:\
     \ 'Specific projection ID to apply'\n        required: false\n\njobs:\n  projection:"
   confidence: high
-- id: ev-wf-382946
+- id: ev-wf-41060
   path: .github/workflows/cas-portal-publish.yml
   type: workflow
   reference: cas-portal-publish.yml
@@ -3028,7 +3041,7 @@ evidence:
     \    types: [cas-knowledge-updated]\n\njobs:\n  publish:\n    runs-on: ubuntu-latest\n\
     \    steps:\n      - name: Checkout CAS Runner\n        uses: actions/checkout@v4"
   confidence: high
-- id: ev-wf-913403
+- id: ev-wf-458565
   path: .github/workflows/cas-continuous-architecture.yml
   type: workflow
   reference: cas-continuous-architecture.yml
@@ -3040,7 +3053,7 @@ evidence:
     \ if: github.event.pull_request.head.repo.full_name == github.repository\n\n \
     \   steps:\n      - name: Checkout repository"
   confidence: high
-- id: ev-wf-326862
+- id: ev-wf-863028
   path: .github/workflows/cas-build-validation.yml
   type: workflow
   reference: cas-build-validation.yml
@@ -3052,7 +3065,7 @@ evidence:
     \ }}\n          token: ${{ secrets.CAS_KNOWLEDGE_BRAIN }}\n          path: cas-knowledge\n\
     \n      - name: Set up Python"
   confidence: high
-- id: ev-wf-827803
+- id: ev-wf-726629
   path: .github/workflows/governance-validation.yml
   type: workflow
   reference: governance-validation.yml
@@ -3064,7 +3077,7 @@ evidence:
     \          python-version: '3.13'\n\n      - name: Install uv\n        run: |\n\
     \          curl -LsSf https://astral.sh/uv/install.sh | sh"
   confidence: high
-- id: ev-wf-8050
+- id: ev-wf-896948
   path: .github/workflows/cas-build-steering-projection.yml
   type: workflow
   reference: cas-build-steering-projection.yml
@@ -3077,1259 +3090,489 @@ evidence:
     \        uses: actions/checkout@v4\n\n      - name: Prepare Workspace\n      \
     \  run: |"
   confidence: high
-- id: ev-ast-659074
+- id: ev-ast-624000
   path: tests/conftest.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-91058
+- id: ev-ast-6768
   path: src/cas_runner/bootstrap.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-769456
+- id: ev-ast-840238
   path: src/cas_runner/runner.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-709313
+- id: ev-ast-72193
   path: src/cas_runner/io.py
   type: ast_symbol
   reference: 63 symbols
   confidence: high
-- id: ev-ast-739592
+- id: ev-ast-847478
   path: src/cas_runner/cli.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-587302
+- id: ev-ast-502936
   path: src/cas_runner/portal_preprocessor.py
   type: ast_symbol
   reference: 10 symbols
   confidence: high
-- id: ev-ast-696964
+- id: ev-ast-717698
   path: src/cas_runner/llm/mock_client.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-251228
+- id: ev-ast-977050
   path: src/cas_runner/llm/litellm_client.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-458118
+- id: ev-ast-228664
   path: src/cas_runner/llm/__init__.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-634644
+- id: ev-ast-353262
   path: src/cas_runner/llm/structured.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-966049
+- id: ev-ast-447647
   path: src/cas_runner/llm/errors.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-616178
+- id: ev-ast-208240
   path: src/cas_runner/llm/base.py
   type: ast_symbol
   reference: 4 symbols
   confidence: high
-- id: ev-ast-256995
+- id: ev-ast-403677
   path: src/cas_runner/dashboard/health_model.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-763553
+- id: ev-ast-718433
   path: src/cas_runner/dashboard/api.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-832283
+- id: ev-ast-737637
   path: src/cas_runner/dashboard/data_access.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-590044
+- id: ev-ast-861922
   path: src/cas_runner/dashboard/routes.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-101248
+- id: ev-ast-110142
   path: src/cas_runner/steps/rules_context.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-163577
+- id: ev-ast-32711
   path: src/cas_runner/steps/promotion_decision_capture.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-772193
+- id: ev-ast-952479
   path: src/cas_runner/steps/steering_projection.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-524074
+- id: ev-ast-681196
   path: src/cas_runner/steps/discovery_to_aw.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-699228
+- id: ev-ast-712678
   path: src/cas_runner/steps/discovery.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-741123
+- id: ev-ast-865091
   path: src/cas_runner/steps/registry.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-337009
+- id: ev-ast-3121
   path: src/cas_runner/steps/aem_generator.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-344947
+- id: ev-ast-372557
   path: src/cas_runner/steps/pattern_proposals.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-965553
+- id: ev-ast-241423
   path: src/cas_runner/steps/aid_generator.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-499663
+- id: ev-ast-982159
   path: src/cas_runner/steps/roadmap_bootstrap.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-303572
+- id: ev-ast-359702
   path: src/cas_runner/steps/pattern_promotion.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-888986
+- id: ev-ast-345112
   path: src/cas_runner/steps/conversation_to_aw.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-765602
+- id: ev-ast-702176
   path: src/cas_runner/steps/promotion_to_adr.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-856372
+- id: ev-ast-837262
   path: src/cas_runner/steps/vision_to_aw.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-279117
+- id: ev-ast-586099
   path: src/cas_runner/steps/current_architecture_state.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-752204
+- id: ev-ast-644494
   path: src/cas_runner/steps/approved_adr_to_pattern.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-568211
+- id: ev-ast-912429
   path: src/cas_runner/steps/governance_validator.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-964211
+- id: ev-ast-23885
   path: src/cas_runner/steps/reference_architecture.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-456737
+- id: ev-ast-415905
   path: src/cas_runner/steps/pattern_scope_classifier.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-977724
+- id: ev-ast-223742
   path: src/cas_runner/steps/architecture_work_assessment.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-163294
+- id: ev-ast-999264
   path: src/cas_runner/steps/governance_context_builder.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-404042
+- id: ev-ast-173684
   path: src/cas_runner/orchestration/config.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-92776
+- id: ev-ast-114022
   path: src/cas_runner/orchestration/evaluation.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-246690
+- id: ev-ast-963040
   path: src/cas_runner/orchestration/telemetry.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-986861
+- id: ev-ast-693779
   path: src/cas_runner/orchestration/prompts.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-426180
+- id: ev-ast-855362
   path: src/cas_runner/orchestration/reasoning.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-575781
+- id: ev-ast-838363
   path: src/cas_runner/governance/compliance_engine.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-899249
+- id: ev-ast-813297
   path: src/cas_runner/governance/models.py
   type: ast_symbol
   reference: 13 symbols
   confidence: high
-- id: ev-ast-297913
+- id: ev-ast-340359
   path: src/cas_runner/governance/governance_metrics.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-640266
+- id: ev-ast-622600
   path: src/cas_runner/governance/agentic_merger.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-637373
+- id: ev-ast-268931
   path: src/cas_runner/governance/governance_action_service.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-171136
+- id: ev-ast-235134
   path: src/cas_runner/governance/governance_action_engine.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-418539
+- id: ev-ast-634261
   path: src/cas_runner/governance/publisher.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-460111
+- id: ev-ast-828687
   path: src/cas_runner/governance/governance_validator.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-992176
+- id: ev-ast-289806
   path: src/cas_runner/governance/reference_resolver.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-759178
+- id: ev-ast-558452
   path: src/cas_runner/governance/markdown_renderer.py
   type: ast_symbol
   reference: 4 symbols
   confidence: high
-- id: ev-ast-421732
+- id: ev-ast-535642
   path: src/cas_runner/rendering/aid_renderer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-407268
+- id: ev-ast-274458
   path: src/cas_runner/rendering/aem_renderer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-791083
+- id: ev-ast-191125
   path: src/cas_runner/rendering/base_renderer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-745662
+- id: ev-ast-667836
   path: src/cas_runner/rendering/alignment_report_renderer.py
   type: ast_symbol
   reference: 4 symbols
   confidence: high
-- id: ev-ast-971132
+- id: ev-ast-354946
   path: src/cas_runner/rendering/architecture_work_renderer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-568286
+- id: ev-ast-337376
   path: src/cas_runner/steering/bootstrap.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-194587
+- id: ev-ast-67483
   path: src/cas_runner/steering/detector.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-387722
+- id: ev-ast-677752
   path: src/cas_runner/steering/section_renderer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-427471
+- id: ev-ast-123983
   path: src/cas_runner/steering/classifier.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-791154
+- id: ev-ast-372688
   path: src/cas_runner/steering/models.py
   type: ast_symbol
   reference: 19 symbols
   confidence: high
-- id: ev-ast-693965
+- id: ev-ast-103411
   path: src/cas_runner/steering/managed_sections.py
   type: ast_symbol
   reference: 7 symbols
   confidence: high
-- id: ev-ast-612142
+- id: ev-ast-260080
   path: src/cas_runner/steering/git_extractor.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-165369
+- id: ev-ast-152455
   path: src/cas_runner/steering/section_apply.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-796610
+- id: ev-ast-754240
   path: src/cas_runner/steering/analyzer.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-847755
+- id: ev-ast-692683
   path: src/cas_runner/steering/section_validation.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-427510
+- id: ev-ast-614008
   path: src/cas_runner/steering/projector.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-722348
+- id: ev-ast-999086
   path: src/cas_runner/steering/synthesizer.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-385683
+- id: ev-ast-788883
   path: src/cas_runner/steering/indexer.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-336834
+- id: ev-ast-569280
   path: src/cas_runner/steering/capability_extractor.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-720847
+- id: ev-ast-787249
   path: src/cas_runner/steering/resources.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-742136
+- id: ev-ast-945290
   path: src/cas_runner/steering/artifacts.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-252743
+- id: ev-ast-814073
   path: src/cas_runner/steering/policies.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-980819
+- id: ev-ast-380461
   path: src/cas_runner/steps/patterns/agentic_extractor.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-428945
+- id: ev-ast-176367
   path: src/cas_runner/steps/patterns/proposal_projection.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-320229
+- id: ev-ast-185253
   path: src/cas_runner/steps/patterns/structural_extractor.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-630847
+- id: ev-ast-745025
   path: src/cas_runner/steps/patterns/evidence_scanner.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-909117
+- id: ev-ast-69245
   path: src/cas_runner/steps/alignment/signals.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-420851
+- id: ev-ast-511795
   path: src/cas_runner/steps/alignment/rules.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-775836
+- id: ev-ast-774886
   path: src/cas_runner/steps/alignment/engine.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-972549
+- id: ev-ast-795973
   path: src/cas_runner/steps/forensic/reconciler.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-712121
+- id: ev-ast-721479
   path: src/cas_runner/steps/forensic/flow_extractor.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-725770
+- id: ev-ast-301004
   path: src/cas_runner/steps/forensic/architecture_md_builder.py
   type: ast_symbol
   reference: 2 symbols
   confidence: high
-- id: ev-ast-752087
+- id: ev-ast-573015
   path: src/cas_runner/steps/forensic/extractor.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-165520
+- id: ev-ast-292818
   path: src/cas_runner/steps/forensic/view_pack.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-675526
+- id: ev-ast-182020
   path: src/cas_runner/steps/forensic/diagnostic_reports.py
   type: ast_symbol
   reference: 6 symbols
   confidence: high
-- id: ev-ast-395083
+- id: ev-ast-882635
   path: src/cas_runner/tasks/portal/validator.py
   type: ast_symbol
   reference: 4 symbols
   confidence: high
-- id: ev-ast-529512
+- id: ev-ast-513110
   path: src/cas_runner/tasks/portal/evidence_processor.py
   type: ast_symbol
   reference: 9 symbols
   confidence: high
-- id: ev-ast-636363
+- id: ev-ast-562101
   path: src/cas_runner/tasks/portal/models.py
   type: ast_symbol
   reference: 21 symbols
   confidence: high
-- id: ev-ast-197454
+- id: ev-ast-163088
   path: src/cas_runner/tasks/portal/preprocessor.py
   type: ast_symbol
   reference: 1 symbols
   confidence: high
-- id: ev-ast-513819
+- id: ev-ast-781157
   path: src/cas_runner/tasks/portal/workspace_discovery.py
   type: ast_symbol
   reference: 4 symbols
   confidence: high
-- id: ev-ast-240372
+- id: ev-ast-200050
   path: src/cas_runner/tasks/portal/navigation_builder.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-751345
+- id: ev-ast-800305
   path: src/cas_runner/tasks/portal/project_context.py
   type: ast_symbol
   reference: 3 symbols
   confidence: high
-- id: ev-ast-598198
-  path: tests/cas_runner/test_bootstrap_v2_modular.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-698013
-  path: tests/cas_runner/test_portal_preprocessor_v2.py
-  type: ast_symbol
-  reference: 7 symbols
-  confidence: high
-- id: ev-ast-272584
-  path: tests/cas_runner/test_portal_preprocessor_v3.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-771015
-  path: tests/cas_runner/test_cli_steering_commands.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-996637
-  path: tests/cas_runner/test_io_pattern_proposals.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-795772
-  path: tests/cas_runner/test_conversation_flow.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-204567
-  path: tests/cas_runner/test_state_baseline_cli.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-804079
-  path: tests/cas_runner/test_cli_assess.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-398978
-  path: tests/cas_runner/test_io.py
-  type: ast_symbol
-  reference: 14 symbols
-  confidence: high
-- id: ev-ast-73032
-  path: tests/cas_runner/test_cli_governance_publish.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-462955
-  path: tests/cas_runner/test_discovery_flow.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-936141
-  path: tests/cas_runner/test_io_roots.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-677546
-  path: tests/cas_runner/test_shared_workspace.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-722877
-  path: tests/cas_runner/test_vision_flow.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-369903
-  path: tests/cas_runner/test_io_reference_architecture.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-7042
-  path: tests/cas_runner/test_bootstrap.py
-  type: ast_symbol
-  reference: 11 symbols
-  confidence: high
-- id: ev-ast-430819
-  path: tests/cas_runner/test_knowledge_provider.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-262226
-  path: tests/cas_runner/test_cli.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-750785
-  path: tests/cas_runner/test_portal_preprocessor.py
-  type: ast_symbol
-  reference: 12 symbols
-  confidence: high
-- id: ev-ast-324759
-  path: tests/cas_runner/llm/test_provider_agnosticism.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-793703
-  path: tests/cas_runner/llm/test_llm_gateway.py
-  type: ast_symbol
-  reference: 7 symbols
-  confidence: high
-- id: ev-ast-492467
-  path: tests/cas_runner/portal/test_project_switching_isolation.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-966649
-  path: tests/cas_runner/portal/test_project_filtered_links.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-587514
-  path: tests/cas_runner/portal/test_feature_070_regression.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-956026
-  path: tests/cas_runner/portal/test_evidence_epistemic_status.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-530165
-  path: tests/cas_runner/portal/test_portal_validator.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-148095
-  path: tests/cas_runner/portal/test_default_project_header.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-920247
-  path: tests/cas_runner/portal/test_link_resolution.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-649026
-  path: tests/cas_runner/portal/test_operations_audit_scope.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-911527
-  path: tests/cas_runner/portal/test_schema_validation.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-601052
-  path: tests/cas_runner/portal/test_navigation_builder.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-378071
-  path: tests/cas_runner/portal/test_project_dashboard_rendering.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-720176
-  path: tests/cas_runner/portal/test_cross_project_insights.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-902841
-  path: tests/cas_runner/portal/test_portal_navigation_refinement.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-821799
-  path: tests/cas_runner/portal/test_portal_scope_alignment.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-321676
-  path: tests/cas_runner/portal/test_workspace_home_scope.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-899116
-  path: tests/cas_runner/portal/test_evidence_traceability.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-183221
-  path: tests/cas_runner/portal/test_project_adr_metrics.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-217374
-  path: tests/cas_runner/portal/test_navigation_scope_demarcation.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-234306
-  path: tests/cas_runner/portal/test_workspace_discovery.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-269200
-  path: tests/cas_runner/portal/test_project_switching.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-578741
-  path: tests/cas_runner/portal/test_incomplete_project_resilience.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-95864
-  path: tests/cas_runner/schemas/test_flow_model_schema.py
-  type: ast_symbol
-  reference: 8 symbols
-  confidence: high
-- id: ev-ast-693314
-  path: tests/cas_runner/schemas/test_architecture_state_schema.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-686073
-  path: tests/cas_runner/schemas/test_architecture_work_schema.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-720703
-  path: tests/cas_runner/schemas/test_aid_schema.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-504658
-  path: tests/cas_runner/schemas/test_aem_schema.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-749537
-  path: tests/cas_runner/schemas/test_alignment_report_schema.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-36145
-  path: tests/cas_runner/dashboard/test_evolution_display.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-286577
-  path: tests/cas_runner/dashboard/test_dashboard.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-288079
-  path: tests/cas_runner/dashboard/test_performance.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-950716
-  path: tests/cas_runner/dashboard/test_dashboard_display.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-350988
-  path: tests/cas_runner/dashboard/test_risk_display.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-526626
-  path: tests/cas_runner/dashboard/test_health_model.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-217004
-  path: tests/cas_runner/dashboard/test_data_access.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-668621
-  path: tests/cas_runner/dashboard/test_cross_artifact.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-799613
-  path: tests/cas_runner/steps/test_roadmap_bootstrap.py
-  type: ast_symbol
-  reference: 9 symbols
-  confidence: high
-- id: ev-ast-118291
-  path: tests/cas_runner/steps/test_governance_context_builder.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-67180
-  path: tests/cas_runner/steps/test_pattern_promotion.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-914975
-  path: tests/cas_runner/steps/test_registry.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-170891
-  path: tests/cas_runner/steps/test_pattern_scope_classifier.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-185458
-  path: tests/cas_runner/steps/test_forensic_contradictions.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-316118
-  path: tests/cas_runner/steps/test_architecture_work_assessment.py
-  type: ast_symbol
-  reference: 8 symbols
-  confidence: high
-- id: ev-ast-741561
-  path: tests/cas_runner/steps/test_architecture_md_builder.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-33787
-  path: tests/cas_runner/steps/test_rules_context.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-835834
-  path: tests/cas_runner/steps/test_forensic_view_pack.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-182379
-  path: tests/cas_runner/steps/test_aid_generator.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-927993
-  path: tests/cas_runner/steps/test_conversation_to_aw.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-355527
-  path: tests/cas_runner/steps/test_pattern_extractors.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-845498
-  path: tests/cas_runner/steps/test_registry_pattern_proposals.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-651733
-  path: tests/cas_runner/steps/test_aem_generator.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-122029
-  path: tests/cas_runner/steps/test_aw_generation.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-940352
-  path: tests/cas_runner/steps/test_current_architecture_state.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-528805
-  path: tests/cas_runner/steps/test_structural_patterns_extractor.py
-  type: ast_symbol
-  reference: 8 symbols
-  confidence: high
-- id: ev-ast-439383
-  path: tests/cas_runner/steps/test_forensic_reconciler.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-915480
-  path: tests/cas_runner/steps/test_promotion_to_adr.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-89700
-  path: tests/cas_runner/steps/test_alignment_engine.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-510215
-  path: tests/cas_runner/steps/test_reference_architecture.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-560124
-  path: tests/cas_runner/steps/test_governance_validator.py
-  type: ast_symbol
-  reference: 10 symbols
-  confidence: high
-- id: ev-ast-985142
-  path: tests/cas_runner/steps/test_llm_decoupling.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-183646
-  path: tests/cas_runner/steps/test_vision_to_aw.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-564455
-  path: tests/cas_runner/steps/test_pattern_lifecycle_flow.py
-  type: ast_symbol
-  reference: 7 symbols
-  confidence: high
-- id: ev-ast-267438
-  path: tests/cas_runner/steps/test_patterns_extraction_flow.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-222047
-  path: tests/cas_runner/steps/test_discovery.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-722894
-  path: tests/cas_runner/steps/test_discovery_to_aw.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-650461
-  path: tests/cas_runner/steps/test_forensic_extractor.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-655739
-  path: tests/cas_runner/steps/test_forensic_flow.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-487868
-  path: tests/cas_runner/steps/test_agentic_patterns_extractor.py
-  type: ast_symbol
-  reference: 7 symbols
-  confidence: high
-- id: ev-ast-383191
-  path: tests/cas_runner/steps/test_approved_adr_to_pattern.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-510151
-  path: tests/cas_runner/steps/test_pattern_proposals.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-69618
-  path: tests/cas_runner/steps/test_promotion_decision_capture.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-37939
-  path: tests/cas_runner/orchestration/test_reasoning.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-721560
-  path: tests/cas_runner/orchestration/test_evaluation_logic.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-693779
-  path: tests/cas_runner/orchestration/test_reasoning_standardisation.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-171972
-  path: tests/cas_runner/orchestration/test_reasoning_validation.py
-  type: ast_symbol
-  reference: 10 symbols
-  confidence: high
-- id: ev-ast-300077
-  path: tests/cas_runner/orchestration/test_prompts.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-17530
-  path: tests/cas_runner/orchestration/test_reasoning_contract.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-528715
-  path: tests/cas_runner/orchestration/test_prompt_telemetry.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-695945
-  path: tests/cas_runner/orchestration/test_evaluation_flow.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-803318
-  path: tests/cas_runner/orchestration/test_evaluation.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-786409
-  path: tests/cas_runner/orchestration/test_regression_detection.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-939506
-  path: tests/cas_runner/orchestration/test_runner.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-161076
-  path: tests/cas_runner/orchestration/test_reasoning_discovery.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-191761
-  path: tests/cas_runner/orchestration/test_config.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-757757
-  path: tests/cas_runner/orchestration/test_runner_structured_outputs.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-702506
-  path: tests/cas_runner/orchestration/test_reasoning_context_prompt.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-828347
-  path: tests/cas_runner/orchestration/test_otel_telemetry.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-472731
-  path: tests/cas_runner/orchestration/test_provider_benchmarking.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-910937
-  path: tests/cas_runner/orchestration/test_telemetry.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-753542
-  path: tests/cas_runner/governance/test_renderer.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-568850
-  path: tests/cas_runner/governance/test_adr_review_status.py
-  type: ast_symbol
-  reference: 17 symbols
-  confidence: high
-- id: ev-ast-855735
-  path: tests/cas_runner/governance/test_metrics.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-618167
-  path: tests/cas_runner/governance/test_actions.py
-  type: ast_symbol
-  reference: 9 symbols
-  confidence: high
-- id: ev-ast-114820
-  path: tests/cas_runner/governance/test_publisher.py
-  type: ast_symbol
-  reference: 13 symbols
-  confidence: high
-- id: ev-ast-635542
-  path: tests/cas_runner/governance/test_compliance_engine.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-589165
-  path: tests/cas_runner/governance/test_compliance_renderer.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-81566
-  path: tests/cas_runner/governance/test_validator.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-253644
-  path: tests/cas_runner/governance/test_models.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-143689
-  path: tests/cas_runner/governance/test_actions_aw.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-792379
-  path: tests/cas_runner/governance/test_ref_arch_review_status.py
-  type: ast_symbol
-  reference: 16 symbols
-  confidence: high
-- id: ev-ast-765894
-  path: tests/cas_runner/governance/test_resolver.py
-  type: ast_symbol
-  reference: 5 symbols
-  confidence: high
-- id: ev-ast-285197
-  path: tests/cas_runner/rendering/test_base_renderer.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-327591
-  path: tests/cas_runner/rendering/test_architecture_work_renderer.py
-  type: ast_symbol
-  reference: 13 symbols
-  confidence: high
-- id: ev-ast-556959
-  path: tests/cas_runner/rendering/test_aem_renderer.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-130303
-  path: tests/cas_runner/rendering/test_alignment_report_renderer.py
-  type: ast_symbol
-  reference: 11 symbols
-  confidence: high
-- id: ev-ast-499999
-  path: tests/cas_runner/rendering/test_aid_renderer.py
-  type: ast_symbol
-  reference: 13 symbols
-  confidence: high
-- id: ev-ast-25256
-  path: tests/cas_runner/steering/test_determinism.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-231650
-  path: tests/cas_runner/steering/test_architectural_delta_analysis.py
-  type: ast_symbol
-  reference: 10 symbols
-  confidence: high
-- id: ev-ast-722567
-  path: tests/cas_runner/steering/test_managed_section_renderer.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-176141
-  path: tests/cas_runner/steering/test_capability_extractor.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-954343
-  path: tests/cas_runner/steering/test_managed_section_validation.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-805899
-  path: tests/cas_runner/steering/test_incremental_maintenance.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-814971
-  path: tests/cas_runner/steering/test_inventory_bootstrap.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-342172
-  path: tests/cas_runner/steering/test_architectural_artifact_scanner.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-802096
-  path: tests/cas_runner/steering/test_steering_projection.py
-  type: ast_symbol
-  reference: 15 symbols
-  confidence: high
-- id: ev-ast-186506
-  path: tests/cas_runner/steering/test_github_build_steering_projection_workflow.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-287498
-  path: tests/cas_runner/steering/test_git_delta_extraction.py
-  type: ast_symbol
-  reference: 11 symbols
-  confidence: high
-- id: ev-ast-666872
-  path: tests/cas_runner/steering/test_github_steering_sync_workflow.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-487930
-  path: tests/cas_runner/steering/test_managed_section_apply.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-827295
-  path: tests/cas_runner/steering/test_steering_detector.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-345275
-  path: tests/cas_runner/steering/test_managed_section_synthesizer.py
-  type: ast_symbol
-  reference: 13 symbols
-  confidence: high
-- id: ev-ast-151718
-  path: tests/cas_runner/steering/test_delta_baseline_provider.py
-  type: ast_symbol
-  reference: 4 symbols
-  confidence: high
-- id: ev-ast-455486
-  path: tests/cas_runner/steps/alignment/test_engine.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-188712
-  path: tests/cas_runner/steps/alignment/test_rules.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-560259
-  path: tests/cas_runner/steps/forensic/test_entrypoint_extractor.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-921168
-  path: tests/cas_runner/steps/forensic/test_flow_mapping.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-99439
-  path: tests/cas_runner/steps/forensic/test_flow_reconciliation.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-348332
-  path: tests/cas_runner/steps/forensic/test_flow_architecture_md.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-269191
-  path: tests/cas_runner/steps/forensic/test_flow_governance.py
-  type: ast_symbol
-  reference: 2 symbols
-  confidence: high
-- id: ev-ast-2215
-  path: tests/cas_runner/steps/forensic/test_flow_views.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-ast-987139
-  path: tests/cas_runner/steps/forensic/test_workflow_extractor.py
-  type: ast_symbol
-  reference: 1 symbols
-  confidence: high
-- id: ev-ast-949232
-  path: tests/cas_runner/steps/forensic/test_flow_cli.py
-  type: ast_symbol
-  reference: 3 symbols
-  confidence: high
-- id: ev-ast-815503
-  path: tests/cas_runner/tasks/portal/test_portal_workspace_consolidation.py
-  type: ast_symbol
-  reference: 11 symbols
-  confidence: high
-- id: ev-ast-449725
-  path: tests/cas_runner/tasks/portal/test_evidence_processor.py
-  type: ast_symbol
-  reference: 6 symbols
-  confidence: high
-- id: ev-code-814934
+- id: ev-code-636564
   path: portal/site/assets/javascripts/lunr/wordcut.js
   type: code_import
   reference: 30 imports
   snippet: underscore, path, glob, ./wordcut_core, sys
   confidence: medium
-- id: ev-code-876804
+- id: ev-code-382202
   path: portal/site/assets/javascripts/lunr/min/lunr.zh.min.js
   type: code_import
   reference: 1 imports
   snippet: '@node-rs/jieba'
   confidence: medium
-- id: ev-code-400964
+- id: ev-code-605318
   path: portal/site/assets/javascripts/lunr/min/lunr.jp.min.js
   type: code_import
   reference: 1 imports
