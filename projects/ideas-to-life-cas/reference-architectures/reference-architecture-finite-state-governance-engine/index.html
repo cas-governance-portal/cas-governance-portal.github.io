@@ -3399,87 +3399,86 @@
 
 <h1 id="reference-architecture-registry-backed-finite-state-governance-action-engine">Reference Architecture: Registry-Backed Finite-State Governance Action Engine</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Registry-Backed Finite-State Governance Action Engine enforces deterministic lifecycle transitions on architecture repositories, configuration artifacts, and enterprise assets when acted upon by autonomous agents or automated delivery pipelines.</p>
+<p>The Registry-Backed Finite-State Governance Action Engine pattern provides deterministic, validated state machine semantics for autonomous agent mutations and operator workflows across enterprise architecture assets.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When autonomous AI agents or continuous delivery jobs mutate governance artifacts, promotion states, or architecture catalogs.</li>
-<li>When business and legal compliance necessitates strict, auditable lifecycle stages (e.g., draft -&gt; proposed -&gt; validated -&gt; approved -&gt; deprecated) that must never be bypassed.</li>
-<li>When cross-artifact state dependencies require explicit precondition validation prior to applying destructive or promotional actions.</li>
+<li>Managing lifecycles of governance artifacts (e.g., ADRs, reference architectures, catalogue standards) where illegal jumps (such as bypassing peer review or directly approving experiments) create regulatory or architectural risk.</li>
+<li>Regulating autonomous agent tools and background processes that perform state changes against a system of record.</li>
+<li>Systems requiring deterministic audit logs and precondition verifications prior to executing mutative state transitions.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>In early-stage, fast-iteration exploratory sandboxes where ad-hoc experimentation precedes formal schema definition or lifecycle governance.</li>
-<li>For simple CRUD domain services where state transitions carry negligible compliance, regulatory, or cascading blast-radius risks.</li>
-<li>In distributed event-driven systems where eventual consistency and conflict-free replicated data types (CRDTs) intentionally replace centralized transition validation.</li>
+<li>Simple CRUD workflows where entities have independent, non-cyclical lifecycle flags without transitional dependencies.</li>
+<li>Free-form unstructured document drafting where state transitions are purely informational or non-blocking.</li>
+<li>High-throughput low-latency telemetry pipelines where state machine validation overhead is prohibitive and states are monotonically incremented.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    agent["Autonomous Agent or Client (External System)"]
-    actionService["Governance Action Service (Container)"]
-    actionEngine["Governance Action Engine (Container)"]
-    registry["Transition Registry (Container)"]
-    repoStore[("Governance State Repository (Data store)")]
-    auditStore[("Immutable Audit Ledger (Data store)")]
+    client["Client / Autonomous Agent (External System)"]
+    svc["Governance Action Service (Container)"]
+    engine["Governance Action Engine (Container)"]
+    reg["Transition Registry (Container)"]
+    store[("Governance State Store (Data store)")]
 
-    agent --&gt;|1. Submit Target Action| actionService
-    actionService --&gt;|2. Request Evaluation| actionEngine
-    actionEngine --&gt;|3. Query Allowed Transitions| registry
-    actionEngine --&gt;|4. Verify Current State| repoStore
-    actionService --&gt;|5. Commit State Mutation| repoStore
-    actionService --&gt;|6. Append Transition Record| auditStore
+    client --&gt;|1. Submit Governance Action| svc
+    svc --&gt;|2. Validate State Transition| engine
+    engine --&gt;|3. Query Permitted Transitions| reg
+    svc --&gt;|4. Persist Mutated State| store
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class actionService,actionEngine,registry container
-    class repoStore,auditStore store
-    class agent external</code></pre>
+    class svc,engine,reg container
+    class store store
+    class client external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>TransitionRegistry</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Maintains the authoritative matrix of legal lifecycle states, permitted outward transitions, required precondition gates, and associated authorization roles.</li>
-<li><strong>GovernanceActionEngine</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Executes evaluation logic matching requested transitions against current artifact state, evaluating precondition predicates, and enforcing invariant policies.</li>
-<li><strong>GovernanceActionService</strong> (<code>src/cas_runner/governance/governance_action_service.py</code>): Coordinates inbound execution requests, invokes engine evaluation, persists valid state transitions to the governance catalog, and emits immutable audit events.</li>
-<li><strong>GovernanceAction Models</strong> (<code>src/cas_runner/governance/models.py</code>): Defines strict data contracts for mutation requests, transition intents, actor identity payloads, and evaluation outcome envelopes.</li>
+<li><strong>GovernanceActionService</strong> (<code>src/cas_runner/governance/governance_action_service.py</code>): Orchestrates incoming lifecycle mutation requests, invokes engine validation, coordinates persistence, and records execution audit events.</li>
+<li><strong>GovernanceActionEngine</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Evaluates transition requests against registered state rules, checks preconditions, and rejects unauthorized lifecycle advancements.</li>
+<li><strong>TransitionRegistry</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Maintains the declarative mapping of permitted source-to-target state transitions, validation hooks, and permission guardrails.</li>
+<li><strong>GovernanceAction</strong> (<code>src/cas_runner/governance/models.py</code>): Strongly typed data model defining action parameters, payload validations, origin identity, and requested target state.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li><strong>Python 3.11+ / Pydantic v2</strong>: Enforces compile-time and runtime validation of immutable state machine models, transition schemas, and action payloads.</li>
-<li><strong>In-Memory / Relational Registry Backing</strong>: Transition definitions are declared as strongly typed state maps loaded via declarative YAML or Python enum-based registries, backed by relational ACID databases (PostgreSQL) for lock-safe state updates.</li>
-<li><strong>OpenTelemetry / Structured JSON Logging</strong>: Provides zero-overhead distributed trace propagation for all state evaluation steps.</li>
+<li><strong>Pydantic v2 &amp; Python 3.11+</strong>: Provides type-safe validation models and lightning-fast serialization for transition rules and action payloads.</li>
+<li><strong>Relational Store / Git Metadata</strong>: Guarantees atomic transaction boundaries and immutable history for all approved state shifts.</li>
+<li><strong>Alternatives Set Aside</strong>: Ad-hoc hardcoded conditional logic (<code>if/else</code> checks dispersed across handlers) was rejected due to lack of central auditing and vulnerability to regression during autonomous operations.</li>
 </ul>
-<p><em>Alternatives Considered &amp; Set Aside:</em>
-- <strong>Ad-hoc Procedural If/Else Gates</strong>: Rejected due to code smell, extreme susceptibility to lifecycle bypass bugs, and lack of central auditability.
-- <strong>General Purpose Workflow Engines (e.g., Temporal, Camunda)</strong>: Set aside for core state evaluation due to excessive runtime operational overhead when validating sub-millisecond atomic state queries within CLI/agent execution loops.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Synchronous Blocking Guardrail (Default)</strong>: Inbound mutation requests block while the engine evaluates transition preconditions and completes atomic persistence.</li>
-<li><strong>Optimistic Verification &amp; Dry-Run</strong>: Allows agents to test proposed transitions against the registry without committing state changes, returning a detailed diagnostic report of satisfied and failing preconditions.</li>
-<li><strong>Asynchronous Multi-Signature Gated Engine</strong>: Complex transitions (e.g., production promotion) enter an intermediate <code>pending_approval</code> state, requiring asynchronous quorum consensus before the final state transition executes.</li>
+<li><strong>Synchronous Direct Execution</strong>: Transitions are validated and applied inline within the request boundary, returning immediate confirmation to the actor.</li>
+<li><strong>Asynchronous Quorum Approval</strong>: Proposals are recorded in a pending state awaiting automated CI/CD checks or human-in-the-loop approvals before finalizing.</li>
+<li><strong>GitOps Declarative Pipeline</strong>: The engine runs in CI validation workflows, rejecting pull requests containing invalid lifecycle state jumps.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Atomic transitions ensure zero partial mutations. State violations fail closed, preserving system integrity across concurrent runs.</li>
-<li><strong>Performance &amp; Latency</strong>: Local memory-evaluated transition lookups execute in under 5ms, avoiding pipeline latency degradation.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Minimal memory and compute footprint; integrates as an embedded library service without dedicated cluster infrastructure requirements.</li>
-<li><strong>Operability</strong>: Emits structured error codes describing target state rejections, enabling autonomous agents to self-correct invalid execution sequences.</li>
+<li><strong>Reliability</strong>: Eliminates invalid states through exhaustive transition definitions and atomic persistence.</li>
+<li><strong>Performance &amp; Latency</strong>: Sub-millisecond validation time using cached in-memory registry lookups.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Zero licensing or dedicated cluster overhead; runs as an embedded module within existing application runtimes.</li>
+<li><strong>Operability</strong>: Provides structured diagnostic messages identifying invalid transition trajectories and triggering audit alerts.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Direct Database State Bypass</strong>: Updating target lifecycle status directly in storage without invoking the GovernanceActionEngine. <em>Remedy</em>: Restrict persistence tier mutations strictly to the GovernanceActionService data layer.</li>
-<li><strong>Overly Permissive Transition Loops</strong>: Adding cyclic or wildcard (<code>* -&gt; *</code>) transitions to accommodate convenience, defeating lifecycle verification. <em>Remedy</em>: Enforce unidirectional lifecycle acyclic DAGs unless explicit rollback policies are defined.</li>
-<li><strong>Monolithic Over-Coupled Predicates</strong>: Hardcoding environment-specific business logic directly within transition definitions. <em>Remedy</em>: Decouple state definitions from pluggable precondition predicate handlers.</li>
+<li><strong>Bypass Gates</strong>: Creating hidden administrative bypass paths that allow mutations to skip validation checks.</li>
+<li><strong>Bloated Precondition Handlers</strong>: Placing heavy external synchronous network calls inside validation hooks instead of orchestrating them prior to engine invocation.</li>
+<li><strong>State Drift</strong>: Failing to update the transition registry when introducing new asset lifecycles, causing legitimate actions to be rejected.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ul>
-<li><strong>Starting Point</strong>: Identify high-risk governance state models (such as artifact promotions or architecture rule deprecations). Implement <code>TransitionRegistry</code> mapping current valid states to allowable target states.</li>
-<li><strong>Migration Path</strong>: Wrap existing mutation procedures with <code>GovernanceActionEngine.validate_transition()</code> in dry-run mode to observe non-compliant transitions. Transition to strict enforcement once agent behavior converges.</li>
-<li><strong>Governance Ownership</strong>: Architecture Governance &amp; Automation Core Team (domain: <code>governance-core</code>, initiative: <code>autonomous-agent-safeguards</code>).</li>
-</ul>
+<ol>
+<li>Define and document all allowable lifecycle states and allowed transitions in a central matrix.</li>
+<li>Implement the <code>TransitionRegistry</code> mapping valid transition tuples <code>(from_state, to_state)</code>.</li>
+<li>Route all entity updates through <code>GovernanceActionService</code>.</li>
+<li>Setup regression test suites simulating both permitted and prohibited paths.</li>
+</ol>
+<p>Governance Context:
+- Domain: <code>ideas-to-life-cas</code>
+- Initiative: GOV-AUTO-2026
+- Lead: Enterprise Architecture</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-004: Declarative Lifecycle Boundaries for Autonomous Agents</li>
-<li>Pattern: <code>src/cas_runner/governance/governance_action_engine.py</code></li>
-<li>Data Contract: <code>src/cas_runner/governance/models.py</code></li>
+<li><code>src/cas_runner/governance/governance_action_engine.py</code></li>
+<li><code>src/cas_runner/governance/governance_action_service.py</code></li>
+<li><code>src/cas_runner/governance/models.py</code></li>
 </ul>
 
 
@@ -3487,9 +3486,6 @@
 
 
 
-
-  
-  
 
 
 
