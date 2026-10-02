@@ -3258,80 +3258,80 @@
 
 <h1 id="knowledge-repository-abstraction">Knowledge Repository Abstraction</h1>
 <h2 id="intent">Intent</h2>
-<p>Isolate orchestration, analysis, and reasoning workflows from underlying persistence mechanisms by defining an explicit, protocol-based knowledge repository contract.</p>
+<p>Decouple workflow orchestration logic from physical storage mechanisms using an abstract repository interface, allowing seamless substitution between local filesystem, cloud storage, and database persistence.</p>
 <h2 id="context">Context</h2>
-<p>Continuous architecture frameworks and agentic execution environments require access to heterogeneous knowledge assets—including architecture states, decisions, metrics, and rules—across varying storage backends (filesystem hierarchies, cloud object stores, or remote databases) without leaking storage I/O semantics into domain orchestration logic.</p>
+<p>In continuous architecture pipelines and autonomous workflow engines, discrete execution steps must read and persist governance artifacts, architecture states, decision records, and metrics across heterogeneous environments without embedding direct I/O logic.</p>
 <h2 id="agentic-profile">Agentic Profile</h2>
-<p>Autonomous agents and pipeline steps interact with the knowledge layer exclusively through high-level semantic retrieval and persistence interfaces, preventing direct filesystem coupling, arbitrary path construction, or unauthorized storage mutations.</p>
+<p>Defines uniform persistence contracts for autonomous and semi-autonomous agents, ensuring agents interact exclusively through standardized load and persist methods without managing physical file handles or storage driver configurations.</p>
 <h2 id="forces">Forces</h2>
-<p>The pattern resolves the tension between supporting diverse physical persistence environments and maintaining clean, decoupled domain workflows.</p>
+<p>Balances the requirement for heterogeneous persistence backends against domain logic cleanliness and uniform error handling.</p>
 <h3 id="drivers">Drivers</h3>
 <ul>
-<li>Need to support multiple storage topologies (local filesystem, cloud buckets, databases) interchangeably</li>
-<li>Requirement for clean test isolation and zero-cost mock persistence during automated CI/CD runs</li>
-<li>Separation of domain workflow orchestration from physical I/O mechanics</li>
+<li>Need to support diverse storage backends including local disk, cloud object stores, and relational databases</li>
+<li>Requirement to isolate orchestration logic from file system semantics and low-level I/O failure handling</li>
+<li>Need for consistent read and write semantics across multi-stage execution pipelines</li>
 </ul>
 <h3 id="constraints">Constraints</h3>
 <ul>
-<li>Repository interfaces must remain agnostic of concrete provider layouts and low-level storage protocols</li>
-<li>Persistence operations across heterogeneous backends must preserve structural artifact schemas</li>
+<li>Must operate within synchronous and asynchronous step lifecycles without leaking provider-specific client libraries</li>
+<li>Protocol implementations must uphold deterministic serialization contracts across all supported environments</li>
 </ul>
 <h3 id="tradeoffs">Tradeoffs</h3>
 <ul>
-<li>Indirection overhead introduced by protocol-based dispatch</li>
-<li>Interface design must accommodate uniform persistence operations without exposing backend-specific querying features</li>
+<li>Small abstraction overhead introduced by dynamic protocol dispatch</li>
+<li>Risk that bugs in a centralized provider implementation impact all pipeline steps</li>
 </ul>
 <h2 id="solution">Solution</h2>
-<p>Define a unified KnowledgeProvider protocol specifying standardized operations for loading and persisting architectural artifacts. Implement concrete provider adapters (such as LocalKnowledgeProvider) that encapsulate physical storage details, resolving target paths and serialisation formats transparently.</p>
+<p>Define a formal protocol contract declaring domain-specific load and persist methods. Concrete provider implementations encapsulate physical path resolution, serialization formats, and I/O error handling, shielding execution runners and agents from persistence details.</p>
 <h2 id="operationalisation">Operationalisation</h2>
-<p>Standardize data access across all pipeline execution steps by instantiating the appropriate KnowledgeProvider adapter at the application boundary and injecting it into the runtime context.</p>
+<p>Enforce the repository abstraction protocol across all runner steps, CLI entrypoints, and agent tasks with automated dependency injection and mock providers for CI.</p>
 <h3 id="workflow-implications">Workflow Implications</h3>
 <ul>
-<li>Pipeline steps must consume KnowledgeProvider interfaces rather than performing raw file or network I/O</li>
-<li>Storage backend transitions require implementing a new adapter without altering application or agent logic</li>
+<li>Workflow steps must inject KnowledgeProvider rather than calling native filesystem or database APIs directly</li>
+<li>Configuration matrices must specify target persistence provider implementations per execution target</li>
 </ul>
 <h3 id="automation-opportunities">Automation Opportunities</h3>
 <ul>
-<li>Automated dependency injection of mock knowledge repositories during hermetic CI testing</li>
-<li>Automated linting and compliance rules blocking direct filesystem or external I/O imports within orchestration steps</li>
+<li>Automated mock provider injection during unit and CI validation test runs</li>
+<li>Automated schema verification of serialized payloads on provider write boundaries</li>
 </ul>
 <h2 id="implementation-signals">Implementation Signals</h2>
-<p>Direct filesystem manipulations, hardcoded storage path formatting, or storage SDK calls scattered throughout orchestration and agent step logic signal the need for this abstraction.</p>
+<p>Implemented via the KnowledgeProvider protocol and LocalKnowledgeProvider in io.py, establishing clean separation between storage operations and flow execution.</p>
 <h2 id="evidence">Evidence</h2>
-<p>Demonstrated through the KnowledgeProvider protocol and LocalKnowledgeProvider implementation in the CAS core runtime.</p>
+<p>Demonstrated through comprehensive adoption in runtime I/O modules with high reusability across multi-environment deployments.</p>
 <h3 id="signals">Signals</h3>
 <ul>
-<li>Implementation in src/cas_runner/io.py</li>
-<li>Recurring persistence decoupling signals across workflow runners</li>
-<li>Current architecture state component alignment with comp-knowledgeprovider and comp-localknowledgeprovider</li>
+<li>Implementation in src/cas_runner/io.py defining KnowledgeProvider and LocalKnowledgeProvider</li>
+<li>Recurring persistence decoupling signals across continuous architecture runner modules</li>
+<li>Current architecture state component alignment establishing isolation of persistence layers</li>
 </ul>
 <h3 id="confidence-basis">Confidence Basis</h3>
-<p>Production implementation in src/cas_runner/io.py supporting active continuous architecture flows and test fixtures.</p>
+<p>Active implementation with verified AST component support and multi-environment deployment compatibility</p>
 <h2 id="consequences">Consequences</h2>
-<p>Provides strong architectural modularity and environment independence while localizing storage failure domains.</p>
+<p>Provides modular, swap-ready storage capabilities while consolidating data access control into dedicated provider modules.</p>
 <h3 id="benefits">Benefits</h3>
 <ul>
-<li>Storage backends can be swapped without re-verifying application orchestration logic</li>
-<li>Filesystem and I/O failures are isolated entirely to provider implementations</li>
-<li>Enables deterministic offline unit testing through mock provider implementations</li>
+<li>Storage backends can be swapped or upgraded without altering application or agent reasoning logic</li>
+<li>Filesystem and transport failures are isolated to provider implementations rather than failing runner workflows</li>
+<li>Simplifies offline testing by enabling drop-in in-memory or mock knowledge providers</li>
 </ul>
 <h3 id="risks">Risks</h3>
 <ul>
-<li>Centralized provider implementation defects propagate across all consuming pipeline steps</li>
-<li>Slight abstraction indirection overhead during high-frequency asset reads</li>
+<li>Slight abstraction overhead resulting from protocol-based method dispatch</li>
+<li>Centralization in a single provider means defects or performance issues in the active provider affect all step data access</li>
 </ul>
 <h3 id="governance-implications">Governance Implications</h3>
 <ul>
-<li>Storage backends can be migrated or upgraded without invalidating governance compliance</li>
-<li>Mandatory adherence to the KnowledgeProvider contract for any component requiring artifact persistence</li>
+<li>Storage infrastructure configurations can be re-evaluated and swapped without requiring re-approval of domain orchestration logic</li>
+<li>Enforces compliance with architectural persistence standards across all pipeline components</li>
 </ul>
 <h2 id="reuse-notes">Reuse Notes</h2>
-<p>Mandatory for all architectural runners, agentic tools, and framework extensions requiring persistence or retrieval of continuous architecture knowledge assets across local and cloud environments.</p>
+<p>Mandatory for all components interacting with the continuous architecture knowledge layer or requiring persistence abstraction across diverse runtime environments.</p>
 <h2 id="confidence">Confidence</h2>
-<p>High confidence based on verified production code implementation, robust test suite backing, and multi-environment applicability.</p>
+<p>High confidence derived from fully functional reference implementation and established architectural alignment.</p>
 <p><strong>Level:</strong> high</p>
 <h3 id="rationale">Rationale</h3>
-<p>Fully implemented via KnowledgeProvider protocol and LocalKnowledgeProvider in src/cas_runner/io.py with active integration across continuous architecture execution pipelines.</p>
+<p>Backed by functional implementation in core runner modules, complete protocol definitions, and verified multi-environment persistence support.</p>
 
 
 
