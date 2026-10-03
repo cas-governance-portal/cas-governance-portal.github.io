@@ -20,7 +20,7 @@
     
     
       
-        <title>Reference Architecture: Architecture Work Registry as Authoritative Change Backlog - CAS Architecture Governance Portal</title>
+        <title>Reference Architecture: Architecture Work Registry as Authoritative Backlog - CAS Architecture Governance Portal</title>
       
     
     
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#reference-architecture-architecture-work-registry-as-authoritative-change-backlog" class="md-skip">
+        <a href="#reference-architecture-architecture-work-registry-as-authoritative-backlog" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Reference Architecture: Architecture Work Registry as Authoritative Change Backlog
+              Reference Architecture: Architecture Work Registry as Authoritative Backlog
             
           </span>
         </div>
@@ -3323,23 +3323,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-considered" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives considered
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3414,86 +3397,80 @@
 
 
 
-<h1 id="reference-architecture-architecture-work-registry-as-authoritative-change-backlog">Reference Architecture: Architecture Work Registry as Authoritative Change Backlog</h1>
+<h1 id="reference-architecture-architecture-work-registry-as-authoritative-backlog">Reference Architecture: Architecture Work Registry as Authoritative Backlog</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Architecture Work Registry pattern designates Architecture Work (AW) artifacts as the immutable, authoritative source of truth for architectural planning, change backlogs, and evolution tracking. Automated dashboards and visualizations, such as Architecture Evolution Maps (AEM) and Architecture Interaction Diagrams (AID), are treated strictly as derived, ephemeral projections. This unidirectional data flow prevents state overwrite hazards during automated discovery and regeneration.</p>
+<p>The Architecture Work Registry pattern decouples authoritative architectural planning, decision records, and intent backlogs from ephemeral derived dashboards or regenerated artifacts. In automated continuous architecture pipelines, discovery extractors and visualization tools frequently synthesize projections such as Architecture Evolution Maps (AEMs). Embedding planning state directly inside generated views creates severe risk of data loss upon regeneration. Establishing a dedicated, machine-readable Architecture Work registry ensures all planned, in-flight, and completed architectural initiatives persist deterministically as the single source of truth.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Automated discovery or ingestion pipelines periodically scan codebases and mutate architectural representations.</li>
-<li>Architecture Evolution Maps (AEM) or dashboards are regenerated on a continuous schedule.</li>
-<li>Teams experience information loss when manual roadmap annotations or architectural intentions are overwritten by automated scanners.</li>
-<li>Auditable governance and compliance tracking are required for architectural decisions and backlog progression.</li>
+<li>When automated pipelines periodically regenerate architectural roadmaps, dependency graphs, or evolution maps from code and telemetry.</li>
+<li>When multiple engineers or automated agents contribute architectural work items and decisions that must persist independently of UI visualizations.</li>
+<li>When governance audits require verifiable historical lineage of architectural decisions decoupled from ephemeral reporting tools.</li>
+<li>When reconciling discrepancy between discovered code state and planned target architectures.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Small, single-team architectures where architecture evolution is tracked entirely in lightweight Git issues without external projection pipelines.</li>
-<li>Ephemeral proof-of-concept projects where no automated architecture discovery or visualization tools exist.</li>
-<li>Environments where bidirectional real-time collaborative whiteboards are designated as the sole decision artifact.</li>
+<li>In simple monolithic or small-scale applications where architectural changes are tracked directly within standard issue trackers without automated architecture evolution map synthesis.</li>
+<li>When architecture visualization is purely descriptive and static with no automated regeneration or bi-directional lifecycle synchronization.</li>
+<li>When planning state is managed strictly through an external enterprise tool (e.g., Jira Enterprise Portfolio) that already maintains authoritative change webhooks into codebase pipelines.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    ingest["Ingestion &amp; Discovery Pipeline (Container)"]
-    aw_registry[("Architecture Work Registry (Data store)")]
-    generator["View Projection Engine (Container)"]
-    derived_view["Architecture Evolution Map - AEM (External System)"]
-    governance["Architecture Review Board (External System)"]
+    client["Architecture Agent / Contributor (User/Tool)"]
+    registry[("Architecture Work Registry (Data Store)")]
+    generator["AEM Generator Step (Container)"]
+    codebase[("Project Source Repository (Data Store)")]
+    aem_view["Architecture Evolution Map (Visualization/View)"]
 
-    ingest --&gt;|1. Appends intent &amp; change backlog| aw_registry
-    governance --&gt;|2. Reviews &amp; updates backlog items| aw_registry
-    generator --&gt;|3. Queries authoritative state| aw_registry
-    generator --&gt;|4. Projects ephemeral dashboard| derived_view
+    client --&gt;|1. Author and persist intent| registry
+    generator --&gt;|2. Ingest planning records| registry
+    generator --&gt;|3. Extract implemented state| codebase
+    generator --&gt;|4. Synthesize derived roadmap| aem_view
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class ingest,generator container
-    class aw_registry store
-    class derived_view,governance external</code></pre>
+    class generator,aem_view container
+    class registry,codebase store
+    class client external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Architecture Work Registry</strong> (<code>governance/architecture-work/</code>): Serves as the authoritative, versioned store of change items, technical debt tracking, decision records, and planned evolutionary phases.</li>
-<li><strong>Ingestion &amp; Discovery Pipeline</strong> (<code>orchestration/discovery-to-aw/</code>): Aggregates telemetry, source code introspection, and external signals, systematically emitting non-destructive Architecture Work delta proposals.</li>
-<li><strong>View Projection Engine</strong> (<code>services/view-generator/</code>): Reads from the Architecture Work Registry and active system state to compile and generate static dashboards (AEM, AID).</li>
-<li><strong>Governance Interface</strong> (<code>governance/cli-tools/</code>): Facilitates human-in-the-loop review, lifecycle updates (proposal to accepted/rejected), and policy enforcement across registry records.</li>
+<li><strong>Architecture Work Registry</strong> (<code>catalogue/work_registry.json</code>): Authoritative datastore maintaining structured records of planned, active, and completed architectural initiatives, ensuring intent is preserved across discovery cycles.</li>
+<li><strong>AEM Generator Step</strong> (<code>src/cas_runner/steps/aem_generator.py</code>): Automated workflow step that reads authoritative planning items from the registry alongside codebase telemetry to synthesize evolution mappings.</li>
+<li><strong>Source Code Telemetry Extractor</strong> (<code>src/cas_runner/extractors/</code>): Parses project source code and metadata to derive the current structural state without modifying planning backlogs.</li>
+<li><strong>Derived Architecture Evolution Map (AEM)</strong> (<code>docs/architecture/aem_report.md</code>): Ephemeral or regenerated presentation artifact illustrating historical progression, active delta, and projected target architectures.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<p>Recommended baseline implementation leverages Git-backed Markdown files with structured YAML frontmatter, processed by static site generators or graph compilation scripts. This choice guarantees full GitOps auditability, cryptographic commit lineage, and zero-cost hosting.</p>
-<h3 id="alternatives-considered">Alternatives considered</h3>
 <ul>
-<li><strong>Relational DB (PostgreSQL) Backlog Store</strong>: Rejected due to impedance mismatch with GitOps workflows and lack of direct co-location with engineering artifacts.</li>
-<li><strong>Embedded Annotations in Visualization Diagrams</strong>: Rejected because automated re-scans overwrite diagram metadata, leading to recurring state-loss incidents.</li>
+<li><strong>Authoritative Backlog Format</strong>: Machine-readable JSON/YAML files versioned in Git. Alternatives considered: SQL Database (rejected due to git-branch mismatch and review friction), JIRA/Linear API (set aside to avoid runtime dependencies during CI/CD generation runs).</li>
+<li><strong>Pipeline Runner</strong>: Python-based runner executing deterministic steps (<code>src/cas_runner</code>). Alternatives considered: Bash scripts (insufficient typing and validation) and cloud workflows (overly complex for repository-local artifact generation).</li>
+<li><strong>Serialization Standards</strong>: JSON Schema validation on work registry records to enforce semantic validation prior to map generation runs.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>GitOps Frontmatter Variant</strong>: Individual Markdown files per work item stored directly in the repository with branch pull request workflows for approval.</li>
-<li><strong>Headless Event Ledger</strong>: An append-only event stream recording architecture intent events (aw.created, aw.promoted) consumed by visualization services.</li>
-<li><strong>Hybrid Issue-Tracker Sync</strong>: A two-way connector maintaining Git Markdown files as authoritative while synchronizing status outward to Jira or GitHub Projects.</li>
+<li><strong>Synchronous Commit-Hook Validation</strong>: Work items are validated against JSON schema in pre-commit hooks, ensuring invalid schema never enters the authoritative branch.</li>
+<li><strong>Asynchronous Pipeline Reconciliation</strong>: Automated CI/CD actions reconcile work items against actual codebase structural changes, flagging completed or drifting initiatives.</li>
+<li><strong>Strict Decoupled Visualization Mode</strong>: Derived views (AEM) are strictly read-only and overwritten on every merge, preventing manual edits from leaking into presentation views.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: High durability and disaster recovery inherited from distributed Git version control. No risk of data corruption from conflicting automated scans.</li>
-<li><strong>Performance &amp; Latency</strong>: View generation operations run asynchronously in CI/CD pipelines (sub-minute generation targets), decoupling human editing latency from reporting.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Minimal compute cost; relies on existing Git repositories and serverless CI/CD runners for projection generation.</li>
-<li><strong>Operability</strong>: Transparent, clear audit logs via Git history. Human-readable Markdown formats make inspection and remediation trivial.</li>
+<li><strong>Reliability</strong>: Eliminates data loss during map regeneration by isolating mutable planning state from generated presentation outputs.</li>
+<li><strong>Performance &amp; Latency</strong>: Local file-based ingestion and synthesis yields sub-second map generation during continuous integration runs.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Relies on repository storage and local processing, incurring zero auxiliary database or SaaS subscription licensing overhead.</li>
+<li><strong>Operability</strong>: Straightforward Git revision history provides immutable change logs and trivial rollback capabilities for architectural decisions.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Bidirectional Sync Loop</strong>: Attempting to parse manually edited AEM diagrams back into the Architecture Work Registry, introducing race conditions and parsing regressions.</li>
-<li><strong>Unbounded Record Sprawl</strong>: Retaining obsolete, declined, or completed work items in active processing directories without automated lifecycle archive policies.</li>
-<li><strong>Ad-Hoc Regeneration Bypassing</strong>: Manually drawing or publishing target-state dashboards without declaring prerequisite Architecture Work records.</li>
+<li><strong>Direct View Editing</strong>: Modifying derived Architecture Evolution Map markdown or diagrams directly instead of updating the Architecture Work Registry, causing manual changes to be overwritten on next discovery run (Remedy: Treat derived files as build artifacts with clear generated warnings).</li>
+<li><strong>Monolithic State Blobbing</strong>: Storing both codebase AST scans and human planning rationales inside the same mutable JSON file (Remedy: Enforce explicit separation between authoritative registry and extracted telemetry).</li>
+<li><strong>Silent Intent Drift</strong>: Marking architectural work complete in the registry without corresponding verifiable structural code changes (Remedy: Implement automated reconciliation checks during CI).</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ol>
-<li>Define standard schemas for Architecture Work items (e.g., frontmatter properties: status, owner, scope, target_milestone).</li>
-<li>Seed the registry by converting existing manual roadmap items into baseline <code>aw-*</code> records.</li>
-<li>Configure view generation pipelines to pull exclusively from the registry and treat target dashboards as read-only build artifacts.</li>
-<li>Establish governance boundaries: Domain ID: <code>governance.architecture</code>, Initiative ID: <code>ideas-to-life-cas</code>, managed by the Architecture Review Board.</li>
-</ol>
+<p>Begin adoption by extracting existing architectural notes and backlog items into a dedicated directory or structured JSON file (<code>work_registry.json</code>). Configure generation tools (such as <code>aem_generator.py</code>) to treat this file as read-only input. Establish governance ownership under the platform architecture team (<code>governance_domain: core-platform</code>, <code>initiative_id: cas-governance-registry</code>). Ensure pull request templates require registry entries for any systemic structural changes.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../readme" title="Architecture Work Record Specification">Architecture Work Record Specification</a></li>
-<li><a href="../../../orchestration/discovery-to-aw/flow.yaml">Discovery to Architecture Work Flow</a></li>
-<li><a href="../../../services/view-generator/pipeline.yaml">AEM View Generator Pipeline</a></li>
+<li><a href="../../../src/cas_runner/steps/aem_generator.py">AEM Generator Step Implementation</a></li>
+<li><a href="../../work/aw-ideas-to-life-cas-2026-05-31-001/" title="Architecture Work Item Sample 2026-05-31">Architecture Work Item Sample 2026-05-31</a></li>
+<li><a href="../../work/aw-ideas-to-life-cas-20260614-1/" title="Architecture Work Item Sample 2026-06-14">Architecture Work Item Sample 2026-06-14</a></li>
 </ul>
 
 

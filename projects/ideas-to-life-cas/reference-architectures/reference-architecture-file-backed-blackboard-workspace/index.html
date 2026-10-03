@@ -3399,86 +3399,89 @@
 
 <h1 id="reference-architecture-file-backed-blackboard-workspace">Reference Architecture: File-Backed Blackboard Workspace</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The File-Backed Blackboard Workspace pattern standardizes a local or version-controlled directory hierarchy as a transparent, decoupled blackboard memory system for multi-step agent pipelines, CI/CD runners, and automated developer tooling.</p>
+<p>The File-Backed Blackboard Workspace pattern utilizes a version-controlled, hierarchical filesystem structure as a shared blackboard for multi-agent systems, automated workflows, and human engineering teams. It allows independent modules and agents to exchange state, preserve intermediate artifacts, and maintain complete provenance without provisioning external database backends.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Multi-agent or multi-step execution pipelines needing to share state, templates, and runtime context without introducing external infrastructure dependencies.</li>
-<li>Environments where auditability and reproducible execution are paramount, allowing execution states to be checked out, diffed, and reviewed directly in Git.</li>
-<li>Ephemeral CI/CD runners and local developer workstations that benefit from zero-configuration, offline-first persistence.</li>
-<li>Automated governance workflows requiring deterministic bootstrapping of runtime configuration and governance blocks.</li>
+<li>Multi-agent or multi-step execution pipelines where decoupled agents or tools need to inspect, append, and mutate state asynchronously.</li>
+<li>Workflows that require complete auditability, provenance, and deterministic state reproduction tied directly to Git commit SHA revisions.</li>
+<li>Continuous Integration (CI) and local developer environments requiring identical execution context without provisioning external backing stores (e.g., PostgreSQL, Redis).</li>
+<li>Collaborative human-in-the-loop workflows where pull requests and code reviews gate changes to system templates, global rules, and execution profiles.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>High-frequency, ultra-low-latency transactional workloads requiring sub-millisecond ACID concurrency across hundreds of distributed nodes.</li>
-<li>Massive distributed systems requiring cross-cluster distributed synchronization without access to a common filesystem or shared volume.</li>
-<li>Workloads handling massive streaming datasets or large binary media where Git/POSIX tracking would cause disk bloat.</li>
-<li>Highly concurrent uncoordinated multi-process write scenarios lacking atomic filesystem locking or isolation primitives.</li>
+<li>Ultra-high-throughput transactional workloads requiring sub-millisecond ACID updates across dozens of concurrent writers.</li>
+<li>Systems with high-frequency concurrent mutating writes that would trigger severe Git merge contention or lock churn.</li>
+<li>Large binary artifact storage or streaming datasets exceeding tens of gigabytes, which bloat repository trees (object storage like S3/GCS is preferred for payload blobs).</li>
+<li>Workloads requiring dynamic ad-hoc relational querying, complex joins, or graph traversals across runtime entities.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    bootstrap["Bootstrap Runner (Container)"]
-    agent["Agent Runner (Container)"]
-    workspace[("Workspace Directory (Data store)")]
-    vcs["Git Version Control (External System)"]
+    Runner["CAS Runner / Orchestrator (Container)"]
+    AgentStep["Agent Execution Step (Container)"]
+    KnowledgeProv["Local Knowledge Provider (Container)"]
+    Blackboard[("File-Backed Blackboard Store (Data store)")]
+    GitRemote["Git Remote / GitHub (External System)"]
 
-    bootstrap --&gt;|1. Scaffolds structure &amp; templates| workspace
-    agent --&gt;|2. Reads context &amp; rules| workspace
-    agent --&gt;|3. Writes state &amp; runtime profile| workspace
-    workspace --&gt;|4. Commits &amp; synchronizes| vcs
+    Runner --&gt;|"1. Scaffolds &amp; merges governance"| Blackboard
+    Runner --&gt;|"2. Triggers execution"| AgentStep
+    AgentStep --&gt;|"3. Reads context &amp; templates"| KnowledgeProv
+    KnowledgeProv --&gt;|"4. Reads &amp; writes files"| Blackboard
+    AgentStep --&gt;|"5. Updates runtime profile"| Blackboard
+    Blackboard -.-&gt;|"6. Git commits &amp; PR gating"| GitRemote
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class bootstrap,agent container
-    class workspace store
-    class vcs external</code></pre>
+    class Runner,AgentStep,KnowledgeProv container
+    class Blackboard store
+    class GitRemote external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Bootstrap Scaffolder</strong> (<code>src/cas_runner/bootstrap.py</code>): Scaffolds the deterministic directory structure, injects standard governance blocks, and initializes empty blackboard runtime structures.</li>
-<li><strong>Local Knowledge Provider &amp; I/O Adapter</strong> (<code>src/cas_runner/io.py</code>): Encapsulates file reads, schema validation, and atomic write-replace operations to prevent file corruption during pipeline execution.</li>
-<li><strong>Blackboard Runtime Profile Store</strong> (<code>cas-knowledge/runtime/execution-profile.yaml</code>): Maintains intermediate execution telemetry, agent decisions, context parameters, and pipeline state across execution steps.</li>
-<li><strong>Version Control Synchronizer</strong> (<code>.git</code>): Captures immutable snapshots of blackboard changes for peer review, audit history, and rollback capabilities.</li>
+<li><strong>Workspace Scaffolder / Bootstrapper (<code>src/cas_runner/bootstrap.py</code>)</strong>: Responsible for constructing standard blackboard folder structures (<code>cas-knowledge/global</code>, <code>cas-knowledge/projects</code>, <code>cas-knowledge/runtime</code>, <code>cas-knowledge/templates</code>) and merging governance blocks.</li>
+<li><strong>Local Knowledge Provider (<code>src/cas_runner/knowledge/provider.py</code>)</strong>: Implements access controls, structured serialization (YAML/JSON), and schema validations, shielding agents from low-level filesystem I/O.</li>
+<li><strong>Runtime Blackboard (<code>cas-knowledge/runtime/</code>)</strong>: Transient execution space storing <code>execution-profile.yaml</code>, execution traces, and agent communication logs for the active pipeline run.</li>
+<li><strong>Governance and Template Catalog (<code>cas-knowledge/global/</code>, <code>cas-knowledge/templates/</code>)</strong>: Canonical repository of immutable reference guidelines, evaluation constraints, and standardized agent prompts.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li><strong>Recommended Options</strong>:</li>
-<li>Structured serialization using YAML/JSON for clear human inspection and robust parsing.</li>
-<li>Atomic POSIX file operations (write-to-temp followed by atomic replacement) to prevent concurrency races.</li>
-<li>Git for distributed auditability, change traceability, and versioned rollbacks.</li>
+<li><strong>File Formats</strong>: YAML and Markdown with YAML frontmatter for human readability, ease of diffing, and compatibility with LLM prompt windows.</li>
+<li><strong>Storage Engine</strong>: POSIX filesystem backed by Git version control, enabling time-travel debugging and native branching/merging.</li>
+<li><strong>Atomic Write Semantics</strong>: Tempfile creation followed by atomic replacement (<code>os.replace</code>) to prevent read corruptions during concurrent agent reads.</li>
 <li><strong>Alternatives Set Aside</strong>:</li>
-<li><em>Redis / Memcached</em>: Adds infrastructure overhead and cannot be natively checked out alongside codebase versions.</li>
-<li><em>SQLite / Relational DBs</em>: Impedes standard Git diffing and suffers file-lock issues across network-mounted filesystems.</li>
-<li><em>Cloud Object Storage (S3)</em>: Introduces network latency and complicates offline local developer execution.</li>
+<li><em>Redis / Key-Value Stores</em>: Added infrastructure footprint without branch/commit traceability.</li>
+<li><em>Relational Databases (PostgreSQL/MySQL)</em>: Hard to diff in Git PR workflows and prohibitive for lightweight standalone CLI/CI runs.</li>
+<li><em>SQLite</em>: Lacks git-diff transparency and causes merge conflict resolution challenges when checked into source control.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Ephemeral Runner Workspace</strong>: Blackboard state is created for a single build/run context and cleaned up upon pipeline completion.</li>
-<li><strong>Git-Backed Durable Knowledge Base</strong>: State transitions and blackboard logs are committed back to source control as permanent documentation.</li>
-<li><strong>Hybrid In-Memory Overlay</strong>: High-frequency updates are aggregated in memory and flushed periodically to the filesystem at boundary milestones.</li>
+<li><strong>Local Ephemeral Workspace</strong>: Used in local test suites and isolated worker nodes where output files are discarded post-execution.</li>
+<li><strong>PR-Gated Persistent Blackboard</strong>: Long-lived multi-agent coordination where changes are written to dedicated branch workspaces and merged via automated pull requests.</li>
+<li><strong>Hybrid Content-Addressable Workspace</strong>: Metadata and structured control files reside in Git, while large payloads and model outputs are written to S3 with content hashes stored in blackboard files.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Fault-tolerant against partial writes by leveraging atomic rename primitives and schema validation on read.</li>
-<li><strong>Performance &amp; Latency</strong>: Sub-millisecond reads on local NVMe/SSD filesystems; zero network latency.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Zero external license or hosting infrastructure costs; natively runs on whatever compute node is assigned.</li>
-<li><strong>Operability</strong>: Straightforward debugging using standard shell utilities (<code>ls</code>, <code>cat</code>, <code>yq</code>, <code>diff</code>).</li>
+<li><strong>Reliability</strong>: Eliminates external network database dependencies; filesystem guarantees crash resilience when combined with atomic write operations.</li>
+<li><strong>Performance &amp; Latency</strong>: Sub-millisecond reads for local configuration files; latency scales with disk I/O.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Zero cost beyond basic disk utilization; no recurring database server hosting or license expenses.</li>
+<li><strong>Operability</strong>: Highly maintainable using familiar developer tooling (<code>git log</code>, <code>diff</code>, <code>jq</code>, <code>yq</code>).</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Monolithic Mega-File Blackboard</strong>: Placing all execution variables into a single file, causing Git merge conflicts and concurrent lock contention. <em>Remedy</em>: Segregate state into partitioned subdirectories.</li>
-<li><strong>In-Place File Overwrites</strong>: Writing directly to the active file, risking corruption during abrupt termination. <em>Remedy</em>: Enforce atomic file rename semantics.</li>
-<li><strong>Binary Artifact Pollution</strong>: Storing compiled binaries or massive datasets in Git-tracked blackboard folders. <em>Remedy</em>: Store only schemas and URIs referencing dedicated artifact registries.</li>
+<li><strong>Shared Direct Appends</strong>: Agents concurrently writing to the same file without unique identifiers. <em>Remedy</em>: Segregate state by task ID or execution step.</li>
+<li><strong>Git Repository Bloat</strong>: Storing binary outputs or model checkpoints in the blackboard repository. <em>Remedy</em>: Use Git LFS or external object storage with URI references.</li>
+<li><strong>Unvalidated Schema Drift</strong>: Uncontrolled file schemas that break downstream parsing. <em>Remedy</em>: Enforce Pydantic or JSON schema validation at the Knowledge Provider boundary.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ul>
-<li><strong>Starting Points</strong>: Run <code>bootstrap.py</code> to establish the foundational workspace hierarchy.</li>
-<li><strong>Migration Path</strong>: Convert loosely coupled script parameters and environment variables into formal YAML/JSON blackboard configuration files.</li>
-<li><strong>Governance Ownership</strong>: Platform Engineering &amp; Agentic Architecture Working Group.</li>
-</ul>
+<ol>
+<li><strong>Scaffold Structure</strong>: Run the workspace bootstrap routine to instantiate standard directories (<code>global/</code>, <code>projects/</code>, <code>runtime/</code>, <code>templates/</code>).</li>
+<li><strong>Encapsulate Access</strong>: Restrict file read/write operations to the <code>LocalKnowledgeProvider</code> interface.</li>
+<li><strong>CI Validation</strong>: Add pre-commit or CI hooks that validate YAML schemas and guard against large binary commits.</li>
+<li><strong>Governance</strong>: Managed under Domain <code>core-platform-governance</code>, Initiative <code>autonomous-agent-foundations</code>.</li>
+</ol>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../src/cas_runner/bootstrap.py">Bootstrap Workspace Implementation</a></li>
-<li><a href="../../../../runtime/execution-profile.yaml">Blackboard Runtime Profile</a></li>
+<li>Source: <code>src/cas_runner/bootstrap.py</code></li>
+<li>Runtime Profile: <code>cas-knowledge/runtime/execution-profile.yaml</code></li>
 </ul>
 
 
@@ -3486,9 +3489,6 @@
 
 
 
-
-  
-  
 
 
 

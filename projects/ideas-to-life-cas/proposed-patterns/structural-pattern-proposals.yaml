@@ -1,6 +1,6 @@
 pattern_proposals:
 - pattern_id: pydantic-domain-entity-modeling
-  name: Typed Domain Entity Modeling
+  name: Typed Domain Entity Modeling via Pydantic
   pattern_classification: architectural
   pattern_maturity: strategic_direction
   knowledgeType: signal
@@ -12,30 +12,30 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
-      GovernanceRisks, ComplianceFinding, GovernanceAction) - Declares typed domain
-      models for governance health, risk, and action payloads.
-    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, CapabilityRecord,
-      CapabilitySet, ArchitecturalDelta) - Models VCS changes, capabilities, and delta
-      classifications as structured entities.
-  description: Express domain concepts, inventory records, metric structures, and
-    steering entities as immutable, typed Pydantic models.
+    - src/cas_runner/governance/models.py (GovernanceInventory, ComplianceFinding,
+      ComplianceMetrics, GovernanceAction, ResolutionResult) - Models governance entities
+      and metrics using typed Pydantic models.
+    - src/cas_runner/steering/models.py (CapabilityRecord, CapabilitySet, ArchitecturalDelta,
+      SteeringRuntimeIndex) - Models capability catalogs and git steering state as
+      Pydantic entities.
+  description: Core enterprise architecture entities and governance artifacts are
+    formalized using Pydantic BaseModel instances to enforce rigid data schemas and
+    automated serialization.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Ensure deterministic validation, strict type contracts, and serialization
-    safety across domain boundaries without manual validation boilerplate.'
-  - 'Context: The system processes architecture decisions, git deltas, capability
-    changes, and compliance findings across CLI, disk storage, and memory.'
-  - 'Force: Complex schema requirements for continuous architecture artifacts'
-  - 'Force: Risk of silent data drift when reading file-based markdown frontmatters
-    and JSON'
-  - 'Force: Need for consistent serialization and deserialization across engines'
+  - 'Intent: Ensure all architectural data artifacts exchanged across the application
+    and persisted to disk maintain deterministic structural validation and type guarantees.'
+  - 'Context: The system processes architecture models, compliance metrics, git deltas,
+    and governance records from external files and operational workflows.'
+  - 'Force: Schema drift between stored markdown/yaml records and in-memory execution'
+  - 'Force: Need for automatic serialization and deserialization across CLI and dashboard
+    components'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
-  name: Transition Registry State Machine
+  name: Transition Registry State Management
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
@@ -48,23 +48,20 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - TransitionRegistry governs state validity for actions executed within GovernanceActionEngine.
-  description: Decouple lifecycle state transitions into a dedicated TransitionRegistry
-    consumed by an action execution engine.
+      - TransitionRegistry maintains valid state transitions for GovernanceActionEngine.
+  description: Decouples state transition handlers and governance action lifecycles
+    through an explicit transition registry table or container.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Isolate state transition validation rules and allowed target states from
-    the execution mechanics of applying the transitions.'
-  - 'Context: Governance artifacts (decisions, rules, capabilities) evolve through
-    formal lifecycle states (e.g., proposed, accepted, deprecated, rejected) with
-    distinct rules.'
-  - 'Force: Hardcoded condition trees for state changes lead to spaghetti code and
-    bugs'
-  - 'Force: Need to audit and validate whether a given governance transition is legally
-    permissible'
-  - 'Force: Extensibility for newly defined states or transition constraints'
+  - 'Intent: Allow dynamic registration and lookup of governance action state transitions
+    without monolithic branching statements.'
+  - 'Context: Governance actions transition across states (e.g. pending, resolved,
+    rejected, exception) governed by configurable lifecycle rules.'
+  - 'Force: Monolithic if/else cascades make lifecycle expansion brittle'
+  - 'Force: Need to register new domain state transitions without modifying the action
+    evaluation engine'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -208,22 +205,23 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - Acts as the application layer facade wrapping the action engine and compliance
-      checks.
-  description: A high-level service layer exposes coarse-grained operations to CLI
-    and runners, hiding internal interactions between engines and registries.
+      - Coordinates governance actions, resolutions, and lifecycle execution.
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluates
+      rules and findings into unified compliance metrics.
+  description: Encapsulates multi-step governance actions and compliance evaluations
+    behind cohesive application service interfaces.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Present a cohesive, simplified boundary for governance actions while
-    coordinating rule checking, storage, and action engines behind the scenes.'
-  - 'Context: The CLI and CI workflows need to execute complex composite workflows
-    without knowing internal engine state or storage mechanisms.'
-  - 'Force: Direct CLI-to-engine coupling leaks low-level file path and engine lifecycle
-    handling into interface layers.'
-  - 'Force: Multiple consumers (CLI, CI GitHub Action, test suites) require consistent
-    transaction semantics.'
+  - 'Intent: Provide coarse-grained operations for runners and CLI entry points while
+    coordinating domain models and compliance engines.'
+  - 'Context: CLI commands and automated workflows require running governance assessments
+    without dealing directly with raw state registries or individual file parsers.'
+  - 'Force: Presentation components become bloated if orchestrating multiple domain
+    operations'
+  - 'Force: Transaction and execution logic should be reusable across automated and
+    manual triggers'
   evidence_strength: high
   confidence: high
 - pattern_id: client-adapter-test-double
@@ -1397,5 +1395,97 @@ pattern_proposals:
   - 'Force: Embedding orchestration logic in CLI scripts makes headless invocation
     and automated testing difficult'
   - 'Force: Changes in CLI argument parsing libraries should not affect workflow logic'
+  evidence_strength: high
+  confidence: high
+- pattern_id: file-based-repository-persistence
+  name: File-Tree Knowledge Repository Persistence
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-03'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block)
+      - Initializes and merges governance files and directory scaffolding into the
+      local workspace.
+  description: Uses a structured, version-controlled directory hierarchy as the canonical
+    persistence engine for architectural decisions, rules, and runtime evaluations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Store architectural state and governance models as plain text (Markdown,
+    YAML, JSON) files directly under git version control.'
+  - 'Context: Continuous architecture governance mandates auditability, diffability,
+    and offline editing of decisions, metrics, and templates.'
+  - 'Force: Relational databases isolate architecture knowledge from code repositories'
+  - 'Force: Architectural governance artifacts must be reviewable in standard pull
+    requests'
+  evidence_strength: high
+  confidence: high
+- pattern_id: provider-client-adapter
+  name: Provider Client Adapter
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-03'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Encapsulates external
+      LiteLLM API interactions.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Provides deterministic test
+      double adhering to the client interface.
+  description: Abstracts external provider SDK calls behind dedicated client classes
+    with drop-in test doubles.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple domain and application logic from third-party vendor interfaces
+    and enable deterministic local testing without external API calls.'
+  - 'Context: The system relies on external SDKs for upstream processing (e.g., LiteLLM),
+    but internal engines and automated CI tests require offline deterministic execution.'
+  - 'Force: Direct imports of external client libraries couple business services to
+    vendor SDKs'
+  - 'Force: CI pipelines require offline hermetic test runs'
+  evidence_strength: high
+  confidence: high
+- pattern_id: functional-health-evaluation-heuristic
+  name: Pure Functional Health Evaluation Heuristic
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-03'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Implements pure functional evaluation of health state based on metric findings.
+  description: Computes composite health metrics and evaluation reasons through stateless,
+    pure functional calculations derived from metric aggregates.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent state mutation and side-effects during architectural health audits
+    by calculating status purely from input metrics.'
+  - 'Context: Dashboards and CLI tools need to assess system architectural health
+    based on compliance metrics, risks, and unresolved exceptions.'
+  - 'Force: Mutable calculation logic inside UI models risks inconsistent reporting'
+  - 'Force: Health aggregation logic must be easily unit tested in isolation'
   evidence_strength: high
   confidence: high

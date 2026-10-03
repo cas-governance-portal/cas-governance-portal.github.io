@@ -3399,95 +3399,78 @@
 
 <h1 id="reference-architecture-schema-enforced-domain-contracts">Reference Architecture: Schema-Enforced Domain Contracts</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>Enforces strict domain validation contracts using Pydantic and JSON Schema specifications at the boundaries between non-deterministic Large Language Model (LLM) agents and deterministic system state stores.</p>
+<p>Enforces strict runtime and build-time data validation at all architectural boundaries, preventing non-deterministic, incomplete, or hallucinated payloads from corrupting persistent state.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When integrating agentic reasoning loops or LLM generation steps whose outputs mutate system state, configuration repositories, or audit logs.</li>
-<li>When multiple autonomous agents communicate via structured messages or intermediate domain representations.</li>
-<li>When automated compliance, security, or domain rule verification engines require strongly typed entity models (e.g., <code>GovernanceInventory</code>, <code>ComplianceFinding</code>, <code>GovernanceAction</code>).</li>
-<li>When downstream visualizations, metrics calculators, and transactional stores expect zero missing attributes and strict type consistency.</li>
+<li>Processing outputs from LLM reasoning steps, autonomous agents, or third-party generative models before mutating downstream state.</li>
+<li>Orchestrating pipelines across distinct execution environments (e.g., CI runners, distributed workers, event buses).</li>
+<li>Exchanging structured domain payloads across decoupled components where schema drift would cause silent runtime failures.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>During raw streaming conversational interfaces where unstructured human-directed text is displayed directly without structured downstream processing.</li>
-<li>For preliminary exploratory prototypes or open-ended creative text tasks where rigid domain data structures do not exist.</li>
-<li>When the data contract changes dynamically per request and cannot be formalized into static or versioned validation schemas.</li>
+<li>High-frequency internal loops processing raw primitive arrays or unconstrained byte streams where microsecond overhead dominates.</li>
+<li>Dynamic schema pass-through proxies that intentionally relay arbitrary opaque JSON payloads without inspecting content.</li>
+<li>Prototyping ephemeral exploratory scripts where domain contracts change continuously within a single monolithic file.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    ext1["External LLM Provider (External System)"]
-    agent["LLM Reasoning Agent (Container)"]
-    validator["Schema Validation Boundary (Container)"]
-    engine["Compliance &amp; Governance Engine (Container)"]
-    store[("Repository State Store (Data store)"]
+    agent["Agent / Runner (External System)"]
+    validator["Validation Interceptor (Container)"]
+    models["Domain Schema Registry (Container)"]
+    store[("Persistent State Store (Data store)")]
+    ci["CI Enforcement Gate (Container)"]
 
-    agent --&gt;|1. Request Generation| ext1
-    ext1 --&gt;|2. Raw JSON / Text Payload| agent
-    agent --&gt;|3. Validate Raw Output| validator
-    validator --&gt;|4. Strongly-Typed Domain Model| engine
-    engine --&gt;|5. Commit Domain State| store
+    agent --&gt;|"1. Submits unvalidated payload"| validator
+    validator --&gt;|"2. Fetches model definition"| models
+    validator --&gt;|"3. Writes validated state"| store
+    ci --&gt;|"Verify schema compliance"| models
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class agent,validator,engine container
+    class validator,models,ci container
     class store store
-    class ext1 external</code></pre>
+    class agent external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>LLM Reasoning Agent</strong> (<code>src/cas_runner/reasoning.py</code>): Orchestrates prompts, invokes external LLM completions, and receives non-deterministic structured candidate outputs.</li>
-<li><strong>Schema Validation Boundary</strong> (<code>src/cas_runner/governance/models.py</code>): Parses raw LLM payloads against immutable Pydantic domain models, enforcing attribute types, value constraints, and presence checks.</li>
-<li><strong>Compliance &amp; Governance Engine</strong> (<code>src/cas_runner/governance/compliance.py</code>): Executes domain health checks, risk scoring, and business logic exclusively against verified domain contract objects.</li>
-<li><strong>I/O Ingestion &amp; Serialization Layer</strong> (<code>src/cas_runner/governance/io.py</code>): Handles serialized persistence, file system I/O, and external serialization to ensure repository artifacts match defined schema specifications.</li>
-<li><strong>Repository State Store</strong> (<code>cas_runner/state</code>): Persists deterministic, auditable governance records and findings without risk of corrupt or malformed payload retention.</li>
+<li><strong>Governance Models &amp; Schema Registry</strong> (<code>src/cas_runner/governance/models.py</code>): Defines authoritative, immutable Pydantic V2 domain contracts (GovernanceInventory, ComplianceFinding, GovernanceHealth, GovernanceRisks, GovernanceAction) establishing field types, constraints, and JSON Schema definitions.</li>
+<li><strong>Steering Models</strong> (<code>steering/models.py</code>): Encapsulates task execution manifests, execution boundaries, and prompt-to-model parsing interfaces for autonomous orchestrators.</li>
+<li><strong>Validation Interceptor / Compliance Engine</strong> (<code>src/cas_runner/governance/engine.py</code>): Executes boundary validation against inbound agent and worker payloads, raising deterministic validation errors on schema divergence before storage mutations occur.</li>
+<li><strong>CI Contract Enforcement Suite</strong> (<code>.github/workflows/cas-build-validation.yml</code>): Runs automated pytest suites and schema compatibility assertions on every commit to block backwards-incompatible contract migrations.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<ul>
-<li><strong>Pydantic v2</strong>: Core domain model definition and validation. Utilizes a Rust-backed core (<code>pydantic-core</code>) to provide high-throughput validation (&lt;1ms) with detailed error tracing.</li>
-<li><strong>JSON Schema (Draft 2020-12)</strong>: Machine-readable schema export for external LLM tool-calling endpoints (e.g., OpenAI Function Calling, Anthropic Tool Use).</li>
-<li><strong>Python Typing (<code>typing.Annotated</code>, <code>typing.Literal</code>)</strong>: Native static type enforcement supporting IDE feedback and static analysis tools like <code>mypy</code> and <code>pyright</code>.</li>
-</ul>
-<p><em>Alternatives Considered and Set Aside:</em>
-- <strong>Raw Python Dictionaries / <code>TypedDict</code></strong>: Rejected due to lack of runtime validation and inability to enforce field coercion or schema rejection on non-deterministic data.
-- <strong>Marshmallow</strong>: Set aside due to slower Python-native serialization performance and verbose declaration syntax compared to modern Pydantic declarative models.
-- <strong>Protocol Buffers / gRPC</strong>: Set aside because upstream LLM APIs communicate natively over HTTP/JSON, adding unnecessary serialization overhead at the prompting boundary.</p>
+<p>Selected Pydantic V2 and JSON Schema as primary contract primitives due to compiled Rust-backed validation performance, automatic OpenAPI/JSON schema generation, and native integration with modern Python type checkers.</p>
+<p>Alternatives considered and set aside:
+- Protocol Buffers / gRPC: High compilation overhead and rigid IDL toolchains; unsuitable for direct LLM JSON completion integration.
+- Marshmallow: Slower serialization and lacks out-of-the-box type annotation alignment with modern Python typing semantics.
+- Cerberus / Plain Dict Validation: Lacks static typing support, structural validation ergonomics, and automated serialization.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Strict Reject &amp; Re-prompt (Self-Healing)</strong>: When validation fails against the schema, the validation error is caught, formatted, and sent back to the LLM agent as feedback in a re-prompt loop to correct the malformed output before proceeding.</li>
-<li><strong>Permissive Fallback &amp; Quarantine</strong>: If the payload violates optional constraints or non-critical fields, default values are injected or the payload is moved to a quarantine review queue while allowing the main pipeline execution to continue uninterrupted.</li>
-<li><strong>Two-Stage Validation (Syntactic then Semantic)</strong>: First stage performs shallow JSON schema validation at the HTTP network boundary; the second stage executes domain business validations (e.g., cross-field reference integrity) inside the domain engine.</li>
+<li><strong>Fail-Fast Strict Validation</strong>: The default mode. Rejects non-conformant payloads immediately with validation error telemetry, preventing any side effects.</li>
+<li><strong>Schema-Guided Re-prompting</strong>: Specialized for LLM agents. On contract failure, the Pydantic error details are fed back into the agent context window to re-generate the payload in a bounded retry loop.</li>
+<li><strong>Schema Migration Tolerant (Lenient Reader)</strong>: Applied across distributed versions where models configure <code>extra='ignore'</code> or fallback optional fields during deprecation cycles.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Shields repository state from malformed, incomplete, or hallucinated LLM payloads. Guarantees deterministic state evolution even with non-deterministic generative inputs.</li>
-<li><strong>Performance &amp; Latency</strong>: Validation overhead is negligible (&lt;2ms per payload using Pydantic v2 Rust engine), which is imperceptible compared to standard LLM response times (500ms - 5000ms).</li>
-<li><strong>Cost &amp; Efficiency</strong>: Prevents costly downstream pipeline crashes, redundant reprocessing, and corrupt database state restorations. Enables self-healing retry prompts with targeted error messages, minimizing total token usage compared to blind full-prompt retries.</li>
-<li><strong>Operability</strong>: Generates structured, actionable validation error logs indicating exact JSON pointers and validation rule failures for seamless observability.</li>
+<li><strong>Reliability</strong>: Eliminates runtime exceptions caused by <code>KeyError</code> or unexpected <code>NoneType</code> deep inside business logic; ensures atomic boundary rejection.</li>
+<li><strong>Performance &amp; Latency</strong>: Microsecond Pydantic V2 core validation overhead; payload verification consumes &lt;1% of end-to-end agentic or pipeline cycle time.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Prevents downstream processing of malformed data, saving compute, external API quotas, and storage waste.</li>
+<li><strong>Operability</strong>: Structured validation error payloads provide precise field paths, failing values, and expected types, simplifying triage in operational telemetry.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>The Naked Dict Anti-Pattern</strong>: Passing raw untyped dictionaries across agent reasoning and storage layers, leading to runtime <code>KeyError</code> or <code>AttributeError</code> exceptions deep in execution. <em>Remedy</em>: Parse raw dictionaries into Pydantic models immediately at the boundary.</li>
-<li><strong>Post-Commit Validation Anti-Pattern</strong>: Writing raw agent outputs to disk or database before running compliance checks, resulting in corrupted persistent state. <em>Remedy</em>: Make domain validation an impenetrable gating condition prior to any state mutation.</li>
-<li><strong>Over-Constrained Enumerations</strong>: Defining excessively strict enums on open-ended LLM categories that frequently drift, causing unnecessary pipeline halts. <em>Remedy</em>: Use extensible schema patterns, such as enum fallbacks or dynamic validation bags with catch-all attributes.</li>
+<li><strong>Permissive Dictionary Relaying</strong>: Passing unvalidated <code>dict[str, Any]</code> across layer boundaries under the assumption that downstream components will handle missing keys. <em>Remedy</em>: Enforce strict domain models at API entry/exit points.</li>
+<li><strong>Silent Fallbacks / Masking</strong>: Catching schema validation exceptions and defaulting missing fields to empty structures without telemetry, corrupting analytical state. <em>Remedy</em>: Surface structured validation errors and reject invalid payloads explicitly.</li>
+<li><strong>Dynamic Schemas without Versioning</strong>: Changing schema definitions in place without deprecation windows or automated CI migration tests, breaking distributed nodes. <em>Remedy</em>: Use semantic contract versioning and CI integration tests.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ul>
-<li><strong>Migration Path</strong>:</li>
-<li>Audit existing LLM agent interfaces across <code>reasoning.py</code> and <code>io.py</code> to identify points where unvalidated data is written or passed.</li>
-<li>Define centralized Pydantic models in <code>governance/models.py</code> reflecting all expected input and output structures.</li>
-<li>Wrap all LLM completion parsers with <code>Model.model_validate_json()</code> inside explicit <code>try...except ValidationError</code> blocks.</li>
-<li>Connect validation failures to targeted agent retry loops.</li>
-<li><strong>Governance &amp; Ownership</strong>:</li>
-<li>Domain: Architecture Governance &amp; Intelligence Core</li>
-<li>Initiative: Pipeline Robustness and Agentic Contract Hardening</li>
-<li>Target Project: <code>ideas-to-life-cas</code></li>
-</ul>
+<p>Begin adoption at peripheral boundary interfaces (LLM tool response parsers, external HTTP inputs, worker job payloads). Define explicit Pydantic models with strict typing, disallow implicit coercion where precision matters, and wire validation checks directly into CI pipelines via test fixtures. Governance ownership aligns with Core Architecture and Platform Engineering under global initiative scope.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-0012: Adoption of Pydantic v2 for Structured Intelligence Pipelines</li>
+<li>ADR: Architecture Decision Record for Typed Boundary Models</li>
 <li>Source File: <code>src/cas_runner/governance/models.py</code></li>
-<li>Source File: <code>src/cas_runner/governance/compliance.py</code></li>
-<li>Source File: <code>src/cas_runner/governance/io.py</code></li>
+<li>Source File: <code>steering/models.py</code></li>
+<li>CI Workflow: <code>.github/workflows/cas-build-validation.yml</code></li>
 </ul>
 
 
@@ -3495,9 +3478,6 @@
 
 
 
-
-  
-  
 
 
 
