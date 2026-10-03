@@ -1,0 +1,137 @@
+id: cas-arch-state-ea4all-automation-2026-10-03
+project: ea4all-automation
+date: '2026-10-03'
+status: discovered
+confidence: high
+system_boundary:
+  name: Ea4All Automation System
+  description: Architecture state reconstruction for ea4all-automation
+  external_actors:
+  - User
+  - Architect
+  external_systems:
+  - GitHub
+  - CI/CD Pipeline
+containers:
+- id: ea4all-automation-core
+  name: Ea4All Automation Core
+  type: application
+  technology: Python
+  evidence_ids:
+  - ev-wf-148910
+  status: active
+components:
+- id: ea4all-automation-main-comp
+  container_id: ea4all-automation-core
+  name: Ea4All Automation Component
+  path: src/
+  responsibilities:
+  - Primary system capability
+  interfaces:
+  - main()
+  evidence_ids:
+  - ev-wf-148910
+  confidence: medium
+dependencies: []
+flows:
+- id: flow:workflow:github:cas-sdd-validation
+  name: CAS SDD Validation
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/cas-validate-sdd.yml
+  trigger:
+    type: event
+    event: pull_request
+    source: GitHub Actions
+    evidence_id: ev-wf-cas-validate-sdd
+  entrypoint:
+    path: .github/workflows/cas-validate-sdd.yml
+    command: github workflow CAS SDD Validation
+    evidence_id: ev-wf-cas-validate-sdd
+  steps:
+  - id: step:1:checkout-code
+    name: Checkout Code
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:validate-specification-presenc
+    name: Validate Specification Presence
+    sequence: 2
+    depends_on:
+    - step:1:checkout-code
+    implementation: "echo \"[CAS][INFO] Validating Specification-Driven Development\
+      \ (SDD) compliance...\"\n\n# Check for exemptions in commit messages\nEXEMPT=$(git\
+      \ log --format=%B -n 1 ${{ github.event.pull_request.head.sha }} | grep -E \"\
+      \\[skip-governance\\]|\\[bugfix\\]\" || true)\nif [ -n \"$EXEMPT\" ]; then\n\
+      \  echo \"[CAS][SKIP] Exemption found in commit message: $EXEMPT\"\n  exit 0\n\
+      fi\n\n# Get list of changed files\nCHANGED_FILES=$(git diff --name-only origin/${{\
+      \ github.base_ref }}...${{ github.event.pull_request.head.sha }})\n\nHAS_SRC_CHANGES=false\n\
+      HAS_SPEC_CHANGES=false\n\nfor file in $CHANGED_FILES; do\n  if [[ $file == src/*\
+      \ ]]; then\n    HAS_SRC_CHANGES=true\n  fi\n  if [[ $file == specs/* ]] || [[\
+      \ $file == .specify/* ]]; then\n    HAS_SPEC_CHANGES=true\n  fi\ndone\n\nif\
+      \ [ \"$HAS_SRC_CHANGES\" = true ] && [ \"$HAS_SPEC_CHANGES\" = false ]; then\n\
+      \  echo \"[CAS][ERROR] Code changes detected in 'src/' without corresponding\
+      \ specification in 'specs/' or '.specify/'.\"\n  echo \"[CAS][HINT] Please create\
+      \ a specification before implementing features. Use '[bugfix]' in the commit\
+      \ message to bypass for trivial fixes.\"\n  exit 1\nfi\n\necho \"[CAS][SUCCESS]\
+      \ SDD validation passed.\"\n"
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    component_id: ea4all-automation-main-comp
+    control_roles:
+    - Generate
+    - Prevent
+    - Correct
+    - Detect
+  component_ids:
+  - ea4all-automation-main-comp
+  control_roles:
+  - Generate
+  - Prevent
+  - Correct
+  - Detect
+  artefacts: []
+  implementation:
+  - .github/workflows/cas-validate-sdd.yml
+  evidence_ids:
+  - ev-wf-cas-validate-sdd
+  confidence: high
+  status: discovered
+controls:
+- id: ctrl-cas-validate-sdd
+  type: prevent
+  enforcement_point: .github/workflows/cas-validate-sdd.yml
+  evidence_ids:
+  - ev-wf-148910
+evidence:
+- id: ev-wf-148910
+  path: .github/workflows/cas-validate-sdd.yml
+  type: workflow
+  reference: cas-validate-sdd.yml
+  snippet: "name: CAS SDD Validation\n\non:\n  pull_request:\n    branches: [ main,\
+    \ master ]\n    paths:\n      - 'src/**'\n\njobs:\n  validate-sdd:\n    runs-on:\
+    \ ubuntu-latest\n    steps:\n      - name: Checkout Code\n        uses: actions/checkout@v4\n\
+    \        with:\n          fetch-depth: 0\n\n      - name: Validate Specification\
+    \ Presence\n        run: |\n          echo \"[CAS][INFO] Validating Specification-Driven\
+    \ Development (SDD) compliance...\"\n          \n          # Check for exemptions\
+    \ in commit messages\n          EXEMPT=$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha\
+    \ }} | grep -E \"\\[skip-governance\\]|\\[bugfix\\]\" || true)\n          if [\
+    \ -n \"$EXEMPT\" ]; then\n            echo \"[CAS][SKIP] Exemption found in commit\
+    \ message: $EXEMPT\""
+  confidence: high
+- id: ev-wf-cas-validate-sdd
+  path: .github/workflows/cas-validate-sdd.yml
+  type: workflow
+  snippet: 'name: CAS SDD Validation'
+  confidence: high
+diagnostics:
+  contradictions: []
+  unknowns: []
+  coverage_summary:
+    total_entities: 3
+    evidenced_entities_percentage: 100.0

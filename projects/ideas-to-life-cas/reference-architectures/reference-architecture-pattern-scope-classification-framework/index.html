@@ -3399,82 +3399,80 @@
 
 <h1 id="reference-architecture-pattern-scope-classification-framework">Reference Architecture: Pattern Scope Classification Framework</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Pattern Scope Classification Framework provides an enterprise governance mechanism to categorize, stage, and promote architectural patterns across multi-tier boundaries (candidate, project-specific, and global core). It prevents architectural rule bloat, eliminates premature cross-portfolio standardization, and guarantees continuous validation through explicit staging gates.</p>
+<p>The Pattern Scope Classification Framework establishes a formalized taxonomy and automated evaluation pipeline for segmenting emerging architectural knowledge into explicit governance scopes: Global, Domain, Project, and Local. It ensures architectural patterns are governed at the appropriate organizational tier without premature global standardization.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Managing architecture patterns and governance rules across multi-repository or multi-team enterprise environments.</li>
-<li>Architecture teams observe rule proliferation, drift, or early global enforcement of unproven local designs.</li>
-<li>Continuous architecture evaluation pipelines require automated criteria to triage local patterns into promoted global assets.</li>
-<li>Systems undergoing portfolio expansion where shared conventions must be derived through evidence rather than mandates.</li>
+<li>When decentralized teams discover or build reusable architectural patterns that warrant evaluation for broader enterprise or domain adoption.</li>
+<li>When cross-project architecture synthesis pipelines need automated heuristics to categorize candidate patterns.</li>
+<li>When governing large software ecosystems requiring clear boundaries between localized implementation details and enterprise-wide architectural mandates.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Single-repository micro-applications or monolithic applications with a single engineering squad where cross-project governance creates unnecessary administrative overhead.</li>
-<li>Early exploratory spike projects or throwaway proof-of-concepts where rigid staging criteria inhibit rapid iteration.</li>
-<li>Domain-specific business logic rules that do not govern system architecture or cross-cutting engineering standards.</li>
+<li>When working within isolated, single-team codebases where all decisions are inherently local and cross-boundary reuse is absent.</li>
+<li>When evaluating micro-optimizations, internal component refactorings, or language-specific syntax conventions.</li>
+<li>When centralized command-and-control governance already predefines every architectural construct with no bottom-up pattern discovery.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    authoring["Local Work Item / Project Repo (Container)"]
-    stagingEngine["Scope Evaluation Engine (Container)"]
-    registryStore[("Architecture Pattern Registry (Data store)")]
-    ciPipeline["Continuous Architecture CI/CD (External System)"]
-    governanceBoard["Architecture Review Board (External System)"]
+    detector["Candidate Ingestion (Container)"]
+    classifier["Pattern Scope Classifier (Container)"]
+    catalogue[("Pattern Catalogue (Data store)"]
+    govBoard["Governance Review Board (External System)"]
 
-    authoring --&gt;|1. Submit candidate pattern| stagingEngine
-    ciPipeline --&gt;|2. Provide telemetry and evidence| stagingEngine
-    stagingEngine --&gt;|3. Record scope &amp; evaluation metrics| registryStore
-    stagingEngine --&gt;|4. Trigger promotion gate review| governanceBoard
-    governanceBoard --&gt;|5. Approve global promotion| registryStore
+    detector --&gt;|1. Submit candidate pattern| classifier
+    classifier --&gt;|2. Score reusability and scope| classifier
+    classifier --&gt;|3. Persist scoped metadata| catalogue
+    classifier --&gt;|4. Trigger promotion gate| govBoard
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class authoring,stagingEngine container
-    class registryStore store
-    class ciPipeline,governanceBoard external</code></pre>
+    class detector,classifier container
+    class catalogue store
+    class govBoard external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Candidate Rule Collector</strong> (<code>governance/collectors/candidate-rule-collector</code>): Extracts candidate patterns, local ADRs, and pipeline rules from local project repositories and submits them with initial evidence traces.</li>
-<li><strong>Scope Evaluation Engine</strong> (<code>governance/engine/scope-evaluator</code>): Evaluates candidate patterns against promotion thresholds: recurrence, stability, blast-radius impact, and cross-project reusability.</li>
-<li><strong>Pattern Registry &amp; Policy Store</strong> (<code>governance/registry/pattern-policy-store</code>): Stores versioned pattern metadata, assigned scope tier (Candidate, Project, Global), lifecycle transitions, and machine-readable schema artifacts.</li>
-<li><strong>Promotion Gate Controller</strong> (<code>governance/engine/promotion-gate-controller</code>): Manages staging gates, automated compliance checks, and approval handoffs for promotion across tiers.</li>
+<li><strong>Candidate Ingestion Pipeline (<code>src/cas_runner/steps/candidate_detector.py</code>)</strong>: Detects and ingests candidate pattern signals from source code repositories, ADR collections, and architectural work streams.</li>
+<li><strong>Pattern Scope Classifier (<code>src/cas_runner/steps/pattern_scope_classifier.py</code>)</strong>: Applies deterministic evaluation criteria across scope dimensions (Global, Domain, Project, Local), calculating promotion readiness, significance, and evidence strength.</li>
+<li><strong>Pattern Catalogue Store (<code>knowledge/projects/ideas-to-life-cas/reference-architectures/</code>)</strong>: Provides persistent storage for synthesized reference architectures, scope metadata, and associated governance rationales.</li>
+<li><strong>Governance Review Gateway (<code>src/cas_runner/governance/promotion_gateway.py</code>)</strong>: Manages the interface between automated classification decisions and human architectural governance bodies for formal sign-off.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<p>Selected JSON Schema (Draft-07) and OpenAPI 3.1 specifications for representing architectural pattern rules and metadata in machine-readable formats. Open Policy Agent (OPA) / Rego is chosen as the policy evaluation engine due to its deterministic policy execution and native integration with CI/CD runners. Git-backed repositories (GitOps) with semantic versioning serve as the authoritative pattern registry to ensure auditable change tracking.</p>
-<p>Alternatives considered and set aside:
-- Centralized relational database (e.g., PostgreSQL): Rejected due to lack of transparent GitOps developer workflows and complex distributed consensus across isolated tenant repositories.
-- Wiki-based manual registers (e.g., Confluence): Set aside due to inability to programmatically enforce schemas, lack of CI/CD linting, and high rate of rule drift.</p>
+<ul>
+<li><strong>Python 3.11+ &amp; Pydantic V2</strong>: Selected for deterministic parsing, data validation, and strict schema compliance across pattern artifacts.</li>
+<li><strong>Git-Backed Markdown &amp; Plain Mermaid</strong>: Standardizes documentation formats directly in source repositories, enabling review via pull requests without proprietary tooling.</li>
+<li><strong>Alternatives Set Aside</strong>: Traditional centralized wiki portals were rejected due to configuration drift and lack of programmatic CI/CD integration.</li>
+</ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Asynchronous Staging Gate (Default)</strong>: Patterns are marked as candidate or project-scoped in background pipelines; telemetry accumulates over multiple iterations before triggering automated promotion reviews.</li>
-<li><strong>Strict Pre-Merge Promotion Gate</strong>: Staged promotions block repository pull requests until a formal global pattern exception or promotion sign-off is logged in enterprise repositories.</li>
-<li><strong>Autonomous Federated Mode</strong>: Projects can independently declare project-level patterns without global review; global escalation is purely opt-in based on cross-portfolio adoption demands.</li>
+<li><strong>Continuous Pipeline Mode</strong>: Runs automatically on every pull request or architectural commit to classify patterns in real time.</li>
+<li><strong>Batch Governance Mode</strong>: Gathers candidate patterns across quarterly or sprint boundaries for collective enterprise review.</li>
+<li><strong>Conservative Local-Default Mode</strong>: Automatically places disputed or ambiguous patterns into <code>project</code> or <code>local</code> scope pending explicit cross-domain validation.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Pattern definitions and evaluation engines operate idempotently in CI/CD without introducing build flakiness; fallback to last-known stable pattern configurations ensures unblocked builds.</li>
-<li><strong>Performance &amp; Latency</strong>: Local candidate validation executes under 500ms per rule evaluation using lightweight Rego policies and localized schema caches.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Minimal runtime overhead by shifting governance checks left into CI pipelines rather than maintaining high-resource dedicated governance infrastructure.</li>
-<li><strong>Operability</strong>: Transparent audit logs and GitOps commit histories provide visibility into when, why, and by whom a pattern tier was transitioned.</li>
+<li><strong>Reliability</strong>: Deterministic classification logic guarantees repeatable scope categorization for identical input evidence.</li>
+<li><strong>Performance &amp; Latency</strong>: Lightweight heuristic evaluation executes in sub-second latency within CI workflows.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Serverless, zero-infrastructure footprint relying on existing Git pipelines and local compute.</li>
+<li><strong>Operability</strong>: Emits machine-readable validation outputs along with contextual markdown rationales to streamline review workflows.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Golden Hammer Global Push</strong>: Prematurely promoting an unproven project-specific rule to global scope, causing downstream projects to accumulate technical debt or request exemptions. <em>Remedy</em>: Require at least two distinct production project adoptions before global promotion review.</li>
-<li><strong>Gate Gridlock</strong>: Introducing overly strict manual approval gates that stall project iteration. <em>Remedy</em>: Implement automated promotion criteria and default candidate pass-through for project-local scopes.</li>
-<li><strong>Orphaned Pattern Drift</strong>: Accumulating candidate patterns without retention lifecycles or deprecation milestones. <em>Remedy</em>: Implement time-to-live (TTL) limits where inactive candidate patterns auto-archive after 90 days.</li>
+<li><strong>Scope Creep / Premature Global Codification</strong>: Elevating an unproven pattern directly to global enterprise status, inflicting premature constraints on unrelated domains. <em>Remedy: Mandate multi-domain evidence verification before global promotion.</em></li>
+<li><strong>Classification Deadlock</strong>: Stalling pattern adoption when patterns exhibit overlapping domain and project traits. <em>Remedy: Default to the lower scope tier with automated re-evaluation triggers.</em></li>
+<li><strong>Unmaintained Catalogues</strong>: Accumulating dead records without lifecycle checks. <em>Remedy: Implement deprecation and retirement signals in the classification pipeline.</em></li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<p>Begin by classifying existing architecture documentation and ADRs into candidate, project, or global scopes using the pattern catalog format. Introduce the Scope Evaluation Engine into non-blocking CI phases to baseline existing rule violations and establish recurrence counts. Designate an Architecture Review Board or Chapter Lead to steward the global registry.</p>
-<p>Governance Ownership:
-- <strong>Domain ID</strong>: Enterprise Architecture &amp; Governance (<code>arch-gov-core</code>)
-- <strong>Initiative ID</strong>: <code>ideas-to-life-cas</code>
-- <strong>Primary Stakeholders</strong>: Enterprise Architecture Board, Tech Leads Chapter</p>
+<ol>
+<li>Integrate <code>pattern_scope_classifier.py</code> into the target project's build and architecture synthesis pipeline.</li>
+<li>Configure promotion threshold parameters and register domain architectural review leads.</li>
+<li>Establish baseline pattern storage paths under <code>knowledge/projects/&lt;project-name&gt;/reference-architectures/</code>.</li>
+<li>Route proposed scope changes through standard repository review processes.</li>
+</ol>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../work/aw-ideas-to-life-cas-20260614-1/" title="Architectural Work Item aw-ideas-to-life-cas-20260614-1">Architectural Work Item aw-ideas-to-life-cas-20260614-1</a></li>
-<li><a href="../../work/aw-ideas-to-life-cas-2026-05-31-001/" title="Architectural Work Item aw-ideas-to-life-cas-2026-05-31-001">Architectural Work Item aw-ideas-to-life-cas-2026-05-31-001</a></li>
-<li><a href="../../../docs/adr/0012-continuous-architecture-policy-validation.md">Continuous Architecture Policy Validation ADR</a></li>
+<li><code>knowledge/projects/ideas-to-life-cas/reference-architectures/reference-architecture-pattern-scope-classification-framework.md</code></li>
+<li><code>src/cas_runner/steps/pattern_scope_classifier.py</code></li>
 </ul>
 
 

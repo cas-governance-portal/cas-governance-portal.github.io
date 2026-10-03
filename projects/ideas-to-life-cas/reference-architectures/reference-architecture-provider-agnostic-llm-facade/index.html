@@ -3327,10 +3327,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#recommended-choices" class="md-nav__link">
+  <a href="#recommended-technologies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Recommended Choices
+        Recommended Technologies
       
     </span>
   </a>
@@ -3338,10 +3338,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#alternatives-set-aside" class="md-nav__link">
+  <a href="#alternatives-considered-set-aside" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Alternatives Set Aside
+        Alternatives Considered &amp; Set Aside
       
     </span>
   </a>
@@ -3399,10 +3399,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#governance-ownership" class="md-nav__link">
+  <a href="#migration-starting-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Governance &amp; Ownership
+        Migration &amp; Starting Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governance-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governance Context
       
     </span>
   </a>
@@ -3444,100 +3455,95 @@
 
 <h1 id="reference-architecture-provider-agnostic-llm-facade">Reference Architecture: Provider-Agnostic LLM Facade</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Provider-Agnostic LLM Facade encapsulates large language model invocations behind a standardized, interchangeable interface. It decouples core business logic, agent orchestration, and pipeline stages from proprietary model provider schemas, protocols, and SDKs.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When building agentic or generative workflows that require switching between multiple external LLM providers (e.g., OpenAI, Anthropic, Bedrock, Azure) without altering application code.</li>
-<li>When automated unit and integration test harnesses require fast, deterministic, zero-cost test execution using mock or local execution doubles.</li>
-<li>When centralized runtime controls (rate limiting, credential rotation, fallbacks, token budgeting, and uniform telemetry) must be enforced across all LLM interaction points.</li>
-<li>When shielding core domain services from upstream vendor API churn and schema drift.</li>
+<li>When building multi-agent systems, pipeline runners, or AI-enabled services that interact with multiple foundational model providers (e.g., OpenAI, Anthropic, Bedrock, Ollama) and require portability.</li>
+<li>When automated continuous integration (CI) and local testing must execute deterministically and offline without issuing live external API calls or incurring token costs.</li>
+<li>When enforcing uniform cross-cutting governance policies such as structured output schema parsing, rate limiting, token telemetry, retry logic, and fallback routing across all LLM consumers.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>When building single-model prototypes or throwaway scripts where the operational overhead of an abstraction layer exceeds lifecycle complexity.</li>
-<li>When the application relies deeply and exclusively on unique, non-standardized provider capabilities that cannot be abstracted (e.g., vendor-specific fine-tuning endpoints or proprietary real-time streaming sockets) without leaky abstractions.</li>
-<li>When using fully managed, end-to-end proprietary enterprise solutions where low-level invocation is already managed internally.</li>
+<li>When a system strictly requires proprietary, non-standardized model features (e.g., unique provider-specific streaming tool protocols or proprietary fine-tuned endpoints) where abstraction leaks provide negative ROI.</li>
+<li>In lightweight, single-purpose scripts or one-off exploratory experiments where establishing an abstraction layer introduces unnecessary engineering overhead.</li>
+<li>When ultra-low latency sub-millisecond edge inferencing requires direct, custom C++ or native hardware bindings bypassing standard Python/REST abstractions.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    client["Agent Runner / Pipeline (Container)"]
-    facade["LLM Client Facade (Container)"]
-    mock["Mock Client (Container)"]
-    litellm["LiteLLM Engine (Container)"]
-    cache[("Prompt / Token Cache (Data store)")]
-    ext_openai["OpenAI API (External System)"]
-    ext_anthropic["Anthropic API (External System)"]
-    ext_local["Local / Ollama Model (External System)"]
+    AgentStep["Agent Execution Step (Container)"]
+    FacadeInterface["LLM Client Interface (Container)"]
+    LiteLLMAdapter["LiteLLM Adapter (Container)"]
+    MockLLMAdapter["Deterministic Mock Client (Container)"]
+    ExternalProvider["External LLM Providers (External System)"]
 
-    client --&gt;|1. Request standard completion| facade
-    facade --&gt;|Check / Store| cache
-    facade --&gt;|Testing Mode| mock
-    facade --&gt;|Production Execution| litellm
-    litellm --&gt;|Forward standardized call| ext_openai
-    litellm --&gt;|Forward standardized call| ext_anthropic
-    litellm --&gt;|Forward standardized call| ext_local
+    AgentStep --&gt;|"1. Invocations (Prompt/Schema)"| FacadeInterface
+    FacadeInterface --&gt;|"2a. Production Route"| LiteLLMAdapter
+    FacadeInterface --&gt;|"2b. Test / Offline Route"| MockLLMAdapter
+    LiteLLMAdapter --&gt;|"3. Provider Normalized API Call"| ExternalProvider
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class client,facade,mock,litellm container
-    class cache store
-    class ext_openai,ext_anthropic,ext_local external</code></pre>
+    class AgentStep,FacadeInterface,LiteLLMAdapter,MockLLMAdapter container
+    class ExternalProvider external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>LLM Client Facade Interface</strong> (<code>src/cas_runner/llm/base.py</code>): Defines the core abstract contract for completions, structured output generation, embeddings, and error wrapping.</li>
-<li><strong>LiteLLM Provider Adapter</strong> (<code>src/cas_runner/llm/litellm_client.py</code>): Translates unified facade requests into multi-provider API calls using LiteLLM, handling provider credential resolution, format translation, and retry policies.</li>
-<li><strong>Deterministic Mock Adapter</strong> (<code>src/cas_runner/llm/mock_client.py</code>): Provides predictable, fixture-based completions and response doubles for offline unit and integration tests without network dependency or token expense.</li>
-<li><strong>Token &amp; Response Cache</strong> (<code>src/cas_runner/llm/cache.py</code>): Caches deterministic model responses and prompt hashes to minimize redundant calls and compute overhead.</li>
+<li><strong>LLM Client Base Interface</strong> (<code>src/cas_runner/llm/base.py</code>): Defines canonical abstract interface and invocation contracts (completion, streaming, structured outputs) decoupling caller agents from backend implementations.</li>
+<li><strong>LiteLLM Production Client Adapter</strong> (<code>src/cas_runner/llm/litellm_client.py</code>): Encapsulates LiteLLM runtime invocation, standardizing diverse provider SDK parameters, authentication tokens, connection pools, and error code translation.</li>
+<li><strong>Deterministic Mock Client Adapter</strong> (<code>src/cas_runner/llm/mock_client.py</code>): Provides deterministic, replayable, and fixture-backed LLM responses for offline CI test suites, eliminating network dependencies and API token expenditures.</li>
+<li><strong>Structured Output Parser Component</strong> (<code>src/cas_runner/llm/structured.py</code>): Applies Pydantic and JSON-schema validation over raw model completions, enforcing strict type safety and handling automatic schema validation retries.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<h3 id="recommended-choices">Recommended Choices</h3>
+<h3 id="recommended-technologies">Recommended Technologies</h3>
 <ul>
-<li><strong>LiteLLM</strong>: Selected as the primary routing and protocol normalization engine due to wide support for 100+ model backends, consistent OpenAI-compatible JSON outputs, built-in retry mechanics, and lightweight footprint.</li>
-<li><strong>Pydantic v2</strong>: Chosen for standardizing request/response payload contracts and structured schema validation across agent boundaries.</li>
+<li><strong>LiteLLM</strong>: Core proxy/translation library providing unified I/O signatures across 100+ LLM backends while supporting unified secret management and parameter normalization.</li>
+<li><strong>Pydantic v2</strong>: High-performance schema declaration and validation engine for structured output enforcement and schema generation.</li>
+<li><strong>Python Abstract Base Classes (<code>abc.ABC</code>) / Protocols</strong>: Enforces decoupled interface definitions between domain workflow orchestrators and adapter implementations.</li>
 </ul>
-<h3 id="alternatives-set-aside">Alternatives Set Aside</h3>
+<h3 id="alternatives-considered-set-aside">Alternatives Considered &amp; Set Aside</h3>
 <ul>
-<li><strong>Direct Vendor SDKs (openai, anthropic)</strong>: Set aside because direct usage binds agent pipelines to specific vendor schemas and introduces breaking contract shifts during multi-model routing.</li>
-<li><strong>LangChain / LlamaIndex Core Abstractions</strong>: Set aside for low-level client invocation due to dependency bloat, framework churn, and excessive internal abstraction layers that obscure execution profiling.</li>
+<li><strong>LangChain / LangChain Core</strong>: Set aside due to heavyweight dependency tree, frequent breaking API changes, and unnecessary abstraction layers that obscured low-level pipeline control.</li>
+<li><strong>Direct Provider SDKs (openai, anthropic, google-generativeai)</strong>: Set aside due to tight vendor lock-in, heterogeneous exception hierarchies, and the high maintenance burden of supporting multiple redundant clients across services.</li>
+<li><strong>Custom In-House HTTP Proxy</strong>: Set aside to avoid maintaining custom network-level API converters when mature, community-maintained translation runtimes exist.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Direct In-Process Facade</strong>: Deployed as a library within the application runtime; lightweight and optimal for modular services requiring minimal latency overhead.</li>
-<li><strong>Sidecar / Micro-Gateway Facade</strong>: Deployed as an independent internal proxy (e.g., LiteLLM proxy container) shared across polyglot microservices, centralizing key management and spend auditing.</li>
-<li><strong>Mock Double Execution Mode</strong>: Swappable test mode injected during automated testing runs to guarantee deterministic outputs and zero network calls.</li>
+<li><strong>Synchronous Batching Variant</strong>: Used for deterministic pipeline steps and offline evaluation where processing speed per prompt is prioritized over interactive token-by-token streaming.</li>
+<li><strong>Streaming Asynchronous Variant</strong>: Implements async iterators for interactive or multi-agent messaging loops to enable real-time UI/UX feedback and early cancellation.</li>
+<li><strong>Dynamic Fallback / Circuit-Breaker Variant</strong>: Configures primary and secondary provider targets (e.g., Anthropic Claude with OpenAI GPT-4o fallback) to maintain operational resilience during external provider outages or rate-limit exhaustion.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Implements circuit breakers, exponential backoff, and transparent cross-provider fallback hierarchies to sustain agent execution during vendor outages.</li>
-<li><strong>Performance &amp; Latency</strong>: Minimal in-process overhead (&lt;2ms serialization latency) with optional response caching to bypass remote roundtrips entirely.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Enforces central spend governance, token budgeting, and allows dynamic model downgrade (e.g., routing simpler queries from reasoning models to cost-efficient models).</li>
-<li><strong>Operability</strong>: Emits uniform OpenTelemetry metrics, request/response payload traces, and token consumption counters independent of the active underlying provider.</li>
+<li><strong>Reliability</strong>: Employs standardized exponential backoff retry policies, unified exception handling across all upstream providers, and graceful degradation via pre-configured fallback routes.</li>
+<li><strong>Performance &amp; Latency</strong>: Minimizes abstraction overhead to under 2ms of internal Python frame execution; supports connection pooling and asynchronous non-blocking event loops.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Enables rapid swapping to lower-cost commodity models (e.g., GPT-4o-mini, Haiku, or local Ollama instances) without code modifications; completely eliminates CI token expenditure via deterministic mocking.</li>
+<li><strong>Operability</strong>: Standardizes structured structured log events, uniform token accounting metrics, and OpenTelemetry-compatible tracing metadata across all underlying model invocations.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Leaky Provider SDK Objects</strong>: Passing vendor-specific objects (e.g., provider raw response objects or vendor custom exception types) upstream into domain logic instead of domain-mapped models.</li>
-<li><strong>Configuration Sprawl</strong>: Hardcoding model routing logic and API keys directly into agent prompt definitions rather than managing them via unified facade configuration.</li>
-<li><strong>Incomplete Test Doubles</strong>: Creating mocks that do not accurately mirror schema validation rules or token count reporting, producing false confidence in CI/CD pipelines.</li>
+<li><strong>Vendor SDK Leaks</strong>: Directly importing and invoking vendor-specific libraries (<code>import openai</code>) within business logic modules. <em>Remedy</em>: Enforce architectural boundary linters (e.g., import-linter) restricting direct LLM client calls to the facade adapter package.</li>
+<li><strong>Direct CI Network Calls</strong>: Allowing unit or integration tests to hit live LLM endpoints. <em>Remedy</em>: Inject the <code>MockLLMClient</code> via dependency injection containers or test fixtures by default.</li>
+<li><strong>Unconstrained Freeform Parsing</strong>: Relying on manual regex or prompt begging to extract structured JSON data. <em>Remedy</em>: Route all structured generation calls through the <code>structured.py</code> Pydantic validator module with automated schema retry loops.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
+<h3 id="migration-starting-steps">Migration &amp; Starting Steps</h3>
 <ol>
-<li>Audit existing invocation points across services to identify direct dependencies on vendor-specific client libraries.</li>
-<li>Adopt the abstract client contract and replace direct calls with the Facade injection point.</li>
-<li>Implement the LiteLLM adapter for runtime execution and the Mock adapter across the CI testing matrix.</li>
-<li>Route all credentials through environment-based secrets management handled strictly by the adapter.</li>
+<li>Establish the <code>LLMClient</code> protocol/base class in the shared foundation module.</li>
+<li>Implement <code>LiteLLMClient</code> for production configurations and <code>MockLLMClient</code> for test fixtures.</li>
+<li>Refactor business logic modules to accept <code>LLMClient</code> via constructor dependency injection instead of instantiating client libraries directly.</li>
+<li>Update CI runners to assert that external API secrets are absent during routine unit test execution to prevent accidental live calls.</li>
 </ol>
-<h3 id="governance-ownership">Governance &amp; Ownership</h3>
+<h3 id="governance-context">Governance Context</h3>
 <ul>
-<li><strong>Domain</strong>: AI Platforms &amp; Shared Services</li>
-<li><strong>Initiative</strong>: Enterprise Agentic Framework Consolidation</li>
-<li><strong>Primary Contact</strong>: AI Architecture Governance Working Group</li>
+<li><strong>Domain</strong>: Intelligence / Agent Architecture</li>
+<li><strong>Pattern Lifecycle</strong>: Promoted / Standard</li>
+<li><strong>Strategic Alignment</strong>: Multi-Cloud Model Agility &amp; Deterministic CI Strategy</li>
 </ul>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR: ADR-008 Provider-Agnostic LLM Abstraction Layer</li>
-<li>Component Implementation: <code>src/cas_runner/llm/litellm_client.py</code></li>
-<li>Test Double Implementation: <code>src/cas_runner/llm/mock_client.py</code></li>
+<li>LiteLLM Client Adapter Implementation (<code>src/cas_runner/llm/litellm_client.py</code>)</li>
+<li>Mock LLM Client Implementation (<code>src/cas_runner/llm/mock_client.py</code>)</li>
+<li>Base LLM Protocol Definition (<code>src/cas_runner/llm/base.py</code>)</li>
+<li>Structured Output Handling (<code>src/cas_runner/llm/structured.py</code>)</li>
 </ul>
 
 
@@ -3545,6 +3551,9 @@
 
 
 
+
+  
+  
 
 
 

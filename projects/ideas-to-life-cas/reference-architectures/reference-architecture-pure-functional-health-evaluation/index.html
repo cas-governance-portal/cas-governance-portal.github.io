@@ -3323,34 +3323,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chosen-implementation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Chosen Implementation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-considered-set-aside" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives Considered &amp; Set Aside
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3395,34 +3367,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Adoption guidance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#migration-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Migration Path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#governance-ownership" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Governance &amp; Ownership
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3455,95 +3399,79 @@
 
 <h1 id="reference-architecture-pure-functional-health-evaluation">Reference Architecture: Pure Functional Health Evaluation</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Pure Functional Health Evaluation pattern separates status evaluation, threshold scoring, and diagnostic reasoning from state persistence and I/O side effects. Health status is modeled as a deterministic mathematical function mapping point-in-time metrics to discrete status enumerations and diagnostic justifications.</p>
+<p>The Pure Functional Health Evaluation pattern establishes a decoupled, deterministic mechanism for assessing system, governance, and operational health. By structuring health and risk logic as pure functions that operate strictly on passed metrics snapshots, systems ensure identical evaluations across reporting dashboards, background monitors, and validation pipelines without mutable state dependencies.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Calculating composite operational states (e.g., GREEN, YELLOW, RED) across heterogeneous system indicators.</li>
-<li>When audit compliance requires replaying historical incidents using saved metric snapshots to prove why an alert triggered.</li>
-<li>In high-throughput monitoring agents, dashboards, or continuous automated runners where database queries or network latency inside evaluation loops degrade throughput.</li>
-<li>When test suites need exhaustive boundary coverage of complex threshold matrices without mocking network sockets, database connections, or temporal clocks.</li>
+<li>When computing health indicators, compliance scores, or operational readiness across dashboards and monitoring monitors.</li>
+<li>When business evaluation logic must be verified across multiple environments without needing database connections, mocks, or network I/O.</li>
+<li>When evaluations must be run concurrently, repeatedly, or on transient client data without mutating underlying system entities.</li>
+<li>When health diagnostics require human-readable explanation strings derived deterministically from the same state vector.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>In simple monolithic architectures where basic binary liveness probes (<code>/healthz</code>) without business threshold derivations are sufficient.</li>
-<li>When operational health assessment fundamentally requires direct, non-idempotent interactive probing (e.g., verifying a downstream handshake) that cannot be decoupled into a separate metric-gathering step.</li>
-<li>In systems where metric collection and evaluation cannot be decoupled into discrete capture and evaluation phases.</li>
+<li>When evaluation rules inherently depend on direct streaming state changes or dynamic database cursors that cannot be pre-fetched into a snapshot.</li>
+<li>When status calculation requires immediate asynchronous external consensus (e.g., quorum polling) during the calculation phase.</li>
+<li>In trivial single-field threshold checks where an embedded boolean flag suffices and explicit domain modeling introduces unnecessary boilerplate.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    collector["Telemetry Collector (Container)"]
-    evaluator["Pure Health Evaluator (Container)"]
-    dashboard["Operational Dashboard (Container)"]
-    alerting["Alerting Gateway (External System)"]
-    store[("Metrics Store (Data store)")]
+    consumer["Dashboard / Consumer Service (Container)"]
+    collector["Metrics Collector / Fetcher (Container)"]
+    evaluator["Pure Health Evaluator (Domain Function)"]
+    statusEnum["HealthStatus &amp; Reasons (Domain Value Model)"]
+    metricsStore[("Metrics Store (Data store)")]
 
-    collector --&gt;|1. Ingests Raw Metrics| store
-    dashboard --&gt;|2. Reads Snapshot| store
-    dashboard --&gt;|3. Passes Metrics Snapshot| evaluator
-    evaluator --&gt;|4. Returns Status and Diagnostics| dashboard
-    dashboard --&gt;|5. Triggers Incidents| alerting
+    consumer --&gt;|1. Request Health Assessment| collector
+    collector --&gt;|2. Fetch Metrics Snapshot| metricsStore
+    collector --&gt;|3. Pass Immutable Metrics| evaluator
+    evaluator --&gt;|4. Return HealthStatus + Reasons| statusEnum
+    statusEnum --&gt;|5. Render Deterministic View| consumer
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class collector,evaluator,dashboard container
-    class store store
-    class alerting external</code></pre>
+    class consumer,collector,evaluator,statusEnum container
+    class metricsStore store</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Pure Health Evaluator (<code>src/cas_runner/dashboard/health_model.py</code>)</strong>: Exposes deterministic, side-effect-free calculation routines (<code>calculate_health</code>, <code>get_health_reasons</code>) mapping telemetry inputs to strongly typed <code>HealthStatus</code> enum values and diagnostic descriptions.</li>
-<li><strong>Telemetry Collector (<code>src/cas_runner/dashboard/</code>)</strong>: Performs active I/O, collects environmental metrics (e.g., latency, queue depth, error rates), and normalizes them into immutable snapshot models.</li>
-<li><strong>Dashboard &amp; Consumer Engine (<code>src/cas_runner/dashboard/</code>)</strong>: Fetches historical or current telemetry snapshots, feeds them into the pure evaluator, and drives UI visualizations or downstream alert dispatches.</li>
-<li><strong>Metrics Snapshot Store (<code>persistence / database</code>)</strong>: Stores point-in-time metric records, providing historical immutability for retroactive audit playback and root cause analysis.</li>
+<li><strong>Pure Health Evaluator</strong> (<code>src/cas_runner/dashboard/health_model.py</code>): Hosts pure functions including <code>calculate_health</code> and <code>get_health_reasons</code>. Accepts strongly typed metrics models and yields health classification outcomes without external dependencies.</li>
+<li><strong>Health Status Value Model</strong> (<code>src/cas_runner/dashboard/health_model.py</code>): Encapsulates categorical health classifications (e.g., <code>HealthStatus</code> enum) and diagnostic reason payloads.</li>
+<li><strong>Metrics Collector Shell</strong> (<code>src/cas_runner/dashboard/</code>): Manages operational side effects, querying external telemetry sources or data stores to assemble immutable inputs before triggering domain evaluation.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<h3 id="chosen-implementation">Chosen Implementation</h3>
 <ul>
-<li><strong>Immutable Data Structures</strong>: Python <code>dataclass(frozen=True)</code> or Pydantic models with immutable configurations ensure inputs cannot be mutated during evaluation.</li>
-<li><strong>Pure Functions</strong>: Isolated business logic functions (<code>calculate_health</code>, <code>get_health_reasons</code>) accepting data containers and returning value objects.</li>
-<li><strong>Strict Typing &amp; Enums</strong>: Enums (<code>HealthStatus</code>) ensure finite state representation across consumers.</li>
-</ul>
-<h3 id="alternatives-considered-set-aside">Alternatives Considered &amp; Set Aside</h3>
-<ul>
-<li><strong>Embedded Active Probes</strong>: Running network checks inside health calculation logic. <em>Set aside due to I/O flakiness, untestability, and inability to run deterministic retroactive audits.</em></li>
-<li><strong>Stateful Rule Engine Frameworks (e.g., Drools, Celery Workflows)</strong>: Heavyweight runtime rule engines. <em>Set aside because in-memory pure functional threshold mappings provide sub-microsecond evaluation speed with zero infrastructural dependencies.</em></li>
+<li><strong>Pure Functions &amp; Typed Enums</strong>: Leverages core language typing and static enumerations for low runtime overhead and strict compiler/linter verification.</li>
+<li><strong>Alternative - Stateful Domain Entity</strong>: Rejected because coupling health calculations to ORM model lifecycles causes concurrency bottlenecks and complex mock setups in testing.</li>
+<li><strong>Alternative - Externalized Rule Engines (e.g., JSONLogic, Drools)</strong>: Set aside for foundational domain calculations to prevent configuration drift and preserve compile-time validation, though retained as an optional plug-in for tenant-level override rules.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Strict Trinary Evaluation (Green/Yellow/Red)</strong>: Computes fixed status categories based on cascading threshold precedence (any critical breach maps to RED; minor threshold breach maps to YELLOW).</li>
-<li><strong>Weighted Multi-Criteria Scoring</strong>: Calculates an aggregate normalized score (0.0 to 1.0) with dynamic weighting across different metric families, returning both the composite status and a mapped diagnostic reason tree.</li>
-<li><strong>Audit &amp; Incident Replay Mode</strong>: Consumes archived metric records from cold storage and feeds them through the exact same pure evaluation functions to verify whether algorithmic updates would change past incident categorizations.</li>
+<li><strong>Batch Snapshot Evaluation</strong>: Ingestion pipelines map the pure evaluation function over arrays of partition metrics in worker processes.</li>
+<li><strong>Threshold Injected Evaluation</strong>: Evaluator functions accept an explicit, immutable configuration object specifying threshold boundaries, preserving functional purity while supporting multi-tenant SLA variations.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Eliminates evaluation crashes stemming from network timeouts, database connection pool exhaustion, or filesystem permissions. The health calculation cannot fail due to environmental degradation.</li>
-<li><strong>Performance &amp; Latency</strong>: Sub-microsecond CPU execution per evaluation. No internal network hops or I/O waits, making it suitable for high-frequency tight loops and batch analysis over millions of records.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Negligible memory and compute overhead. Scalable horizontally across stateless worker threads or serverless execution units without distributed state coordination.</li>
-<li><strong>Operability &amp; Testability</strong>: Enables 100% code branch coverage using standard unit tests with simple synthetic data fixtures. No mocking or container orchestration required during unit verification.</li>
+<li><strong>Reliability</strong>: Eliminates side-effect bugs and race conditions during health aggregation; yields repeatable outputs for any given input.</li>
+<li><strong>Performance &amp; Latency</strong>: Ultra-low evaluation latency (sub-millisecond) bounded strictly by CPU math and string operations without network blocking.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Eliminates redundant I/O round trips during re-scoring; allows evaluations to execute cheaply in-memory across edge or web tiers.</li>
+<li><strong>Operability</strong>: Zero-dependency unit testing simplifies test harness design and regression tracking across environments.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Hidden Temporal Coupling (Ambient Time)</strong>: Calling <code>datetime.now()</code> or <code>time.time()</code> inside the calculation function to compute time deltas. <em>Remedy</em>: Pass reference evaluation timestamps as explicit function arguments.</li>
-<li><strong>Sneaky I/O and Logging Interleaving</strong>: Emitting remote logs, metric emissions, or database writes inside the health computation function. <em>Remedy</em>: Return structured diagnostic reason objects and let the outer orchestration shell handle telemetry emissions.</li>
-<li><strong>Opaque Binary Health States</strong>: Returning only a boolean or single enum without human-interpretable rationale for state degradation. <em>Remedy</em>: Pair status calculations with explicit explanatory reasoning generators (<code>get_health_reasons</code>).</li>
+<li><strong>Hidden I/O Leakage</strong>: Invoking database queries or logging transports inside <code>calculate_health</code>. <em>Remedy</em>: Maintain an imperative shell, functional core pattern where all I/O completes prior to function invocation.</li>
+<li><strong>Implicit Threshold Drift</strong>: Hardcoding evaluation thresholds in disparate consumer modules. <em>Remedy</em>: Centralize evaluation functions and threshold parameter classes within the shared domain core package.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<h3 id="migration-path">Migration Path</h3>
 <ol>
-<li><strong>Phase 1: Metric Separation</strong>: Identify existing health check routines and extract all I/O, queries, and network calls into a data collection layer that constructs an immutable telemetry snapshot.</li>
-<li><strong>Phase 2: Core Isolation</strong>: Implement pure functions (<code>calculate_health</code>, <code>get_health_reasons</code>) in a dedicated model file (e.g., <code>health_model.py</code>) accepting only the snapshot.</li>
-<li><strong>Phase 3: Exhaustive Unit Testing</strong>: Construct parameterized unit tests covering all permutations of boundary conditions and edge cases.</li>
-<li><strong>Phase 4: Consumer Refactoring</strong>: Update dashboards, alerting daemons, and CLI runners to invoke the pure evaluator.</li>
+<li>Extract status evaluation branches from UI components and ORM model hooks into isolated, standalone calculation functions.</li>
+<li>Define strict input metric DTOs and return types (<code>HealthStatus</code> and reason collections).</li>
+<li>Wire the calling controller or workflow orchestrator to assemble the metrics snapshot and pass it into the pure domain function.</li>
+<li>Create standardized test suites verifying corner cases and threshold boundaries without mocking frameworks.</li>
 </ol>
-<h3 id="governance-ownership">Governance &amp; Ownership</h3>
-<ul>
-<li><strong>Domain</strong>: Architecture &amp; Platform Governance</li>
-<li><strong>Initiative</strong>: ideas-to-life-cas</li>
-<li><strong>Pattern Custodian</strong>: Core Platform Engineering</li>
-</ul>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../src/cas_runner/dashboard/health_model.py">Reference Implementation</a></li>
+<li>Source Reference: <code>src/cas_runner/dashboard/health_model.py</code></li>
+<li>Architecture Style: Functional Core, Imperative Shell (FCIS)</li>
 </ul>
 
 

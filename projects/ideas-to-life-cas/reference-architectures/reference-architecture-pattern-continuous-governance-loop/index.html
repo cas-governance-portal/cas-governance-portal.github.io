@@ -3399,94 +3399,88 @@
 
 <h1 id="reference-architecture-continuous-architecture-governance-loop">Reference Architecture: Continuous Architecture Governance Loop</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Continuous Architecture Governance Loop operationalizes architectural compliance by establishing an automated closed-loop lifecycle: Detect, Analyse, Plan, Execute, and Observe. It transitions architecture governance from an intermittent, human-gated bottleneck into an automated, continuous verification process embedded directly into CI/CD delivery pipelines.</p>
+<p>The Continuous Architecture Governance Loop operationalizes architectural decision enforcement by embedding automated detection, static verification, and drift analysis directly into CI/CD pipelines. It shifts architecture reviews left, transforming intermittent governance gates into continuous automated feedback loops.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Distributed and microservice architectures where boundary violations and architectural erosion accumulate silently across repositories.</li>
-<li>Regulated industries requiring traceable, tamper-evident verification that running systems comply with design requirements and security controls.</li>
-<li>Engineering teams leveraging fitness functions, automated testing, and static analysis that desire automated remediation or deterministic gating.</li>
-<li>Organizations seeking to reduce reliance on bureaucratic Architecture Review Boards by codifying standards into code.</li>
+<li>Microservice or modular enterprise codebases where distributed teams introduce silent architectural drift, boundary violations, or unauthorized pattern deviations.</li>
+<li>Environments experiencing governance review bottlenecks (e.g., 15:1 developer-to-architect ratios) where manual design reviews delay release cycles.</li>
+<li>Projects requiring verifiable compliance with architectural decisions, structural contracts, and published enterprise standards at pull-request evaluation time.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Early-stage prototyping, hackathons, or exploratory proof-of-concepts where interfaces change rapidly and flexibility outweighs compliance.</li>
-<li>Simple monolithic applications maintained by a single engineer where architectural boundaries are trivially understood.</li>
-<li>Projects lacking basic automated CI/CD infrastructure, where manual baseline hygiene must be established first.</li>
+<li>Early-stage, exploratory prototypes or throwaway spikes where architectural contracts change daily and enforcement overhead slows innovation.</li>
+<li>Monolithic codebases with small, co-located teams where direct verbal alignment and simple static linters sufficiently manage system boundaries.</li>
+<li>Teams without mature automated CI/CD pipelines or baseline version control automation.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    cicd["CI/CD Pipeline Engine (External System)"]
-    detector["Drift Detector Agent (Container)"]
-    analyser["Architecture Analysis Engine (Container)"]
-    planner["Remediation Planner (Container)"]
-    executor["Policy Enforcement Executor (Container)"]
-    ledger[("Architecture State Ledger (Data store)")]
+    trigger["Pipeline Trigger (Container)"]
+    detector["Drift Detector (Container)"]
+    validator["Governance Validator (Container)"]
+    store[("Architecture Decision Store (Data store)")]
+    feedback["Developer Feedback Adapter (External System)"]
 
-    cicd --&gt;|1. Triggers scan on change| detector
-    detector --&gt;|2. Ingests codebase metadata &amp; traces| analyser
-    analyser --&gt;|3. Compares against state model| ledger
-    analyser --&gt;|4. Emits drift findings| planner
-    planner --&gt;|5. Formulates remediation plan| executor
-    executor --&gt;|6. Applies automated fix or fails build| cicd
-    executor --&gt;|7. Records updated state &amp; audit trail| ledger
+    trigger --&gt;|1. Pull Request Event| detector
+    detector --&gt;|2. Structural Delta| validator
+    validator --&gt;|3. Query Policies and ADRs| store
+    validator --&gt;|4. Post Status and Line Comments| feedback
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class detector,analyser,planner,executor container
-    class ledger store
-    class cicd external</code></pre>
+    class trigger,detector,validator container
+    class store store
+    class feedback external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>Drift Detector Agent</strong> (<code>.github/workflows/cas-continuous-architecture.yml</code>): Extracts source dependencies, import hierarchies, API definitions, and infrastructure manifests on push or pull request triggers.</li>
-<li><strong>Architecture Analysis Engine</strong> (<code>tools/governance/analysis-engine</code>): Compares extracted structures against designated fitness functions, modularity boundaries, and governance criteria.</li>
-<li><strong>Remediation Planner</strong> (<code>tools/governance/planner</code>): Computes remediation impact, validates policy thresholds, and determines whether an automated patch, a build break, or an advisory notification is warranted.</li>
-<li><strong>Policy Enforcement Executor</strong> (<code>tools/governance/executor</code>): Executes governance decisions by setting PR status checks, annotating source lines, generating PR patches, or publishing alerts.</li>
-<li><strong>Architecture State Ledger</strong> (<code>docs/architecture/state</code>): Stores version-controlled records of baselines, known exemptions, and historical compliance data.</li>
+<li><strong>Pipeline Trigger</strong> (<code>.github/workflows/cas-continuous-architecture.yml</code>): Listens for repository events (pull requests, merges) and initiates automated architectural validation jobs.</li>
+<li><strong>Drift Detector</strong> (<code>src/cas_runner/governance/drift_detector.py</code>): Computes semantic and structural differences between changed code and documented architectural contracts.</li>
+<li><strong>Governance Validator</strong> (<code>src/cas_runner/governance/governance_validator.py</code>): Evaluates architectural rules, module boundaries, schema invariants, and compliance against machine-readable ADRs.</li>
+<li><strong>Architecture Decision Store</strong> (<code>docs/architecture/</code>): Persists machine-readable architecture decisions (ADRs), schemas, and pattern definitions in version-controlled storage.</li>
+<li><strong>Developer Feedback Adapter</strong> (<code>src/cas_runner/governance/reporters/</code>): Emits PR status checks, inline review annotations, and dashboard metrics summarizing governance conformance.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<ul>
-<li><strong>Execution Environment</strong>: GitHub Actions and containerized CLI runners were selected for native integration with source code lifecycles and minimal infrastructure management overhead.</li>
-<li><strong>State Storage</strong>: Git-backed JSON/Markdown ledgers selected over external SaaS databases to guarantee version parity with code commits and zero operational cost.</li>
-<li><strong>Alternatives Set Aside</strong>:</li>
-<li><em>Centralized Governance Portals</em>: Discarded due to synchronization delays, high hosting overhead, and friction introduced when developers must navigate outside the git platform.</li>
-<li><em>Manual Architecture Review Boards</em>: Discarded as the primary mechanism due to lack of scalability and inability to catch fine-grained code drifts.</li>
-</ul>
+<p>Recommended Technology Choices:
+- <strong>Pipeline Orchestration</strong>: GitHub Actions or GitLab CI runners utilizing containerized execution steps for repeatable static evaluation.
+- <strong>Policy Engine</strong>: Python-based structural validation (custom AST and dependency graph analyzers) combined with JSON Schema / Open Policy Agent (OPA) for declarative governance policies.
+- <strong>Data Formats</strong>: Markdown-based Architecture Decision Records (ADRs) with embedded YAML/JSON frontmatter to maintain human and machine readability simultaneously.</p>
+<p>Alternatives Considered and Set Aside:
+- <em>Standalone SonarQube Rules</em>: Rejected as primary architecture gate due to limited semantic understanding of domain-specific architectural boundaries and ADR references.
+- <em>Synchronous Architect Review Gates</em>: Rejected due to velocity drag and linear scaling bottlenecks across scaling product squads.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Passive Observability</strong>: Runs non-blocking scans, generating audit reports and metric dashboards. Suited for initial rollout across legacy codebases.</li>
-<li><strong>Active Gatekeeping</strong>: Strictly enforces passing architectural fitness functions; non-compliant pull requests are blocked from merging.</li>
-<li><strong>Autonomous Remediation</strong>: Detects drift and automatically creates pull requests applying approved refactoring recipes or dependency boundary corrections.</li>
+<li><strong>Advisory / Warning Variant</strong>: Executes checks on pull requests and surfaces findings as non-blocking comments or annotations; ideal during initial enterprise rollouts.</li>
+<li><strong>Enforcing / Blocking Variant</strong>: Hard gates PR merging when critical architectural invariants, cross-boundary dependencies, or missing ADR references are detected.</li>
+<li><strong>Automated Remediation Variant</strong>: Detects drift and automatically proposes fix-up PRs or updates architectural indices for non-functional documentation drift.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Fully declarative and idempotent; scans produce identical outcomes against immutable commit SHAs.</li>
-<li><strong>Performance &amp; Latency</strong>: Scans are optimized via incremental graph analysis to ensure evaluation finishes in under 60 seconds within CI pipelines.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Consumes only standard ephemeral compute minutes without requiring dedicated background server daemons.</li>
-<li><strong>Operability</strong>: Emits machine-readable SARIF logs and structured PR comments, allowing seamless troubleshooting and auditing.</li>
+<li><strong>Reliability</strong>: Pipeline steps run idempotently against fixed commit SHAs; results are deterministic without network flakes.</li>
+<li><strong>Performance &amp; Latency</strong>: Validation executes within 45-90 seconds by performing incremental dependency tree analysis rather than full compilation.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Minimal compute overhead utilizing existing CI/CD runners without specialized hardware requirements.</li>
+<li><strong>Operability</strong>: Governance logs are surfaced directly into developer PR consoles with actionable remediation steps.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Runaway Remediation Loops</strong>: Automated remediation commits trigger downstream builds that generate further automated commits. <em>Remedy</em>: Filter bot commit authors and enforce recursion depth guardrails.</li>
-<li><strong>Drift Tolerance Miscalibration</strong>: Setting zero-tolerance thresholds on day one, stalling active feature development. <em>Remedy</em>: Establish baseline warnings and introduce strict enforcement incrementally.</li>
-<li><strong>Phantom Baselines</strong>: Neglecting to commit state updates, leading to verification against outdated architectural assumptions. <em>Remedy</em>: Enforce atomic state updates alongside architectural refactoring PRs.</li>
+<li><strong>Self-Triggering CI Loops</strong>: Automated documentation updates or bot commits re-triggering the governance loop infinitely. <em>Remedy</em>: Add explicit <code>[skip ci]</code> directives or bot author suppression.</li>
+<li><strong>Binary All-or-Nothing Enforcement</strong>: Turning on blocking enforcement across a legacy codebase instantly. <em>Remedy</em>: Enforce rules exclusively on changed files, backporting standards gradually via ratcheting thresholds.</li>
+<li><strong>Disconnected Governance Policies</strong>: Enforcing rules that have no corresponding approved ADR or human explanation. <em>Remedy</em>: Require every governance validator check to link to a canonical ADR identifier.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
 <ol>
-<li><strong>Phase 1: Baseline Audit</strong>: Run the drift detector to construct the initial Architecture State Ledger without blocking builds.</li>
-<li><strong>Phase 2: Warning Gating</strong>: Introduce fitness functions as non-blocking annotations on pull requests to familiarize developers with rule checks.</li>
-<li><strong>Phase 3: Active Enforcement</strong>: Promote core security and structural rules to required status checks.</li>
+<li><strong>Audit Phase</strong>: Deploy <code>.github/workflows/cas-continuous-architecture.yml</code> in warning-only mode to measure baseline drift and rule violation frequency.</li>
+<li><strong>Calibration Phase</strong>: Refine rule boundaries and suppress known technical debt via explicit exclusion configurations.</li>
+<li><strong>Hard-Gate Enforcement</strong>: Transition critical boundary rules to required status checks on primary branch pull requests.</li>
 </ol>
-<p><strong>Governance Ownership</strong>:
-- Domain: Core Architecture (<code>domain_id</code>: <code>core-architecture</code>)
-- Initiative: CAS Governance Automation (<code>initiative_id</code>: <code>ideas-to-life-cas</code>)
-- Contact: Enterprise Architecture Lead</p>
+<p>Governance Ownership:
+- Domain: Enterprise Architecture &amp; Platform Engineering
+- Initiative: Automated Architecture Steering
+- Contact: <code>platform-governance@internal.enterprise</code></p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-0004: Continuous Automated Architecture Governance</li>
-<li>Global Pattern: Architectural Fitness Functions</li>
-<li>Workflow Configuration: <code>.github/workflows/cas-continuous-architecture.yml</code></li>
-<li>Build Validation: <code>.github/workflows/cas-build-validation.yml</code></li>
+<li><a href="../../../.github/workflows/cas-continuous-architecture.yml">Continuous Architecture Workflow</a></li>
+<li><a href="../../../src/cas_runner/governance/governance_validator.py">Governance Validator Implementation</a></li>
+<li><a href="../../../docs/architecture/decisions">Architecture Decision Record Store</a></li>
 </ul>
 
 

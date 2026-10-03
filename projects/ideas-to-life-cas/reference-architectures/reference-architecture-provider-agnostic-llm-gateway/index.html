@@ -3399,81 +3399,87 @@
 
 <h1 id="reference-architecture-provider-agnostic-llm-gateway">Reference Architecture: Provider-Agnostic LLM Gateway</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Provider-Agnostic LLM Gateway pattern provides an architectural facade decoupling agentic decision engines and system workflows from proprietary model vendor APIs. It standardizes model invocations, telemetry, and error handling across heterogeneous providers.</p>
+<p>The Provider-Agnostic LLM Gateway encapsulates model invocations behind a unified interface, decoupling application and agentic logic from vendor-specific APIs. It allows seamless switching between multi-cloud LLM providers and enables zero-cost deterministic offline execution via local mock implementations.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When agentic systems, governance workflows, or compliance engines require inference across multiple LLM providers (e.g., Anthropic, OpenAI, local models) without coupling application logic to provider SDKs.</li>
-<li>When automated continuous integration (CI) pipelines and deterministic unit/integration testing require zero-cost, offline execution without real API credentials or internet egress.</li>
-<li>When enterprise environments require dynamic runtime routing, multi-model fallback strategies, telemetry standardization, or model cost governance.</li>
+<li>When applications or autonomous agents need multi-provider routing (e.g., fallback between OpenAI, Anthropic, or local models) without refactoring business logic.</li>
+<li>When automated continuous integration (CI) test suites and local developer environments need to run deterministic evaluation loops without external network dependencies, latency, or API token expenses.</li>
+<li>When governance policies mandate centralized telemetry, rate limiting, token usage tracking, and schema validation across heterogeneous LLM calls.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>In simple single-model proof-of-concepts or standalone CLI scripts where vendor lock-in poses minimal technical debt.</li>
-<li>When specialized hardware acceleration or proprietary vendor-specific client features (e.g., highly customized stateful fine-tuning sessions, proprietary agent runtime APIs) cannot be abstracted cleanly behind a generalized request-response interface.</li>
+<li>Single-model, low-complexity prototypes or scripts where direct SDK integration introduces negligible architectural lock-in.</li>
+<li>Ultra-low latency streaming use cases requiring proprietary protocol optimizations (e.g., raw WebSockets directly into custom on-premise hardware) where an abstraction layer introduces unacceptable overhead.</li>
+<li>Scenarios where application logic relies heavily on deep, non-standardized provider-proprietary features that cannot be normalized across an industry interface without extensive leaky abstractions.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    client["Agent Application (Container)"]
-    gateway["LLM Gateway Facade (Container)"]
-    litellm["LiteLLM Provider Adapter (Container)"]
-    mock["Mock Provider Adapter (Container)"]
-    ext_prov["External LLM Providers (External System)"]
+    caller["Agent Orchestrator (Container)"]
+    gateway["LLM Gateway Interface (Container)"]
+    adapter_real["LiteLLM Provider Adapter (Container)"]
+    adapter_mock["Mock Client Adapter (Container)"]
+    cache[("Inference Cache (Data store)")]
+    ext_llm["External LLM Providers (External System)"]
 
-    client --&gt;|1. Request Inference| gateway
-    gateway --&gt;|2a. Route Live Calls| litellm
-    gateway --&gt;|2b. Route Deterministic Tests| mock
-    litellm --&gt;|3. Dispatch API Calls| ext_prov
+    caller --&gt;|1. Request Inference| gateway
+    gateway --&gt;|2. Check Cache| cache
+    gateway --&gt;|3a. Forward Active Call| adapter_real
+    gateway --&gt;|3b. Forward Test/Offline Call| adapter_mock
+    adapter_real --&gt;|4. Dispatch Normalized API Call| ext_llm
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class client,gateway,litellm,mock container
-    class ext_prov external</code></pre>
+    class caller,gateway,adapter_real,adapter_mock container
+    class cache store
+    class ext_llm external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>LLM Gateway Facade</strong> (<code>src/cas_runner/llm/client_interface.py</code>): Serves as the stable interface exposing unified inference signatures, prompt formats, and normalized completion objects to agent consumers.</li>
-<li><strong>LiteLLM Provider Adapter</strong> (<code>src/cas_runner/llm/litellm_client.py</code>): Encapsulates runtime communication with external model endpoints via LiteLLM, handling credential binding, parameter transformation, and exception mapping.</li>
-<li><strong>Mock Provider Adapter</strong> (<code>src/cas_runner/llm/mock_client.py</code>): Furnishes deterministic fixture-driven responses for unit, contract, and CI/CD testing with zero network overhead and zero API cost.</li>
+<li><strong>LLM Gateway Interface</strong> (<code>src/cas_runner/llm/base.py</code>): Exposes an abstract client contract (e.g., unified generate, embed, and structured output methods) defining strict input and output schemas regardless of the backing model.</li>
+<li><strong>LiteLLM Client Adapter</strong> (<code>src/cas_runner/llm/litellm_client.py</code>): Translates standard gateway requests into provider-specific schemas (e.g., Anthropic, OpenAI, Bedrock), managing authentication, backoff retries, and dynamic model routing.</li>
+<li><strong>Mock Client Adapter</strong> (<code>src/cas_runner/llm/mock_client.py</code>): Delivers configurable, deterministic synthetic responses and recorded fixtures to support hermetic unit testing, CI pipelines, and zero-cost local development.</li>
+<li><strong>Prompt &amp; Schema Validator</strong> (<code>src/cas_runner/llm/validators.py</code>): Validates structured responses against Pydantic or JSON schemas prior to returning outputs to the caller, abstracting schema repair logic.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<ul>
-<li><strong>LiteLLM</strong>: Adopted for cross-provider abstraction, supporting dynamic fallback, unified token telemetry, and native integration across over 100 LLM endpoints.</li>
-<li><strong>Pydantic Data Models</strong>: Adopted for strict runtime contract enforcement of input parameters and structured JSON response schemas.</li>
-<li><strong>Alternatives Set Aside</strong>:</li>
-<li><em>Direct Vendor SDKs</em>: Rejected due to high coupling and the operational burden of maintaining discrete client implementations for each vendor.</li>
-<li><em>Heavyweight Orchestration Frameworks (LangChain/LlamaIndex)</em>: Rejected to preserve lightweight control, avoid transitive dependency conflicts, and isolate the gateway strictly to transport and provider abstraction.</li>
-</ul>
+<p>Recommended Primary Adapter: LiteLLM or an internal unified wrapper over standard REST/gRPC endpoints. LiteLLM is selected for its broad multi-provider coverage (100+ models), built-in fallback routing, and transparent translation of standard OpenAI-compatible payloads.</p>
+<p>Alternatives Considered and Set Aside:
+- Direct Vendor SDKs (e.g., <code>openai</code>, <code>anthropic</code>): Set aside due to strong vendor lock-in, disparate error handling semantics, and inability to run deterministic test fixtures without deep monkey-patching.
+- LangChain / LlamaIndex core bindings: Set aside when only standard LLM calling is required; direct gateway abstractions avoid heavy framework dependencies and frequent upstream breaking changes.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Live Dynamic Failover</strong>: Primary requests route through high-tier models with automated fallback to alternative providers upon HTTP 429/5xx status codes.</li>
-<li><strong>Deterministic Test Double</strong>: Replaces upstream calls with static or scripted responses for hermetic CI execution.</li>
-<li><strong>Asynchronous Token Streamer</strong>: Standardizes server-sent events (SSE) chunks across disparate provider streaming protocols into a single unified event generator.</li>
+<li><strong>Offline Mock Variant</strong>: Directs all LLM calls to in-memory fixtures or recorded disk caches, guaranteeing reproducible evaluation runs and zero credential requirements in CI.</li>
+<li><strong>Resilient Multi-Provider Fallback</strong>: Configures the adapter to automatically retry transient network errors or rate limit failures against secondary backup providers (e.g., fallback from primary Claude 3.5 Sonnet to GPT-4o).</li>
+<li><strong>Self-Hosted / On-Premise Gateway</strong>: Routes calls through a self-hosted API gateway instance (e.g., LiteLLM Proxy or vLLM) for enterprise telemetry enforcement and egress IP whitelisting.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Resilient to transient upstream provider failures via configurable jittered backoff, circuit breaking, and cross-provider failover.</li>
-<li><strong>Performance &amp; Latency</strong>: Imposes negligible in-process serialization overhead (&lt;2ms); supports streaming to minimize time-to-first-token (TTFT).</li>
-<li><strong>Cost &amp; Efficiency</strong>: Eliminates test-suite invocation expenses and provides visibility into token consumption across organizational initiatives.</li>
-<li><strong>Operability</strong>: Emits standardized OpenTelemetry-compatible traces and logs, mapping diverse upstream error messages into unified domain exceptions.</li>
+<li><strong>Reliability</strong>: Mitigates downstream provider outages via automated failover and backoff strategies; isolates business logic from upstream API deprecations.</li>
+<li><strong>Performance &amp; Latency</strong>: Adds minimal overhead (&lt;2ms in-memory translation latency); supports asynchronous streaming and optional prompt/response response caching to minimize roundtrips.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Drastically cuts development and automated testing expenses by routing CI workflows through the Mock Client Adapter; enables cross-provider cost optimization based on task complexity.</li>
+<li><strong>Operability</strong>: Unifies logging, audit tracking, token counting, and metrics instrumentation into a single chokepoint.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Vendor Leaky Abstractions</strong>: Permitting vendor-specific parameter extensions or response metadata to penetrate domain layers.</li>
-<li><strong>Ignoring Streaming Variance</strong>: Assuming all providers chunk tokens identically; mitigate by enforcing token-stream normalization.</li>
-<li><strong>Hardcoded Endpoints</strong>: Embedding provider model identifiers directly into business logic rather than resolving them via configuration or capability aliases.</li>
+<li><strong>Leaky Vendor Features</strong>: Exposing provider-specific hyper-parameters or system prompt formats directly through the gateway contract, breaking consumer interchangeability. <em>(Remedy: Normalize request options or use an explicit typed metadata map)</em>.</li>
+<li><strong>Mock Drift</strong>: Allowing the Mock Client Adapter schemas to drift out of sync with actual production provider schemas. <em>(Remedy: Maintain periodic contract testing suites validating real provider responses against mock contract assertions)</em>.</li>
+<li><strong>Silent Schema Coercion Failures</strong>: Swallowing schema parsing errors from unpredictable LLM outputs. <em>(Remedy: Implement strict validation with explicit retry loops and repair prompts at the gateway level)</em>.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ul>
-<li><strong>Initial Step</strong>: Implement gateway interfaces in domain code and migrate unit tests to use <code>MockLLMClient</code>.</li>
-<li><strong>Production Rollout</strong>: Configure <code>LiteLLMClient</code> with validated environment variables for production targets.</li>
-<li><strong>Governance Ownership</strong>: AI Infrastructure Domain (<code>domain_id: ai-infra</code>, <code>initiative_id: llm-foundations</code>).</li>
-</ul>
+<ol>
+<li>Identify all direct model SDK imports across the project and define a common abstract base class (<code>BaseLLMClient</code>) capturing current input/output contracts.</li>
+<li>Implement the <code>MockLLMClient</code> adapter and migrate automated unit and integration tests to verify deterministic execution without API keys.</li>
+<li>Implement the <code>LiteLLMClient</code> adapter for production environments, wrapping environment-based provider selection.</li>
+<li>Route all agent orchestration components through the gateway factory.</li>
+</ol>
+<p><strong>Governance &amp; Ownership</strong>:
+- Domain: Core Foundation &amp; AI Platform
+- Initiative: AI Governance and Decoupling
+- Ownership: CAS Platform Engineering Team</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-0004: Provider-Agnostic LLM Integration</li>
-<li>Pattern: Hexagonal Architecture (Ports and Adapters)</li>
-<li>Reference Implementation: <code>src/cas_runner/llm/litellm_client.py</code></li>
-<li>Test Double Implementation: <code>src/cas_runner/llm/mock_client.py</code></li>
+<li>ADR: LLM Client Decoupling and CI Mock Strategy</li>
+<li>Source File: <code>src/cas_runner/llm/litellm_client.py</code></li>
+<li>Source File: <code>src/cas_runner/llm/mock_client.py</code></li>
 </ul>
 
 
