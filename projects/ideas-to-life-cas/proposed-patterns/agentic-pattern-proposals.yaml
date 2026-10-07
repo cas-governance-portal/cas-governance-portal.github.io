@@ -3210,3 +3210,436 @@ pattern_proposals:
   - 'Force: Patterns must remain distinct from one-off observations.'
   evidence_strength: low
   confidence: low
+- pattern_id: llm-provider-client-abstraction
+  name: Pluggable LLM Provider Client
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Concrete client wraps
+      litellm for model access.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Alternative client enables
+      controlled LLM responses.
+    - pyproject.toml - litellm dependency confirms provider abstraction.
+  description: LLM access is isolated into concrete client classes so CAS code can
+    call models through a stable interface.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Hide provider-specific model invocation and allow deterministic substitutes
+    for local or tested flows.'
+  - 'Context: src/cas_runner/llm provides LiteLLMClient and MockLLMClient, while pyproject.toml
+    depends on litellm.'
+  - 'Force: model provider APIs differ across vendors'
+  - 'Force: agent flows need reproducible execution without network instability'
+  - 'Force: governance logic should not embed provider details'
+  evidence_strength: high
+  confidence: high
+- pattern_id: centralised-flow-runner-pipeline
+  name: Centralised Flow Runner Pipeline
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Central runner class for flow execution.
+    - src/cas_runner/cli.py (main) - CLI entry point that likely invokes flow execution.
+    - docs/architecture/cas-orchestration-flow.md - Documentation names orchestration
+      flow.
+    - docs/architecture/cas-automated-run-flow.md - Documentation names automated
+      run flow.
+    - docs/architecture/cas-execution-sequence.md - Documentation indicates a defined
+      execution sequence.
+  description: A central FlowRunner appears to coordinate multi-step CAS flow execution
+    from the CLI.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Give flows a single, inspectable execution point instead of scattered
+    ad hoc agent invocations.'
+  - 'Context: src/cas_runner/runner.py contains FlowRunner and src/cas_runner/cli.py
+    contains main; documentation describes orchestration and automated run flows.'
+  - 'Force: flows need predictable ordering'
+  - 'Force: execution must be inspectable for governance'
+  - 'Force: CLI entry points need a common execution path'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: typed-governance-contracts
+  name: Typed Governance State Contracts
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
+      ComplianceMetrics, GovernanceException, GovernanceAction) - Defines governance
+      and compliance state objects.
+    - pyproject.toml - pydantic and jsonschema dependencies support typed contracts.
+  description: Pydantic models define governance inventories, health, risks, actions,
+    findings and metrics.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make governance state explicit, validation-friendly and portable between
+    engines and dashboards.'
+  - 'Context: src/cas_runner/governance/models.py defines multiple governance and
+    compliance models, supported by pydantic and jsonschema dependencies.'
+  - 'Force: governance engines need shared vocabulary'
+  - 'Force: compliance findings must be auditable'
+  - 'Force: health and metrics must be comparable across runs'
+  evidence_strength: high
+  confidence: high
+- pattern_id: transition-registry-governance-actions
+  name: Transition-Registry Governance Action Engine
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Engine and registry indicate bounded state transitions.
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Service layer exposes governance actions.
+    - src/cas_runner/governance/models.py (GovernanceAction, ResolutionResult) - Models
+      define action and resolution payloads.
+  description: GovernanceActionEngine and TransitionRegistry manage explicit governance
+    state transitions and actions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent arbitrary governance state changes by resolving actions through
+    known transitions.'
+  - 'Context: src/cas_runner/governance contains GovernanceActionEngine, TransitionRegistry
+    and GovernanceActionService, while models define GovernanceAction and ResolutionResult.'
+  - 'Force: governance state changes must be auditable'
+  - 'Force: autonomous engines should not invent transitions'
+  - 'Force: service layer must present a stable action API'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: compliance-evaluation-guardrail
+  name: Compliance Evaluation Guardrail
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Engine performs
+      compliance evaluation.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, GovernanceRisks)
+      - Models define compliance output and risk state.
+  description: ComplianceEngine converts governance state into findings, risks and
+    metrics to support safe decisions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make governance and agent activity measurable against compliance rules
+    before further action is taken.'
+  - 'Context: src/cas_runner/governance contains ComplianceEngine and compliance-oriented
+    models such as ComplianceFinding, ComplianceMetrics and GovernanceRisks.'
+  - 'Force: agent actions need measurable safety checks'
+  - 'Force: risk must be visible before propagation'
+  - 'Force: findings must be usable by dashboards or action engines'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: explainable-governance-health-model
+  name: Explainable Governance Health Model
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Computes health status and reasons.
+    - src/cas_runner/governance/models.py (GovernanceHealth) - Governance health is
+      modelled as typed state.
+  description: The dashboard health model calculates status and reasons from governance
+    state.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make system or governance health inspectable and explainable to operators
+    or downstream agents.'
+  - 'Context: src/cas_runner/dashboard/health_model.py defines HealthStatus, calculate_health
+    and get_health_reasons, alongside GovernanceHealth in governance models.'
+  - 'Force: operators need quick status understanding'
+  - 'Force: governance state may be complex'
+  - 'Force: status must be explainable, not opaque'
+  evidence_strength: high
+  confidence: high
+- pattern_id: evidence-derived-steering-facts
+  name: Evidence-Derived Steering Facts
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, PromptFact, SteeringRuntimeIndex,
+      CapabilityCategory, CapabilityRecordType, CapabilityRecord, CapabilitySet, CapabilityLineage,
+      ArchitecturalDelta) - Models for evidence-derived steering and capability lineage.
+  description: Steering models turn raw git deltas and prompt facts into typed capability
+    records, lineage and architectural deltas.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make architectural steering traceable to repository and prompt evidence
+    rather than unexplained generation.'
+  - 'Context: src/cas_runner/steering/models.py defines GitChangeType, RawGitDelta,
+    PromptFact, SteeringRuntimeIndex, CapabilityCategory, CapabilityRecordType, CapabilityRecord,
+    CapabilitySet, CapabilityLineage and ArchitecturalDelta.'
+  - 'Force: steering decisions need traceability'
+  - 'Force: git changes and prompt outputs are heterogeneous evidence'
+  - 'Force: capability growth needs lineage over time'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: bootstrap-governed-agent-workspace
+  name: Bootstrap Governed Agent Workspace
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, bootstrap, init_workspace)
+      - Functions indicate workspace preparation and governance block merging.
+    - AGENTS.md - Agent-facing instruction manifest.
+    - CLAUDE.md - Claude-specific instruction manifest.
+    - GEMINI.md - Gemini-specific instruction manifest.
+  description: Bootstrap initializes a workspace and merges a CAS governance block
+    into agent-facing context.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure agents start with a governed, initialized workspace rather than
+    relying on runtime prompt assembly.'
+  - 'Context: src/cas_runner/bootstrap.py defines merge_cas_governance_block, bootstrap
+    and init_workspace, while agent instruction files exist at the repository root.'
+  - 'Force: agents need consistent initial constraints'
+  - 'Force: workspace setup should be repeatable'
+  - 'Force: governance text should be injected rather than repeated manually'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: multi-agent-instruction-manifests
+  name: Multi-Agent Instruction Manifests
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - AGENTS.md - General agent instruction file.
+    - CLAUDE.md - Claude-specific instruction file.
+    - GEMINI.md - Gemini-specific instruction file.
+    - .agents/skills/hf-cli - Skill directory for generic agents.
+    - .claude/skills/hf-cli - Skill directory for Claude.
+  description: The repository provides separate instruction manifests and skill directories
+    for different AI agent ecosystems.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Support multiple coding-agent tools while preserving shared repository
+    governance and skills.'
+  - 'Context: AGENTS.md, CLAUDE.md and GEMINI.md exist at the repository root, with
+    .agents/skills/hf-cli and .claude/skills/hf-cli directories.'
+  - 'Force: different agent CLIs expect different configuration files'
+  - 'Force: repository policies should remain shared'
+  - 'Force: skills need portable discovery locations'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: structural-cicd-policy-validation
+  name: Structural CI/CD Policy Validation
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers, check_no_unreachable_dry_run,
+      check_retired_workflow, check_trigger_remediations, check_composite_action_adoption,
+      main) - Structural workflow policy checks.
+    - .github/workflows/cas-build-validation.yml - Validation workflow exists for
+      CAS builds.
+    - .github/workflows/cas-continuous-architecture.yml - Continuous architecture
+      workflow exists.
+  description: A workflow validator enforces structural invariants on CI workflows,
+    including hardcoding, pinned installers, dry-run reachability and retired workflows.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent brittle or inconsistent automated workflows before they can affect
+    agent-facing continuous execution.'
+  - 'Context: specs/090-simplify-cicd-workflows/validate_workflows.py contains several
+    check functions and a main entry point.'
+  - 'Force: CI workflows are execution surfaces for agents or automated systems'
+  - 'Force: hardcoding and unpinned installers cause drift'
+  - 'Force: retired workflows and unreachable dry-run paths create ambiguity'
+  evidence_strength: high
+  confidence: high
+- pattern_id: template-driven-pattern-evolution
+  name: Template-Driven Pattern Evolution and Promotion
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/pattern_template.md - Template for pattern artifacts.
+    - cas-knowledge/templates/heuristic-to-pattern_template.md - Template for promoting
+      heuristics to patterns.
+    - cas-knowledge/templates/promotion_decision.md - Template for promotion decisions.
+    - cas-knowledge/templates/signal_template.md - Template for signal artifacts.
+    - cas-knowledge/templates/rule_template.md - Template for rule artifacts.
+    - docs/architecture/cas-pattern-evolution-flow.md - Documentation for pattern
+      evolution flow.
+  description: Templates and documentation define a lifecycle for signals, heuristics,
+    patterns, experiments, learnings and promotion decisions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep architectural learning durable by moving evidence through controlled
+    artifact states.'
+  - 'Context: cas-knowledge/templates contains templates for patterns, heuristics,
+    signals, rules, learnings, experiments, promotion decisions and architecture records;
+    docs include pattern evolution flow.'
+  - 'Force: ad hoc notes do not scale'
+  - 'Force: patterns need promotion criteria'
+  - 'Force: agents and humans must share the same artifact shape'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: runtime-execution-context-store
+  name: Runtime Execution Context Store
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/execution-profile.yaml - Execution profile stored as runtime
+      configuration.
+    - cas-knowledge/runtime/rule-context.json - Rule context stored as runtime JSON.
+    - cas-knowledge/runtime/evaluations - Evaluation artifacts directory.
+    - cas-knowledge/runtime/traces - Trace artifacts directory.
+  description: A runtime directory stores execution profile, rule context, evaluations
+    and traces as persistent run context.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep run-specific context, rules, evaluations and traces outside source
+    code so flows can be inspected or resumed.'
+  - 'Context: cas-knowledge/runtime contains execution-profile.yaml, rule-context.json,
+    evaluations and traces.'
+  - 'Force: runs need audit artifacts'
+  - 'Force: rule context may vary by project or environment'
+  - 'Force: evaluations and traces should not be lost with process state'
+  evidence_strength: low
+  confidence: low
+- pattern_id: agentic-merger-artifact-reconciliation
+  name: Agentic Merger Artifact Reconciliation
+  pattern_classification: governance
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Dedicated merger
+      class for agent-produced governance artifacts.
+  description: AgenticMerger appears to reconcile or merge agent-produced governance
+    artifacts.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Combine agent-generated or modified governance artifacts into a consistent
+    state without silent corruption.'
+  - 'Context: src/cas_runner/governance/agentic_merger.py defines AgenticMerger.'
+  - 'Force: agents may produce overlapping governance artifacts'
+  - 'Force: merged state must remain traceable'
+  - 'Force: governance models require consistent vocabulary'
+  evidence_strength: low
+  confidence: low
