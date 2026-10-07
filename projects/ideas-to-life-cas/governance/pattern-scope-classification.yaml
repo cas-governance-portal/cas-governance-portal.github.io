@@ -1,176 +1,318 @@
 global_pattern_candidates:
-- id: provider-agnostic-llm-facade
+- id: provider-agnostic-llm-gateway
   scope: global
   classification: core
-  evidence_summary: Implemented in src/cas_runner/llm/litellm_client.py and mock_client.py
-    with dual production-mock parity across multiple execution flows.
-  rationale: Fundamental architectural decoupling separating LLM consumption logic
-    from proprietary vendor SDKs, highly reusable across any AI-assisted system.
-  promotion_readiness: high
-- id: finite-state-governance-engine
-  scope: global
-  classification: core
-  evidence_summary: Codified in src/cas_runner/governance/governance_action_engine.py
-    with TransitionRegistry and GovernanceAction models.
-  rationale: Essential safety invariant preventing autonomous agents from performing
-    illegal lifecycle transitions or arbitrary state mutations.
-  promotion_readiness: high
-- id: schema-enforced-domain-contracts
-  scope: global
-  classification: core
-  evidence_summary: Extensively evidenced across src/cas_runner/governance/models.py
-    and steering/models.py using strict Pydantic schemas.
-  rationale: Core boundary protection pattern ensuring all inputs and outputs between
-    agents, storage, and CI runners adhere to deterministic typed contracts.
-  promotion_readiness: high
-- id: file-backed-blackboard-workspace
-  scope: global
-  classification: core
-  evidence_summary: Implemented in cas-knowledge directory layout and src/cas_runner/bootstrap.py,
-    functioning as Git-native persistent memory.
-  rationale: Foundational pattern for agent collaboration without requiring database
-    infrastructure, leveraging Git versioning and pull-request gating.
+  evidence_summary: Evidence centers on LiteLLMClient production invocation and MockLLMClient
+    deterministic testing across runner, governance, and merger components.
+  rationale: 'This is a reusable abstraction for LLM-dependent agentic systems: it
+    decouples orchestration from provider-specific APIs and enables deterministic
+    offline execution. Keep this as the canonical provider-abstraction pattern instead
+    of the numerous equivalent client/adapter variants.'
   promotion_readiness: high
 - id: sequential-pipeline-flow-runner
   scope: global
   classification: core
-  evidence_summary: Implemented in src/cas_runner/runner.py (FlowRunner) orchestrating
-    linear execution stages and shared execution context.
-  rationale: Core execution pattern ensuring deterministic step order and short-circuit
-    failure boundaries, avoiding unbounded autonomous agent loops.
+  evidence_summary: FlowRunner and CLI entry points demonstrate ordered multi-stage
+    execution with shared context propagation across discovery, steering, governance,
+    and reporting steps.
+  rationale: A deterministic sequential pipeline is a foundational execution mechanism
+    for agentic architecture workflows. It provides predictable ordering, context
+    handoff, failure short-circuiting, and CI-friendly behavior that is reusable beyond
+    this project.
   promotion_readiness: high
-- id: pattern-architecture-work-registry
+- id: finite-state-governance-engine
   scope: global
   classification: core
-  evidence_summary: Evidenced in architecture work items and flows separating planning
-    backlog state from generated Architecture Evolution Maps.
-  rationale: Prevents data loss during automated discovery runs by decoupling authoritative
-    change backlogs from ephemeral derived visualizations.
+  evidence_summary: TransitionRegistry, GovernanceActionEngine, GovernanceAction,
+    and GovernanceException evidence show explicit lifecycle validation before governance
+    state mutation.
+  rationale: A registry-guarded state machine is a core governance guardrail for autonomous
+    agents. It prevents arbitrary lifecycle transitions, supports auditability, and
+    generalizes to any governed artifact lifecycle.
+  promotion_readiness: high
+- id: schema-enforced-domain-contracts
+  scope: global
+  classification: core
+  evidence_summary: Pydantic and JSON-schema-style models across governance, steering,
+    compliance, and capability catalogs show typed contracts for agent outputs and
+    persisted domain data.
+  rationale: Strict domain contracts are foundational for LLM-driven systems because
+    they validate generated data before consumption. The pattern is stable, broadly
+    reusable, and distinct from orchestration or provider abstraction.
+  promotion_readiness: high
+- id: file-backed-knowledge-repository
+  scope: global
+  classification: core
+  evidence_summary: The cas-knowledge directory hierarchy, bootstrap routines, templates,
+    runtime artifacts, and portal processors show a version-controlled file-based
+    knowledge base.
+  rationale: Using Git-versioned files as an auditable agent blackboard is a highly
+    reusable architectural pattern for human-reviewable, branchable, persistent architecture
+    knowledge without a dedicated database backend.
   promotion_readiness: high
 - id: declarative-steering-projection
   scope: global
   classification: supporting
-  evidence_summary: Implemented in src/cas_runner/steering/models.py and .github/workflows/cas-build-steering-projection.yml.
-  rationale: Transforms VCS deltas and capabilities into typed PromptFacts to ground
-    agent reasoning within tight token boundaries.
+  evidence_summary: Steering models and CI projection workflows show transformation
+    of repository deltas and capability records into structured prompt facts for agent
+    context.
+  rationale: Grounding agent prompts in typed, repository-derived facts is a valuable
+    supporting pattern for controlled agentic reasoning. It is reusable but more specialized
+    than the core runtime and contracts patterns.
   promotion_readiness: high
-- id: telemetry-observable-agent-steps
-  scope: global
-  classification: supporting
-  evidence_summary: Configured via opentelemetry-api and opentelemetry-sdk in pyproject.toml
-    and models.py (TraceableMetric).
-  rationale: Standardizes observability across agentic invocations, tracking latency,
-    token consumption, and failure spans for auditability.
-  promotion_readiness: medium
 - id: rule-grounded-compliance-evaluation
   scope: global
   classification: supporting
-  evidence_summary: Implemented in src/cas_runner/governance/compliance_engine.py
-    with ComplianceFinding and ComplianceMetrics models.
-  rationale: Replaces subjective qualitative agent reviews with deterministic, metric-grounded
-    compliance evaluation against codified rules.
+  evidence_summary: ComplianceEngine, findings models, metrics models, and CI validation
+    flows indicate deterministic rule evaluation producing structured compliance outputs.
+  rationale: Rule-grounded compliance evaluation is a reusable governance capability,
+    but cross-project evidence is still limited and the current proposals overlap
+    heavily with health scoring and schema contracts.
+  promotion_readiness: medium
+- id: telemetry-observable-agent-steps
+  scope: global
+  classification: supporting
+  evidence_summary: OpenTelemetry dependencies, TraceableMetric models, and runtime
+    trace directories indicate step-level observability for latency, cost, and agent
+    decision tracing.
+  rationale: Observability is broadly reusable and likely to become important for
+    agentic governance, but the current evidence is partly dependency-driven and the
+    pattern has not yet stabilized in enough independent systems.
   promotion_readiness: medium
 project_pattern_candidates:
-- id: bootstrap-governance-block-injection
+- id: deterministic-mock-evaluation-harness
   scope: project
-  rationale: Tightly coupled to CAS runner workspace initialization markers and local
-    AGENTS.md conventions.
+  rationale: Valuable CI/testing harness within this project, but it largely overlaps
+    the canonical LLM gateway pattern and does not yet stand as an independent reusable
+    global pattern.
+  future_promotion_potential: medium
+- id: declarative-agent-command-registry
+  scope: project
+  rationale: Useful declarative command configuration, but tied to this project's
+    agent command layout and tooling rather than a broadly stable architectural mechanism.
+  future_promotion_potential: medium
+- id: capability-lineage-anchoring
+  scope: project
+  rationale: Helpful for tracking capability evolution, but currently appears as a
+    project-local refinement of steering and delta models rather than a reusable standalone
+    pattern.
+  future_promotion_potential: medium
+- id: ci-driven-steering-projection
+  scope: project
+  rationale: Important CI orchestration for this system, but the reusable concept
+    is better captured by steering projection; the CI workflow itself remains project-specific.
+  future_promotion_potential: high
+- id: heuristic-to-pattern-promotion-lifecycle
+  scope: project
+  rationale: Strong governance idea for maturing agent-learned heuristics, but it
+    is still a project-local lifecycle and needs cross-project validation before global
+    promotion.
+  future_promotion_potential: high
+- id: pattern-proposal-only-steering-projection
+  scope: project
+  rationale: A useful safety mode that separates proposal generation from mutation,
+    but it is a project-level workflow control rather than a globally foundational
+    architectural pattern.
+  future_promotion_potential: high
+- id: pattern-continuous-governance-loop
+  scope: project
+  rationale: Valuable closed-loop governance workflow, but the current evidence is
+    strongly coupled to this project's CI topology and domain artifacts.
+  future_promotion_potential: high
+- id: template-driven-artifact-evolution
+  scope: project
+  rationale: Templates are central to this knowledge repository, but the pattern mainly
+    describes authoring conventions rather than a broadly reusable architectural mechanism.
   future_promotion_potential: medium
 - id: docs-as-code-portal-projection
   scope: project
-  rationale: Specific to MkDocs material and static asset bundling configured for
-    this repository's deployment target.
-  future_promotion_potential: low
-- id: declarative-agent-command-registry
-  scope: project
-  rationale: Specific to speckit TOML manifest contracts located in .agents/commands/
-    for local runner toolchains.
+  rationale: The MkDocs portal is a useful projection of governance state, but it
+    is a presentation and publishing concern that has not demonstrated cross-project
+    reusability.
   future_promotion_potential: medium
-- id: pattern-proposal-only-steering-projection
+- id: cli-to-runner-orchestration-boundary
   scope: project
-  rationale: Operational configuration specific to cas-runner CI branches avoiding
-    trunk branch mutations.
-  future_promotion_potential: low
-- id: pattern-scope-classification-framework
+  rationale: A sound application boundary between CLI parsing and pipeline execution,
+    but it is more of a project architecture convention than a distinct global pattern.
+  future_promotion_potential: medium
+- id: service-facade-orchestration
   scope: project
-  rationale: Taxonomy document and reference architecture currently governing ideas-to-life-cas
-    project workflows.
+  rationale: Valuable layered boundary, but the current proposals duplicate generic
+    service/facade concepts and should remain project-scoped until a canonical form
+    is validated.
+  future_promotion_potential: medium
+- id: layered-governance-service-facade
+  scope: project
+  rationale: Reflects the same layered boundary as other service facade proposals
+    and should be consolidated before any global consideration.
+  future_promotion_potential: medium
+- id: pydantic-domain-entity-modeling
+  scope: project
+  rationale: Important implementation-level modeling practice, but it is better treated
+    as a supporting detail of the schema-enforced contracts pattern than as a separate
+    global pattern.
+  future_promotion_potential: medium
+- id: pure-functional-health-evaluation
+  scope: project
+  rationale: A clean deterministic evaluation pattern, but it currently overlaps compliance
+    scoring and health model patterns and needs consolidation before broader promotion.
   future_promotion_potential: high
+- id: swappable-client-adapter
+  scope: project
+  rationale: Duplicate wording of the provider abstraction pattern; retain only if
+    it adds project-specific adapter guidance beyond the canonical LLM gateway.
+  future_promotion_potential: low
+- id: client-adapter-test-double
+  scope: project
+  rationale: Valuable testing practice, but subsumed by the provider-agnostic LLM
+    gateway pattern and should remain project-scoped unless a distinct generic test-double
+    pattern is needed.
+  future_promotion_potential: low
+- id: file-system-knowledge-repository
+  scope: project
+  rationale: Useful but largely duplicative of the file-backed knowledge repository
+    pattern; keep project-scoped pending consolidation.
+  future_promotion_potential: medium
+- id: declarative-health-scoring-pipeline
+  scope: project
+  rationale: A reasonable project-level health evaluation approach, but it overlaps
+    several scoring and observability proposals and is not yet a stable reusable pattern.
+  future_promotion_potential: medium
+- id: declarative-transition-registry
+  scope: project
+  rationale: Duplicate framing of the finite-state governance engine; retain only
+    as supporting project documentation unless the registry itself becomes a reusable
+    configuration artifact.
+  future_promotion_potential: medium
+- id: pluggable-adapter-client
+  scope: project
+  rationale: Conceptually identical to the provider-agnostic LLM gateway group and
+    should be consolidated rather than treated as a separate reusable pattern.
+  future_promotion_potential: low
+- id: idempotent-workspace-bootstrap-merger
+  scope: project
+  rationale: Important onboarding behavior, but tied to this project's workspace bootstrap
+    mechanics and not yet evidenced as a reusable global capability.
+  future_promotion_potential: medium
+- id: workspace-bootstrapping-scaffolding
+  scope: project
+  rationale: Useful repository initialization behavior, but it overlaps the broader
+    bootstrap governance injection concept and remains project-scoped.
+  future_promotion_potential: medium
+- id: rule-driven-health-evaluation-model
+  scope: project
+  rationale: A project-local health model interpretation that should be consolidated
+    with the other health and compliance scoring candidates.
+  future_promotion_potential: medium
+- id: hierarchical-filesystem-knowledge-repository
+  scope: project
+  rationale: Reinforces the file-backed knowledge repository concept, but the specific
+    hierarchy is still project-local until cross-system reuse is shown.
+  future_promotion_potential: medium
+- id: application-service-facade
+  scope: project
+  rationale: A valid layered architecture convention, but multiple near-identical
+    proposals exist and it has not yet reached canonical, globally reusable form.
+  future_promotion_potential: medium
+- id: service-engine-separation
+  scope: project
+  rationale: Supports clean dependency layering, but it overlaps service facade and
+    pipeline orchestration patterns and should remain project-scoped pending consolidation.
+  future_promotion_potential: medium
 candidate_patterns_requiring_review:
 - id: reconciliation-agentic-merger
-  rationale: Semantic document reconciliation by an LLM is high risk for automated
-    governance and requires deeper cross-project empirical testing.
-  evidence_gaps: Lack of empirical data showing agentic merges avoid subtle schema
-    corruptions across diverse project environments.
-  recommended_next_step: Run shadow evaluation in CI comparing LLM merge outputs against
-    human architect resolution decisions.
-- id: pattern-business-intent-traceability
-  rationale: Strategic direction proposal formalizing business goals into domain schemas
-    bound to AST-extracted code components.
-  evidence_gaps: No runtime implementation or AST extraction engine currently exists
-    in the codebase.
-  recommended_next_step: Develop prototype Pydantic schema and test AST linkage on
-    a pilot capability before promoting to pattern.
-- id: pattern-architecture-knowledge-graph
-  rationale: Proposes replacing flat markdown and YAML frontmatter with a unified
-    relational knowledge graph.
-  evidence_gaps: Current architecture remains entirely file-backed; graph database
-    schema and query engines are unproven.
-  recommended_next_step: Validate storage trade-offs and GitOps compatibility with
-    an experimental graph indexer.
-- id: pattern-deterministic-lifecycle-gating
-  rationale: Proposes machine-validated gating preventing state progression without
-    accepted ADRs.
-  evidence_gaps: Overlaps significantly with Finite State Governance Engine and requires
-    verification of CI gating rules.
-  recommended_next_step: Consolidate into transition registry rules and verify runner
-    enforcement in integration tests.
-- id: pattern-continuous-governance-loop
-  rationale: Proposes closed-loop autonomous detection, analysis, and execution remediation
-    in CI/CD pipelines.
-  evidence_gaps: Automated code remediation safety boundaries and human approval gates
-    require formal definition.
-  recommended_next_step: Scope automated remediation to proposal-only generation before
-    enabling unattended execution.
+  rationale: Several proposals describe LLM-assisted semantic reconciliation of governance
+    or architectural documents, but the cluster is large, partly strategic, and still
+    project-bound.
+  evidence_gaps: No cross-project validation, limited evidence that the merge logic
+    is deterministic enough for global reuse, and unclear separation from bootstrap
+    merge behavior.
+  recommended_next_step: Consolidate the agentic merger cluster into one representative
+    proposal and validate it against at least one non-CAS reconciliation scenario.
+- id: telemetry-grounded-runtime-tracing
+  rationale: Telemetry proposals are broadly useful but overlap heavily and currently
+    rely on dependency and model evidence rather than fully demonstrated operational
+    tracing.
+  evidence_gaps: Lack of visible span emission, trace correlation examples, and cross-run
+    diagnostic usage beyond model definitions and dependency declarations.
+  recommended_next_step: Merge overlapping telemetry candidates and require evidence
+    of real trace output consumed by dashboards or CI diagnostics.
+- id: knowledge-repository-abstraction
+  rationale: The provider/protocol abstraction is architecturally sound, but it overlaps
+    the file-backed knowledge repository pattern and may be a sub-concept rather than
+    a separate pattern.
+  evidence_gaps: Unclear whether the abstraction is independently reusable across
+    persistence mechanisms or merely an internal interface for the file-based repository.
+  recommended_next_step: Determine whether this should be a supporting sub-pattern
+    of file-backed knowledge repository or promoted as an independent repository abstraction
+    pattern.
+- id: schema-guided-reasoning
+  rationale: This proposal is conceptually close to schema-enforced domain contracts,
+    with the added implication that schemas shape LLM reasoning rather than only validating
+    outputs.
+  evidence_gaps: No clear evidence that schema-guided prompting is materially different
+    from output validation plus structured contracts in this codebase.
+  recommended_next_step: Review whether this should be merged into schema-enforced
+    domain contracts or kept as a separate prompt-engineering pattern with distinct
+    evidence.
+- id: service-facade-application-boundary
+  rationale: A reasonable boundary pattern, but it duplicates other service facade
+    and layered orchestration proposals without a clear independent canonical form.
+  evidence_gaps: No sufficiently distinct evidence showing this boundary is reusable
+    beyond the current project's CLI/service/engine split.
+  recommended_next_step: Consolidate all service/facade-related candidates into one
+    project-scoped pattern or mark them as review-only until a canonical boundary
+    is selected.
+- id: pure-functional-metric-evaluation
+  rationale: Potentially valuable as a deterministic evaluation style, but it overlaps
+    health scoring, compliance scoring, and telemetry metric patterns.
+  evidence_gaps: Unclear whether the pure-functional evaluation style is a stable
+    standalone pattern or merely an implementation property of the dashboard health
+    model.
+  recommended_next_step: Merge into the canonical health or compliance scoring pattern
+    unless additional evidence shows the evaluation style is independently reusable.
+- id: pattern-scope-classification-framework
+  rationale: Meta-governance pattern with high strategic value, but evidence is mostly
+    internal to this project's governance workflow.
+  evidence_gaps: Need evidence that the classification framework is applied consistently
+    across multiple projects or pattern governance domains.
+  recommended_next_step: Keep under review and validate against at least two independent
+    pattern governance processes before considering global promotion.
+- id: pattern-cas-decoupled-execution-model
+  rationale: Describes a decoupling of orchestration, reasoning, and persistence,
+    which is important but overlaps the sequential pipeline and service boundary patterns.
+  evidence_gaps: Unclear whether this is an independent architectural pattern or a
+    restatement of the existing pipeline, contracts, and layering patterns.
+  recommended_next_step: Determine whether the decoupled execution model should be
+    documented as a project principle, a supporting note under pipeline orchestration,
+    or a separate global supporting pattern.
 duplicate_overlapping_patterns:
 - patterns:
   - provider-agnostic-llm-facade
-  - deterministic-mock-evaluation-harness
   - dual-tier-llm-gateway-abstraction
   - provider-agnostic-llm-client
+  - dual-mode-llm-provider-abstraction
   - provider-agnostic-llm-gateway
   - pluggable-llm-provider-abstraction
   - provider-agnostic-llm-adapter
-  - model-agnostic-provider-indirection
   - dual-backend-llm-abstraction
+  - model-agnostic-provider-indirection
+  - provider-client-adapter
   - model-agnostic-llm-facade-with-mock-fallback
+  - pluggable-adapter-client
+  - adapter-based-client-substitution
   - swappable-client-adapter
   - client-adapter-test-double
-  - pluggable-adapter-client
   - swappable-provider-adapter
-  - polymorphic-client-adapter
-  - pluggable-infrastructure-client-adapter
   - pluggable-provider-adapter
-  - adapter-based-client-substitution
-  - provider-client-adapter
-  recommended_action: Consolidate all variants into canonical global pattern 'provider-agnostic-llm-facade'.
-  rationale: 'All proposals describe the identical architectural mechanism: wrapping
-    LiteLLM and MockLLMClient behind a unified interface with mock test double parity.'
-- patterns:
-  - finite-state-governance-engine
-  - finite-state-governance-action-engine
-  - finite-transition-governance-guardrail
-  - state-machine-governance-guardrail
-  - registry-guarded-governance-state-machine
-  - state-machine-constrained-action-engine
-  - stateful-transition-registry
-  - transition-registry-state-machine
-  - declarative-transition-registry
-  - declarative-state-machine-governance
-  - pattern-governance-action-framework
-  recommended_action: Consolidate all variants into canonical global pattern 'finite-state-governance-engine'.
-  rationale: All variants target TransitionRegistry and GovernanceActionEngine enforcing
-    deterministic FSM edge rules on artifact lifecycle mutations.
+  - pluggable-infrastructure-client-adapter
+  - polymorphic-client-adapter
+  - deterministic-mock-evaluation-harness
+  recommended_action: Retain provider-agnostic-llm-gateway as the canonical global
+    candidate and merge or archive the remaining variants.
+  rationale: All proposals describe the same LiteLLM production client and deterministic
+    mock client pattern. Multiple IDs create duplication risk and risk promotion of
+    near-identical patterns.
 - patterns:
   - sequential-pipeline-flow-runner
   - sequential-pipeline-context-propagation
@@ -182,15 +324,30 @@ duplicate_overlapping_patterns:
   - sequential-flow-pipeline-runner
   - sequential-flow-pipeline-orchestration
   - pattern-cas-decoupled-execution-model
-  - cli-to-runner-orchestration-boundary
-  recommended_action: Consolidate all variants into canonical global pattern 'sequential-pipeline-flow-runner'.
-  rationale: All represent FlowRunner linear orchestration passing typed context dictionaries
-    across discrete execution stages.
+  recommended_action: Retain sequential-pipeline-flow-runner as the canonical execution
+    pipeline pattern and consolidate the rest.
+  rationale: The proposals repeatedly describe the same FlowRunner-based deterministic
+    orchestration and shared context propagation. A single canonical pattern is sufficient
+    for the core execution concept.
+- patterns:
+  - finite-state-governance-engine
+  - finite-state-governance-action-engine
+  - finite-transition-governance-guardrail
+  - state-machine-governance-guardrail
+  - state-machine-constrained-action-engine
+  - registry-guarded-governance-state-machine
+  - stateful-transition-registry
+  - transition-registry-state-machine
+  - declarative-transition-registry
+  - declarative-state-machine-governance
+  recommended_action: Retain finite-state-governance-engine as the canonical governance
+    guardrail pattern and merge the other state-machine variants.
+  rationale: All refer to the same transition registry and governance action engine.
+    Duplicating the guardrail concept across many IDs weakens governance clarity.
 - patterns:
   - declarative-steering-projection
   - git-delta-prompt-fact-projection
   - steering-fact-projection
-  - lineage-aware-architectural-delta-slicing
   - delta-driven-prompt-fact-projection
   - structured-fact-projection-indexing
   - grounded-prompt-fact-projection
@@ -198,43 +355,101 @@ duplicate_overlapping_patterns:
   - prompt-fact-projection
   - steering-projection-fact-synthesis
   - steering-runtime-projection
-  recommended_action: Consolidate all variants into canonical supporting pattern 'declarative-steering-projection'.
-  rationale: Identical concept in src/cas_runner/steering/models.py distilling VCS
-    deltas and capabilities into PromptFact records.
+  - lineage-aware-architectural-delta-slicing
+  - ci-driven-steering-projection
+  - pattern-proposal-only-steering-projection
+  recommended_action: Use declarative-steering-projection as the canonical fact-projection
+    pattern; keep CI and proposal-only controls as separate project workflow patterns
+    only if needed.
+  rationale: Most entries describe the same derivation of typed facts from repository
+    deltas and capability data for prompt grounding. CI and proposal-only variants
+    differ in lifecycle role rather than in the core projection concept.
 - patterns:
   - reconciliation-agentic-merger
   - agentic-state-reconciliation-merger
   - agentic-merge-resolution
-  - agentic-knowledge-reconciler
   - agentic-merge-resolution-loop
+  - agentic-knowledge-reconciler
   - agentic-reconciliation-merger
   - agentic-semantic-merge-resolution
   - agentic-discrepancy-merger
   - agentic-diff-merger
   - agentic-conflict-resolution-merger
-  recommended_action: Consolidate all variants into single candidate pattern 'reconciliation-agentic-merger'
-    pending review.
-  rationale: All proposals reference AgenticMerger reconciling semantic markdown/YAML
-    conflicts with LLM assistance.
+  recommended_action: Consolidate into one representative project/candidate pattern
+    before any further promotion review.
+  rationale: All variants cite the AgenticMerger and ResolutionResult concepts. The
+    cluster is valuable but not yet sufficiently distinct, validated, or stable to
+    justify multiple patterns.
+- patterns:
+  - schema-enforced-domain-contracts
+  - typed-compliance-synthesis-contract
+  - rule-grounded-compliance-evaluation
+  - declarative-compliance-findings-aggregation
+  - evidence-grounded-compliance-scoring
+  - compliance-guardrail-filtering
+  - two-tier-compliance-guardrails
+  - declarative-schema-enforced-compliance
+  - pydantic-domain-entity-modeling
+  - schema-guided-reasoning
+  recommended_action: Keep schema-enforced-domain-contracts as the contracts pattern
+    and rule-grounded-compliance-evaluation as the evaluation pattern; merge or review
+    the remaining variants.
+  rationale: There is significant overlap among typed data contracts, Pydantic modeling,
+    compliance finding generation, and guarding agent outputs. Splitting them into
+    several patterns risks redundancy.
+- patterns:
+  - telemetry-observable-agent-steps
+  - telemetry-grounded-traceability
+  - telemetry-grounded-runtime-tracing
+  - traceable-metric-telemetry-envelope
+  - traceable-metric-telemetry
+  - telemetry-grounded-evaluations
+  - traceable-metric-evaluation-loop
+  recommended_action: Retain telemetry-observable-agent-steps as the canonical observability
+    candidate and merge the traceability and metric envelope variants after evidence
+    review.
+  rationale: These proposals share the same OpenTelemetry and traceable metric foundation.
+    Without consolidation, the system risks publishing several nearly identical observability
+    patterns.
+- patterns:
+  - compliance-driven-health-scoring
+  - telemetry-grounded-health-scoring
+  - health-model-observability-guardrail
+  - telemetry-grounded-health-observability
+  - declarative-health-scoring-pipeline
+  - pure-functional-health-evaluation
+  - functional-health-evaluation
+  - pure-health-evaluation-pipeline
+  - rule-driven-health-evaluation-model
+  - functional-health-evaluation-heuristic
+  - pure-functional-metric-evaluation
+  recommended_action: Keep one project-scoped canonical health scoring pattern, likely
+    compliance-driven-health-scoring, and merge the rest pending validation.
+  rationale: The descriptions converge on calculating health status and diagnostic
+    reasons from governance and telemetry metrics. Multiple variants obscure the canonical
+    evaluation model.
 - patterns:
   - file-backed-blackboard-workspace
   - file-backed-agentic-knowledge-repository
   - git-backed-knowledge-blackboard
   - knowledge-as-code-blackboard
   - file-backed-blackboard-knowledge-base
-  - file-system-knowledge-repository
   - file-backed-knowledge-repository
-  - file-backed-template-convention-repository
-  - hierarchical-file-backed-knowledge-store
-  - file-backed-hierarchical-knowledge-repository
-  - declarative-hierarchical-knowledge-store
-  - hierarchical-filesystem-knowledge-repository
-  - hierarchical-file-system-knowledge-store
+  - file-system-knowledge-repository
   - file-based-repository-persistence
+  - hierarchical-filesystem-knowledge-repository
+  - file-backed-hierarchical-knowledge-repository
+  - hierarchical-file-backed-knowledge-store
+  - hierarchical-file-system-knowledge-store
+  - declarative-hierarchical-knowledge-store
+  - file-backed-template-convention-repository
+  - template-driven-artifact-evolution
   - knowledge-repository-abstraction
-  recommended_action: Consolidate into canonical core pattern 'file-backed-blackboard-workspace'.
-  rationale: All proposals describe storing long-term agent state, templates, ADRs,
-    and profiles in a Git-tracked directory tree.
+  recommended_action: Retain file-backed-knowledge-repository as the canonical knowledge
+    storage pattern and merge the blackboard, hierarchy, and template repository variants.
+  rationale: All refer to the same Git-versioned case-sensitive knowledge repository
+    and template system. The variants mostly differ in wording, abstraction level,
+    or emphasis on hierarchy and templates.
 - patterns:
   - deterministic-governance-injection-bootstrap
   - steering-block-workspace-bootstrapping
@@ -242,79 +457,58 @@ duplicate_overlapping_patterns:
   - bootstrap-workspace-injection
   - workspace-governance-injection-bootstrap
   - workspace-bootstrap-template-injection
+  - idempotent-workspace-bootstrap-merger
   - workspace-bootstrap-merger
   - workspace-bootstrapping-scaffolding
-  - idempotent-workspace-bootstrap-merger
   - declarative-template-bootstrapping
-  recommended_action: Consolidate into project-scoped pattern 'bootstrap-governance-block-injection'.
-  rationale: Represents bootstrap.py logic injecting CAS governance markers and templates
-    into target workspaces.
-- patterns:
-  - schema-enforced-domain-contracts
-  - rule-grounded-compliance-evaluation
-  - declarative-compliance-findings-aggregation
-  - telemetry-grounded-health-scoring
-  - compliance-driven-health-scoring
-  - typed-compliance-synthesis-contract
-  - health-model-observability-guardrail
-  - evidence-grounded-compliance-scoring
-  - two-tier-compliance-guardrails
-  - compliance-guardrail-filtering
-  - declarative-schema-enforced-compliance
-  - pydantic-domain-entity-modeling
-  - pure-functional-health-evaluation
-  - declarative-health-scoring-pipeline
-  - deterministic-health-and-compliance-evaluation
-  - functional-health-evaluation
-  - pure-functional-metric-evaluation
-  - pure-health-evaluation-pipeline
-  - rule-driven-health-evaluation-model
-  - functional-health-evaluation-heuristic
-  - schema-guided-reasoning
-  recommended_action: Disentangle into core 'schema-enforced-domain-contracts' and
-    supporting 'rule-grounded-compliance-evaluation'.
-  rationale: Subsumes overlapping definitions around Pydantic contract validation,
-    ComplianceEngine scoring, and pure functional health status calculation.
+  recommended_action: Consolidate into one project-scoped bootstrap/governance injection
+    pattern and archive the redundant variants.
+  rationale: These candidates all describe the same workspace initialization and managed
+    governance block insertion behavior. Keeping them separate would create unnecessary
+    duplication.
 - patterns:
   - layered-governance-service-facade
   - service-facade-orchestration
   - service-layer-facade
   - service-facade-application-boundary
   - application-service-facade
-  - service-engine-separation
   - layered-service-engine-orchestration
-  recommended_action: Subsume into existing architectural layered architecture guidelines
-    rather than declaring a standalone global pattern.
-  rationale: These proposals describe standard application service layering wrapping
-    domain engines (GovernanceActionService).
+  - service-engine-separation
+  - cli-to-runner-orchestration-boundary
+  recommended_action: Consolidate into one project-scoped service boundary or facade
+    pattern.
+  rationale: These describe the same layered separation between CLI/presentation,
+    application service, and domain engines. The distinction is not yet sufficient
+    to justify multiple global patterns.
 - patterns:
-  - telemetry-observable-agent-steps
-  - telemetry-grounded-traceability
-  - traceable-metric-telemetry-envelope
-  - telemetry-grounded-runtime-tracing
-  - traceable-metric-telemetry
-  - telemetry-grounded-evaluations
-  - telemetry-grounded-health-observability
-  - traceable-metric-evaluation-loop
-  recommended_action: Consolidate into canonical supporting global pattern 'telemetry-observable-agent-steps'.
-  rationale: All reference OpenTelemetry instrumented spans and TraceableMetric envelopes
-    persisted during runner execution.
+  - heuristic-to-pattern-promotion-lifecycle
+  - two-tier-heuristic-pattern-evolution
+  - pattern-scope-classification-framework
+  - pattern-continuous-governance-loop
+  - declarative-agent-command-registry
+  recommended_action: Keep these as project-scoped governance lifecycle candidates
+    requiring review.
+  rationale: They represent strong strategic self-governance ideas, but they are still
+    strongly coupled to this project's pattern lifecycle, command registry, and workflow.
 promotion_recommendations:
   immediate_candidates:
-  - provider-agnostic-llm-facade
+  - provider-agnostic-llm-gateway
+  - sequential-pipeline-flow-runner
   - finite-state-governance-engine
   - schema-enforced-domain-contracts
-  - file-backed-blackboard-workspace
-  - sequential-pipeline-flow-runner
-  - pattern-architecture-work-registry
+  - file-backed-knowledge-repository
   deferred_candidates:
   - declarative-steering-projection
-  - telemetry-observable-agent-steps
   - rule-grounded-compliance-evaluation
+  - telemetry-observable-agent-steps
+  - compliance-driven-health-scoring
+  - reconciliation-agentic-merger
   - pattern-scope-classification-framework
   additional_evidence_required:
-  - reconciliation-agentic-merger
-  - pattern-business-intent-traceability
-  - pattern-architecture-knowledge-graph
-  - pattern-deterministic-lifecycle-gating
-  - pattern-continuous-governance-loop
+  - knowledge-repository-abstraction
+  - schema-guided-reasoning
+  - service-facade-application-boundary
+  - pure-functional-metric-evaluation
+  - pattern-cas-decoupled-execution-model
+  - telemetry-grounded-runtime-tracing
+  - agentic-state-reconciliation-merger
