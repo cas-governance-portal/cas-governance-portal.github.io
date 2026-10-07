@@ -2743,3 +2743,470 @@ pattern_proposals:
     before updating portal state)'
   evidence_strength: high
   confidence: high
+- pattern_id: llm-provider-abstraction
+  name: LLM Provider Abstraction
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Defines a real-provider
+      LLM client.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Defines a mock LLM client
+      for deterministic execution.
+    - pyproject.toml - Declares litellm as a runtime dependency.
+  description: LLM calls are abstracted into separate LiteLLM and mock client modules,
+    isolating model providers from flow execution.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate LLM provider concerns from flow logic so execution can be tested,
+    rerun, or switched between real and deterministic model clients.'
+  - 'Context: Present in the LLM package used by the CAS runner, with LiteLLM declared
+    as a project dependency.'
+  - 'Force: Live LLM availability must not block deterministic execution.'
+  - 'Force: Real and mock client semantics must remain aligned to avoid fake test
+    success.'
+  - 'Force: Prompt and response handling must survive provider changes.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: centralized-flow-runner-pipeline
+  name: Centralized Flow Runner Pipeline
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Defines the central execution runner.
+    - src/cas_runner/cli.py (main) - Provides the CLI entry point that likely invokes
+      the runner.
+    - docs/architecture/cas-orchestration-flow.md - Architecture document path indicates
+      an orchestration flow design.
+    - docs/architecture/cas-execution-sequence.md - Architecture document path indicates
+      an execution sequence design.
+  description: FlowRunner acts as a centralized pipeline entry point for CAS flow
+    execution.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a single place where multi-step execution is ordered, validated,
+    and observed.'
+  - 'Context: The runner module exposes FlowRunner, the CLI exposes main, and architecture
+    documents describe orchestration and execution sequences.'
+  - 'Force: Execution order must be explicit.'
+  - 'Force: Errors and governance checks need a common stopping point.'
+  - 'Force: Distributed agent autonomy is not evidenced, so central control keeps
+    behaviour predictable.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: explicit-governance-transition-registry
+  name: Explicit Governance Transition Registry
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Shows a registry-based state transition mechanism tied to a governance action
+      engine.
+    - src/cas_runner/governance/models.py (GovernanceAction) - Defines the action
+      type that can be transitioned or evaluated.
+  description: GovernanceActionEngine uses a TransitionRegistry to enforce allowed
+    governed state transitions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent arbitrary state changes by encoding which transitions are valid
+    for governance actions.'
+  - 'Context: Found in the governance package alongside GovernanceAction and related
+    governance models.'
+  - 'Force: Governance state must remain auditable.'
+  - 'Force: Invalid transitions should be rejected rather than repaired ad hoc.'
+  - 'Force: Explicit rules are easier to test than implicit behavioural assumptions.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: compliance-finding-guardrail
+  name: Compliance Finding Guardrail
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Implements
+      or encapsulates compliance evaluation.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, GovernanceException,
+      GovernanceRisks) - Defines structured compliance outputs and risk/exception
+      types.
+  description: ComplianceEngine evaluates governed behaviour and produces structured
+    compliance findings and metrics.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make agent or automation behaviour checkable against compliance rules
+    before or after execution.'
+  - 'Context: Located in the governance package with related models for findings,
+    metrics, exceptions, and risks.'
+  - 'Force: Violations need structured output, not only pass/fail.'
+  - 'Force: Compliance must be measurable over time.'
+  - 'Force: Failures should raise explicit governance exceptions.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: typed-contracts-for-agent-context
+  name: Typed Contracts for Agent Context
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - pyproject.toml - Declares pydantic and jsonschema dependencies.
+    - src/cas_runner/governance/models.py (GovernanceAction, ComplianceFinding, GovernanceHealth,
+      GovernanceRisks) - Defines typed governance context.
+    - src/cas_runner/steering/models.py (PromptFact, CapabilityRecord, CapabilitySet,
+      ArchitecturalDelta) - Defines typed steering context.
+  description: Pydantic and JSON Schema dependencies are used with dedicated model
+    modules to define typed governance and steering contracts.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make shared agent context, governance data, and steering facts explicit,
+    validatable, and inspectable.'
+  - 'Context: Visible in governance models, steering models, and project dependencies
+    for pydantic and jsonschema.'
+  - 'Force: LLM-generated or agent-derived data must be verifiable.'
+  - 'Force: Multiple components need a common understanding of actions, facts, and
+    capability records.'
+  - 'Force: Loose dictionaries would make governance and tracing unreliable.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: git-delta-prompt-facts
+  name: Git Delta to Prompt Facts
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (RawGitDelta, GitChangeType, PromptFact, ArchitecturalDelta)
+      - Model names indicate a data path from repository delta to structured steering
+      fact.
+  description: Steering models translate raw repository deltas into structured prompt
+    facts and architectural deltas.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide LLM steering based on concrete repository evidence rather than
+    unstructured assumptions.'
+  - 'Context: Present in the steering model layer, with RawGitDelta, GitChangeType,
+    PromptFact, and ArchitecturalDelta definitions.'
+  - 'Force: Prompts need relevant, bounded context.'
+  - 'Force: Architectural reasoning should be traceable to code changes.'
+  - 'Force: Raw diffs are noisy and need transformation before use.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: capability-record-lineage
+  name: Capability Record Lineage
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (CapabilityCategory, CapabilityRecordType,
+      CapabilityRecord, CapabilitySet, CapabilityLineage) - Defines a structured capability
+      memory model.
+  description: Capability records are categorized, set-grouped, and lineage-tracked
+    in the steering model layer.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Track what the system or agent is considered capable of, and where that
+    understanding came from.'
+  - 'Context: Defined in steering models alongside capability categories, record types,
+    sets, and lineage.'
+  - 'Force: Capability claims must not become orphaned inferences.'
+  - 'Force: Capability data must be groupable for prompts or planning.'
+  - 'Force: Changes to capabilities need provenance.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: traceable-health-metrics
+  name: Traceable Health Metrics
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Shows health calculation and reason generation.
+    - src/cas_runner/governance/models.py (TraceableMetric, GovernanceHealth, GovernanceThroughput,
+      GovernanceRisks) - Defines the metric and health structures likely consumed
+      by the dashboard.
+  description: Dashboard health is calculated from traceable governance metrics and
+    produced with reasons.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make system health explainable by connecting status to metrics and reasons.'
+  - 'Context: Found in the dashboard health model together with governance models
+    for traceable metrics, health, throughput, and risks.'
+  - 'Force: Health status should not be a black box.'
+  - 'Force: Metrics should support debugging and review.'
+  - 'Force: Health changes should be linked to observable governance data.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: externalized-runtime-context
+  name: Externalized Runtime Context
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/rule-context.json - Runtime rule context is externalized
+      as JSON.
+    - cas-knowledge/runtime/execution-profile.yaml - Execution profile is externalized
+      as YAML.
+    - cas-knowledge/runtime/traces - Directory reserved for trace artifacts.
+  description: Execution context and profile are externalized as runtime JSON and
+    YAML files under cas-knowledge.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate mutable execution context from static knowledge and make it
+    inspectable outside the running process.'
+  - 'Context: Present under cas-knowledge/runtime together with traces and evaluations
+    directories.'
+  - 'Force: Execution inputs should be reviewable.'
+  - 'Force: State must survive process boundaries or be reproducible.'
+  - 'Force: Simple file formats keep the system easy to inspect.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: knowledge-blackboard-templates
+  name: Knowledge Blackboard with Templates
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global - Contains directories for global knowledge categories.
+    - cas-knowledge/templates - Contains reusable artifact templates for architecture,
+      patterns, rules, signals, learnings, experiments, and promotion decisions.
+    - cas-knowledge/projects - Tracks project-specific knowledge alongside global
+      knowledge.
+  description: cas-knowledge organizes global rules, patterns, decisions, signals,
+    models, narratives, maps, governance, templates, and project artifacts as a shared
+    knowledge blackboard.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a common persistent repository where agents, humans, and governance
+    processes can read from and write structured knowledge.'
+  - 'Context: The cas-knowledge directory contains global, governance, projects, runtime,
+    and templates sections.'
+  - 'Force: Knowledge must be shared across projects and runs.'
+  - 'Force: Human review and agent output need compatible formats.'
+  - 'Force: Templates help maintain consistency without overconstraining content.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: deterministic-workflow-validation
+  name: Deterministic Workflow Validation
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers, check_no_unreachable_dry_run,
+      check_retired_workflow, check_trigger_remediations, check_composite_action_adoption,
+      main) - Defines deterministic CI workflow validation checks.
+  description: A validation script enforces constraints on CI workflow files, including
+    YAML syntax, hardcoding avoidance, installer pinning, dry-run reachability, retired
+    workflows, trigger remediations, and composite action adoption.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent automation definitions from becoming unsafe, drifting, unreachable,
+    or inconsistent with desired CI practices.'
+  - 'Context: Located in a specification implementation directory for simplifying
+    CI/CD workflows, with separate check functions and a main entry point.'
+  - 'Force: CI definitions must remain valid and intentional.'
+  - 'Force: Hardcoding and unpinned installers can introduce drift or supply-chain
+    risk.'
+  - 'Force: Retired or unreachable dry-run paths can hide broken behaviour.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: bootstrap-governance-merge
+  name: Bootstrap Governance Merge
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, bootstrap, init_workspace)
+      - Shows workspace initialization and governance merging before execution.
+  description: Bootstrap routines initialize the workspace and merge a CAS governance
+    block before execution.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure agent execution begins with a consistent workspace and governance
+    context.'
+  - 'Context: Present in the bootstrap module of cas_runner with bootstrap, init_workspace,
+    and merge_cas_governance_block symbols.'
+  - 'Force: Agent behaviour should not depend on an uninitialized workspace.'
+  - 'Force: Governance must be present before actions are taken.'
+  - 'Force: Repeated runs need safe or idempotent initialization.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: ci-architecture-lifecycle
+  name: CI Architecture Lifecycle
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .github/workflows/cas-build-steering-projection.yml - Workflow for building
+      steering projection.
+    - .github/workflows/cas-build-validation.yml - Workflow for build validation.
+    - .github/workflows/cas-continuous-architecture.yml - Workflow for continuous
+      architecture processing.
+    - .github/workflows/cas-managed-steering-sync.yml - Workflow for managed steering
+      synchronization.
+    - .github/workflows/cas-portal-publish.yml - Workflow for publishing portal artifacts.
+  description: GitHub workflows coordinate architecture-related builds, validation,
+    steering projection, steering synchronization, and portal publishing.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Drive architecture governance artifacts through controlled build, projection,
+    validation, synchronization, and publication steps.'
+  - 'Context: Multiple workflow files in .github/workflows use CAS-prefixed names
+    for architecture, steering, validation, and portal publishing.'
+  - 'Force: Architecture changes should not be applied manually without traceability.'
+  - 'Force: Steering projections and synchronization need repeatable execution.'
+  - 'Force: Validation should happen before architecture artifacts are consumed.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: pattern-evolution-lifecycle
+  name: Pattern Evolution Lifecycle
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - docs/architecture/cas-pattern-evolution-flow.md - Document path indicates a
+      designed pattern evolution flow.
+    - cas-knowledge/templates/heuristic-to-pattern_template.md - Template explicitly
+      supports promoting heuristics into patterns.
+    - cas-knowledge/templates/promotion_decision.md - Template supports explicit promotion
+      decisions.
+    - cas-knowledge/templates/experiment_template.md - Template supports experimental
+      learning.
+  description: Templates and architecture documents suggest a lifecycle for turning
+    experiments, learnings, and heuristics into governed patterns or rules.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Convert transient agent behaviour, learnings, or experiments into durable,
+    reviewable organizational knowledge.'
+  - 'Context: Templates for experiments, learnings, heuristics, patterns, rules, signals,
+    promotion decisions, and pattern-evolution documentation are present.'
+  - 'Force: Learned behaviour should not become canonical without review.'
+  - 'Force: Heuristics need evidence and promotion criteria.'
+  - 'Force: Patterns must remain distinct from one-off observations.'
+  evidence_strength: low
+  confidence: low
