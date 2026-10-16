@@ -2744,39 +2744,33 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: llm-provider-abstraction
-  name: LLM Provider Abstraction
+  name: Provider Abstraction for Deterministic Agent Execution
   pattern_classification: intelligence
-  pattern_maturity: strategic_direction
+  pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-10-07'
+    date: '2026-10-16'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Defines a real-provider
-      LLM client.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Defines a mock LLM client
-      for deterministic execution.
-    - pyproject.toml - Declares litellm as a runtime dependency.
-  description: LLM calls are abstracted into separate LiteLLM and mock client modules,
-    isolating model providers from flow execution.
-  pattern_type: emerging
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real provider adapter
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Test double
+  description: LLM access is isolated behind a client interface so agent steps can
+    run against real or mock providers.
+  pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Separate LLM provider concerns from flow logic so execution can be tested,
-    rerun, or switched between real and deterministic model clients.'
-  - 'Context: Present in the LLM package used by the CAS runner, with LiteLLM declared
-    as a project dependency.'
-  - 'Force: Live LLM availability must not block deterministic execution.'
-  - 'Force: Real and mock client semantics must remain aligned to avoid fake test
-    success.'
-  - 'Force: Prompt and response handling must survive provider changes.'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Decouple agent execution from LLM backend to enable testing and portability.'
+  - 'Context: Used by the CAS runner for all LLM-backed agent steps.'
+  - 'Force: Need to test agent flows without external LLM costs'
+  - 'Force: Support provider switching to avoid vendor lock-in'
+  - 'Force: Keep agent code independent of SDK specifics'
+  evidence_strength: high
+  confidence: high
 - pattern_id: centralized-flow-runner-pipeline
   name: Centralized Flow Runner Pipeline
   pattern_classification: intelligence
@@ -3643,3 +3637,318 @@ pattern_proposals:
   - 'Force: governance models require consistent vocabulary'
   evidence_strength: low
   confidence: low
+- pattern_id: flow-runner-sequence
+  name: Sequential Flow Pipeline with Shared Context
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Orchestrator class
+    - docs/architecture/cas-orchestration-flow.md - Describes the orchestration flow
+  description: FlowRunner executes a deterministic sequence of steps, passing a mutable
+    context object.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable stepwise agent execution with predictable ordering and shared
+    state.'
+  - 'Context: Core execution model for the CAS runner, as described in architecture
+    docs.'
+  - 'Force: Need reproducible flow execution'
+  - 'Force: Steps may need to share state'
+  - 'Force: Must allow adding/removing steps without breaking orchestration'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: governance-action-state-machine
+  name: Transition-Governed Action State Machine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - State machine and validation logic
+  description: Governance actions are only allowed when a registered transition from
+    current state to next state exists.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure governance workflows only move through approved states, preventing
+    invalid actions.'
+  - 'Context: Used by the governance engine to manage lifecycle transitions in the
+    CAS system.'
+  - 'Force: Need explicit control over state changes'
+  - 'Force: Agents should not skip governance steps'
+  - 'Force: Must be auditable'
+  evidence_strength: high
+  confidence: high
+- pattern_id: compliance-engine-guardrails
+  name: Compliance Engine as Output Guardrail
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Validation
+      logic
+    - cas-knowledge/runtime/rule-context.json - Runtime rule context
+  description: Agent-produced outputs are checked against compliance rules before
+    being accepted.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent non-compliant decisions from entering the knowledge base or governance
+    state.'
+  - 'Context: Applied after agent steps that generate architecture decisions or other
+    knowledge artifacts.'
+  - 'Force: Need to enforce organisational rules'
+  - 'Force: Agents may generate plausible but non-compliant content'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: agentic-merger-pattern
+  name: Merge-Based Agentic Document Update
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merging logic
+  description: AI-generated content is merged into existing knowledge documents rather
+    than replacing them.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Allow agents to update shared knowledge without overwriting prior decisions
+    or human edits.'
+  - 'Context: Used for governance block updates and knowledge document evolution.'
+  - 'Force: Knowledge base is persistent and shared'
+  - 'Force: Agent output should not clobber existing context'
+  - 'Force: Need traceability of agent changes'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: steering-evidence-index
+  name: Evidence-First Steering Index
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (RawGitDelta, ArchitecturalDelta, SteeringRuntimeIndex)
+      - Evidence-driven state models
+  description: Steering state is derived from git deltas and prompt facts, not from
+    assumptions or stale memory.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Base architectural steering decisions on current, verifiable data.'
+  - 'Context: Used to construct the steering runtime index and capability lineage.'
+  - 'Force: Need to avoid stale or hallucinated context'
+  - 'Force: Git history is a reliable source of change evidence'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: prompt-fact-contract
+  name: Structured Prompt Facts
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (PromptFact) - Typed prompt fact model
+  description: Agent prompts are assembled from typed PromptFact objects to enforce
+    contract.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide consistent, validated inputs to LLM calls, reducing ambiguity.'
+  - 'Context: Appears in steering models, likely used to prepare context for LLM calls.'
+  - 'Force: LLM prompts often contain unstructured free text'
+  - 'Force: Need to pass specific facts reliably'
+  evidence_strength: low
+  confidence: low
+- pattern_id: workspace-bootstrap
+  name: Reproducible Workspace Bootstrap
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block)
+      - Workspace initialisation and governance merge
+  description: Agent environments are initialized via bootstrap that sets up directories
+    and merges the governance block.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a consistent starting context for agent workflows.'
+  - 'Context: Entry point for the CAS runner; ensures required files and governance
+    configuration exist.'
+  - 'Force: Agent workflows depend on workspace structure'
+  - 'Force: Governance configuration must be present'
+  evidence_strength: high
+  confidence: high
+- pattern_id: template-driven-knowledge
+  name: Template-Forced Knowledge Artifacts
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/pattern_template.md - Pattern template
+    - cas-knowledge/templates/rule_template.md - Rule template
+    - cas-knowledge/templates/architecture_decision_record_template.md - ADR template
+  description: Knowledge artifacts (ADRs, patterns, signals) follow markdown templates
+    that enforce structure.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure all agent-generated knowledge artifacts have a consistent, parseable
+    structure.'
+  - 'Context: The cas-knowledge/templates directory contains templates for decisions,
+    patterns, rules, signals, etc.'
+  - 'Force: Knowledge artifacts must be machine-readable'
+  - 'Force: Agents may produce unstructured content'
+  - 'Force: Need to support downstream validation and retrieval'
+  evidence_strength: high
+  confidence: high
+- pattern_id: runtime-evaluation-trace
+  name: Runtime Evaluation and Trace Persistence
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/traces - Trace storage
+    - cas-knowledge/runtime/evaluations - Evaluation storage
+  description: Execution traces and evaluations are stored in runtime directories
+    for audit and learning.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable auditability of agent runs and provide data for future learning.'
+  - 'Context: The cas-knowledge/runtime directory includes traces and evaluations
+    subdirectories.'
+  - 'Force: Need to understand why an agent made a decision'
+  - 'Force: Should support continuous improvement'
+  evidence_strength: low
+  confidence: low
+- pattern_id: rule-context-externalization
+  name: Externalized Rule Context
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/rule-context.json - Rule context file
+    - docs/architecture/cas-governance-lifecycle-flow.md - Docs describe governance
+      lifecycle
+  description: Governance rules live in a JSON context file loaded at runtime, making
+    agent behavior configurable.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate governance rule definitions from agent logic.'
+  - 'Context: ComplianceEngine and other governance components read rules from runtime
+    context.'
+  - 'Force: Rules need to change faster than code'
+  - 'Force: Different projects may have different governance requirements'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-monitor-derived
+  name: Derived Health Monitoring
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-10-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health computation logic
+  description: System health is computed from governance metrics with reasons, giving
+    agents a snapshot of overall state.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable quick diagnosis of whether the governance system is operating
+    normally.'
+  - 'Context: Dashboard module computes health from governance metrics.'
+  - 'Force: Metrics are scattered across governance models'
+  - 'Force: Need simple health summary for humans or agents'
+  evidence_strength: medium
+  confidence: medium

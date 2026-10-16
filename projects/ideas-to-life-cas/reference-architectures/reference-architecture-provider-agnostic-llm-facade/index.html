@@ -3323,34 +3323,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#recommended-choices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Recommended Choices
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-set-aside" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives Set Aside
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3395,23 +3367,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Adoption guidance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ownership-governance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ownership &amp; Governance
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3444,103 +3399,119 @@
 
 <h1 id="reference-architecture-provider-agnostic-llm-facade">Reference Architecture: Provider-Agnostic LLM Facade</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Provider-Agnostic LLM Facade abstracts upstream Large Language Model (LLM) vendor APIs behind a consistent, unified programmatic interface. It decouples core agentic orchestrators, prompt engines, and workflow pipelines from proprietary SDK specifications, error models, and payload representations.</p>
+<p>The Provider-Agnostic LLM Facade pattern encapsulates all LLM interactions behind a unified client interface, decoupling business logic from specific model providers (OpenAI, Anthropic, Ollama, etc.) and standardizing call contracts. It enables portability, deterministic testing via mocks, and reduces vendor coupling.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Multi-provider environments requiring dynamic model routing, failover, or runtime load distribution across vendors (e.g., OpenAI, Anthropic, Bedrock, Ollama).</li>
-<li>Systems requiring deterministic, zero-cost offline integration testing and CI validation via mock implementations with contract parity.</li>
-<li>Architectures seeking insulation against upstream breaking API changes, token schema alterations, and vendor lock-in.</li>
-<li>Enterprise environments mandating standardized observability, cost allocation, token metering, and centralized governance hooks.</li>
+<li>When building agentic or AI-intensive systems that may switch between or simultaneously use multiple LLM providers.</li>
+<li>When you require uniform invocation mechanics across all components that call LLMs, including structured output parsing and governance module checks.</li>
+<li>When you want to isolate business logic from vendor SDKs to facilitate testing with mock clients and to support deterministic CI/CD pipelines.</li>
+<li>When provider selection or pricing is likely to change, and you need to avoid large-scale refactoring when swapping vendors.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Trivial single-model scripts or proofs-of-concept where the abstraction introduces unnecessary indirection overhead.</li>
-<li>Specialized systems requiring hyper-specific, vendor-proprietary features that lack standard cross-provider abstractions (e.g., vendor-specific fine-tuning endpoints or proprietary real-time stateful streaming APIs) unless strictly isolated as vendor-specific extensions.</li>
-<li>Edge environments with extreme binary size or dependency constraints unable to sustain wrapper dependencies.</li>
+<li>When your system is committed to a single provider with no foreseeable change and the overhead of an abstraction layer is unjustified.</li>
+<li>When performance (latency) is ultra-critical and even minimal additional indirection is unacceptable.</li>
+<li>When the team is small and the project is a spike or prototype where speed of delivery outweighs maintainability.</li>
+<li>When your use case requires heavy provider-specific features (e.g., fine-tuning, advanced embeddings) that are not uniformly exposed through a generic facade.</li>
 </ul>
 <h2 id="overview">Overview</h2>
+<p>The following diagram illustrates the core components and their interactions:</p>
 <pre class="mermaid"><code>flowchart LR
-    client["Agent Runner Step (Container)"]
-    facade["LLM Client Facade (Container)"]
-    mock["Mock LLM Client (Container)"]
-    litellm["LiteLLM Engine (Container)"]
-    cache[("Prompt Cache (Data store)")]
-    ext_openai["OpenAI API (External System)"]
-    ext_anthropic["Anthropic API (External System)"]
-    ext_local["Local Ollama (External System)"]
+    client["Client / Agent Step (Container)"]
+    facade["LLM Facade (Container)"]
+    litellm["LiteLLM Adapter (Container)"]
+    mock["MockLLMClient (Container)"]
+    openai["OpenAI API (External System)"]
+    anthropic["Anthropic API (External System)"]
+    ollama["Ollama (External System)"]
 
-    client --&gt;|1. Submit standard prompt payload| facade
-    facade --&gt;|Check cache| cache
-    facade -.-&gt;|Test profile| mock
-    facade --&gt;|Production routing| litellm
-    litellm --&gt;|Forward request| ext_openai
-    litellm --&gt;|Forward request| ext_anthropic
-    litellm --&gt;|Forward request| ext_local
+    client --&gt;|1. Request generation| facade
+    facade --&gt;|2. Delegate| litellm
+    facade --&gt;|3. For testing| mock
+    litellm --&gt;|4. API call| openai
+    litellm --&gt;|5. API call| anthropic
+    litellm --&gt;|6. API call| ollama
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class client,facade,mock,litellm container
-    class cache store
-    class ext_openai,ext_anthropic,ext_local external</code></pre>
+    class client, facade, litellm, mock container
+    class openai, anthropic, ollama external</code></pre>
+<p>The facade sits between the caller and the underlying LLM providers. It delegates to LiteLLM for real provider calls or to a mock client for offline and test scenarios.</p>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>LLM Client Interface &amp; Base Abstraction</strong> (<code>src/cas_runner/llm/base.py</code>): Defines the core invocation protocol, structured response contracts, standardized exception hierarchy, and common configuration parameters across all implementations.</li>
-<li><strong>LiteLLM Client Adapter</strong> (<code>src/cas_runner/llm/litellm_client.py</code>): Implements the unified interface by wrapping LiteLLM, translating normalized prompts into vendor-specific HTTP payloads, and harmonizing disparate response formats and token usage telemetry.</li>
-<li><strong>Mock LLM Client</strong> (<code>src/cas_runner/llm/mock_client.py</code>): Provides predictable, fixture-driven mock completions and structured output parsing for unit tests, offline continuous integration, and synthetic failure injections.</li>
-<li><strong>Agent Execution Pipeline</strong> (<code>src/cas_runner/runner.py</code>): Consumes the LLM Client Facade polymorphically during agent workflow tasks without awareness of the underlying model endpoint or execution environment.</li>
+<li><strong>LLM Facade</strong> (<code>src/cas_runner/llm/litellm_client.py</code>)</li>
+<li>
+<p>Provides a unified async/sync interface for LLM inference, handling request formatting, retries, and error normalization, independent of the underlying provider.</p>
+</li>
+<li>
+<p><strong>MockLLMClient</strong> (<code>src/cas_runner/llm/mock_client.py</code>)</p>
+</li>
+<li>
+<p>Implements the same interface as the facade but returns pre‑defined or scripted responses, enabling deterministic unit and integration testing without network calls.</p>
+</li>
+<li>
+<p><strong>LiteLLM Adapter</strong> (<code>src/cas_runner/llm/adapters/litellm_adapter.py</code>)</p>
+</li>
+<li>
+<p>Wraps the LiteLLM library to translate facade calls into provider-specific API requests, manages authentication, and collects usage metrics.</p>
+</li>
+<li>
+<p><strong>Client / Agent Step</strong> (<code>src/cas_runner/steps/*.py</code>)</p>
+</li>
+<li>Consumes the facade for all LLM operations, relying on the interface rather than concrete providers, ensuring portability and testability.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<h3 id="recommended-choices">Recommended Choices</h3>
-<ul>
-<li><strong>Unified Engine</strong>: LiteLLM was selected as the underlying transport and translation layer due to its lightweight profile, active maintenance, broad model coverage (100+ LLMs), and native support for OpenAI-compatible schema bridging.</li>
-<li><strong>Interface Definition</strong>: Python <code>typing.Protocol</code> and <code>pydantic.BaseModel</code> for compile-time contract verification and runtime schema validation of structured completions.</li>
-<li><strong>Mock Driver</strong>: In-memory deterministic rule engine providing canned completion schemas and regex-based response fixtures.</li>
-</ul>
-<h3 id="alternatives-set-aside">Alternatives Set Aside</h3>
-<ul>
-<li><strong>Direct Vendor SDKs (e.g., <code>openai</code>, <code>anthropic</code>)</strong>: Rejected due to high vendor lock-in, divergent error paradigms, and high maintenance costs when switching or cascading models.</li>
-<li><strong>Heavyweight Frameworks (e.g., LangChain / LlamaIndex)</strong>: Rejected for low-level execution pipelines due to excessive dependency footprints, breaking API churn, and opacity around prompt mutations.</li>
-</ul>
+<p>Recommended primary technology: <strong>LiteLLM</strong> – a lightweight, open-source Python library that provides a unified interface for 100+ LLMs (OpenAI, Anthropic, Ollama, Gemini, and others) with integrated retries, timeouts, and token counting.</p>
+<p>Alternatives considered:
+- Direct vendor SDKs (openai, anthropic): rejected because they couple the system to a single provider and complicate testing and migration.
+- LangChain / LlamaIndex: rejected for this pattern because they bring heavy orchestration frameworks that exceed the need for a thin facade, adding unnecessary complexity.
+- Custom hand‑rolled adapters: viable but require significant maintenance and duplication; LiteLLM already supports a broad provider set and is battle‑tested.</p>
+<p>Rationale: LiteLLM reduces vendor lock-in, simplifies the facade implementation, and accelerates onboarding. Its active community and steady release cadence make it a low‑risk choice.</p>
 <h2 id="variants">Variants</h2>
-<ul>
-<li><strong>Synchronous vs. Asynchronous Execution</strong>: Supports synchronous blocking execution for batch CLI workflows alongside <code>asyncio</code>-native interfaces for high-concurrency streaming agent services.</li>
-<li><strong>Multi-Provider Fallback Circuit</strong>: A cascading variant where requests automatically fail over from primary cloud models to secondary models or on-premise Ollama instances upon encountering rate limits (HTTP 429) or outages (HTTP 5xx).</li>
-<li><strong>Dual Production/Mock Mode</strong>: Automated dependency injection variant switching dynamically between <code>LiteLLMClient</code> and <code>MockLLMClient</code> based on runtime configuration (<code>LLM_ENV=test</code> vs <code>LLM_ENV=production</code>).</li>
-</ul>
+<ol>
+<li>
+<p><strong>Synchronous vs Asynchronous</strong>: The facade can expose only sync methods (simple) or both sync and async. The current implementation uses an async interface to support concurrency in agent runners; a sync wrapper can be added for compatibility.</p>
+</li>
+<li>
+<p><strong>Strict vs Flexible Typing</strong>: The facade can enforce a strict request/response schema (e.g., typed Pydantic models) or accept flexible dictionaries. Strict typing improves maintainability at the cost of verbosity; the current pattern leans toward a hybrid: structured parameters for common cases, with an escape hatch for provider‑specific options.</p>
+</li>
+<li>
+<p><strong>Fallback and Failover Variant</strong>: For high availability, the facade can be configured with primary and fallback providers, automatically switching on errors. This adds complexity but is appropriate for production systems where uptime is critical.</p>
+</li>
+<li>
+<p><strong>Mock‑First Variant</strong>: In development and CI, the facade always uses MockLLMClient unless explicitly overridden by an environment variable. This ensures deterministic tests and offline development.</p>
+</li>
+</ol>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Normalizes error handling by mapping diverse vendor HTTP error codes into canonical exceptions (<code>RateLimitExceeded</code>, <code>ModelUnavailable</code>, <code>ContextWindowExceeded</code>, <code>InvalidRequestException</code>), facilitating deterministic automated retry policies.</li>
-<li><strong>Performance &amp; Latency</strong>: Implements native request pass-through with minimal Python wrapping overhead (&lt;2ms latency tax). Supports connection pooling, persistent keep-alive sessions, and streaming responses to minimize time-to-first-token (TTFT).</li>
-<li><strong>Cost &amp; Efficiency</strong>: Enforces centralized tracking of prompt and completion token counts per tenant or workflow step. Enables automated routing of lightweight tasks to cost-effective models without application code refactoring.</li>
-<li><strong>Operability</strong>: Emits OpenTelemetry-compliant metrics, standard structured logs (model identifier, token counts, execution latency), and explicit audit trails across all provider invocations.</li>
+<li><strong>Reliability</strong>: The facade centralizes error handling, retries, and timeouts. By using LiteLLM, it inherits robust failure management and can support fallback providers. Mocking reduces test flakiness.</li>
+<li><strong>Performance &amp; Latency</strong>: The added layer introduces negligible overhead (sub‑millisecond for dispatch) compared to network latency. Caching of responses is not part of the core pattern but can be added at the facade level.</li>
+<li><strong>Cost &amp; Efficiency</strong>: The facade prevents costly rewrites when changing providers, reducing overall maintenance cost. It also allows provider switching to exploit pricing differences. However, the abstraction may hide provider‑specific features that could optimize cost (e.g., prompt caching) – these should be exposed if needed.</li>
+<li><strong>Operability</strong>: Unified logging and monitoring through the facade simplifies observability. All LLM calls can be traced and metered in one place. The pattern's clear separation supports easy upgrades and debugging.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Vendor-Specific Leakage</strong>: Passing vendor-unique request parameters directly through application prompts or business logic rather than standardizing them within facade config classes. <em>Remedy</em>: Encapsulate vendor flags within strongly-typed adapter configurations.</li>
-<li><strong>Untyped Generic Payloads</strong>: Exposing raw string responses without structured parsing or JSON schema enforcement, resulting in fragile downstream parsing. <em>Remedy</em>: Standardize on Pydantic-based structured response contracts.</li>
-<li><strong>Direct Instantiation</strong>: Hardcoding <code>LiteLLMClient()</code> directly inside agent steps instead of injecting the base interface. <em>Remedy</em>: Enforce dependency injection or factory patterns across runner components.</li>
-<li><strong>Unmocked Testing</strong>: Running test suites directly against paid provider APIs, causing pipeline flakiness and high costs. <em>Remedy</em>: Gate live API tests behind explicit integration flags and mandate <code>MockLLMClient</code> for continuous integration.</li>
+<li><strong>Over‑abstraction</strong>: Adding too many methods, wrapping every vendor feature, or introducing overly generic interfaces that obscure the actual functionality. Remedy: keep the facade thin and focused on core LLM operations; expose provider‑specific features only when required (e.g., through an optional <code>extra_params</code> map).</li>
+<li><strong>Provider Leakage</strong>: Allowing provider‑specific response formats or error types to leak through the facade breaks abstraction. Remedy: normalize responses and errors into standard types, and document any provider‑specific exceptions.</li>
+<li><strong>Ignoring Mocking</strong>: Not using mock clients in tests can lead to slow, flaky, and costly test suites. Remedy: adopt a mock‑first strategy in development and CI environments.</li>
+<li><strong>Facade Bloat</strong>: Using the facade as a dumping ground for unrelated utilities (e.g., token counting, cost estimation, prompt engineering) distorts the pattern. Remedy: separate these concerns into dedicated services, and keep the facade focused on call orchestration.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ol>
-<li><strong>Establish the Contract</strong>: Define the abstract base client protocol and standardized response models in a shared package.</li>
-<li><strong>Implement Facade Wrapper</strong>: Wrap current direct vendor client calls into <code>LiteLLMClient</code>, mapping existing configurations to standard settings.</li>
-<li><strong>Deploy Mock Implementation</strong>: Implement and adopt <code>MockLLMClient</code> across the CI test suite to eliminate reliance on external API keys during pipeline runs.</li>
-<li><strong>Refactor Invocations</strong>: Refactor agent runners and governance evaluators to consume the facade via dependency injection.</li>
-</ol>
-<h3 id="ownership-governance">Ownership &amp; Governance</h3>
-<ul>
-<li><strong>Domain</strong>: Core AI Foundations &amp; Agent Infrastructure</li>
-<li><strong>Initiative</strong>: Platform Vendor Neutrality &amp; Test Reliability</li>
-<li><strong>Lifecycle State</strong>: Standard / Promoted Reference Architecture</li>
-</ul>
+<p><strong>Starting Point</strong>: Begin by introducing the facade interface and a LiteLLM‑based implementation in a single module, then gradually migrate existing LLM calls to use it. Replace direct SDK imports with the facade in a few high‑traffic components to validate the approach.</p>
+<p><strong>Migration Path</strong>:
+1. Define the interface (e.g., <code>LLMClient</code> abstract base).
+2. Implement <code>LiteLLMClient</code> and <code>MockLLMClient</code>.
+3. Run tests with mocks to ensure determinism.
+4. Refactor all runner steps and governance modules to depend on the interface.
+5. Enable real providers behind environment flags for integration tests.
+6. Add fallback and failover features for production resilience.</p>
+<p><strong>Governance</strong>: This pattern is owned by the architecture team. For the 'ideas-to-life-cas' initiative, the domain_id is 'intelligence', the initiative_id is 'cas-runner', and the owner contact is the architecture group (e.g., architecture@example.com). All LLM‑related modules must conform to this pattern; deviations require an architectural review.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-004: Standardized LLM Invocation Mechanics and Provider Independence</li>
-<li>Implementation: <code>src/cas_runner/llm/litellm_client.py</code></li>
-<li>Mock Harness: <code>src/cas_runner/llm/mock_client.py</code></li>
-<li>Consumer Pipeline: <code>src/cas_runner/runner.py</code></li>
+<li>ADR-014: Provider Abstraction Strategy (<code>docs/adr/014-provider-abstraction-strategy.md</code>)</li>
+<li>LiteLLMClient Implementation (<code>src/cas_runner/llm/litellm_client.py</code>)</li>
+<li>MockLLMClient Implementation (<code>src/cas_runner/llm/mock_client.py</code>)</li>
+<li>Pattern catalogue entry: <code>provider-agnostic-llm-facade</code></li>
 </ul>
 
 
@@ -3548,9 +3519,6 @@
 
 
 
-
-  
-  
 
 
 

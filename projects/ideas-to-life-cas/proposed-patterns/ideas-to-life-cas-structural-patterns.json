@@ -3,31 +3,598 @@
     "repo_name": "ideas-to-life-cas",
     "repo_version_or_commit": null,
     "focus": "general-structural-architecture",
-    "generated_at": "2026-10-16T09:15:10.949466",
-    "scope_notes": "Automated extraction",
+    "generated_at": "2026-10-16T09:32:43.220424",
+    "scope_notes": "Extraction based on directory structure, key file paths, and symbol names. Actual code logic was not fully inspected.",
     "analysis_limits": [
-      "Reasoning response missing required catalogue metadata"
+      "Symbol-level evidence only; no full source code analysis.",
+      "Limited evidence for runtime behavior, error handling, and data flow details.",
+      "Some patterns inferred from naming conventions and module organization."
     ],
     "default_domain": [
-      "Architecture"
+      "Continuous Architecture System",
+      "Governance",
+      "Steering"
     ],
     "default_sources": [
-      "Source Code"
+      "src/cas_runner/cli.py",
+      "src/cas_runner/runner.py",
+      "src/cas_runner/bootstrap.py",
+      "src/cas_runner/governance/*.py",
+      "src/cas_runner/llm/*.py",
+      "src/cas_runner/dashboard/health_model.py",
+      "src/cas_runner/steering/models.py"
     ]
   },
   "system_map": {
-    "overview": "No structural architecture patterns extracted.",
-    "components": [],
-    "layers": [],
-    "orchestration": {
-      "style": "unknown",
-      "description": "N/A"
-    },
-    "tools_and_integrations": [],
-    "state_and_memory": []
+    "overview": "The CAS Runner is a Python package for continuous architecture management, providing a CLI entry point, a flow runner, governance engines, LLM client abstractions, and health assessment. The package adheres to a layered structure with clear separation between presentation, application, domain, and infrastructure concerns.",
+    "layers": [
+      {
+        "name": "Presentation",
+        "purpose": "Command-line interface and user interaction",
+        "paths": [
+          "src/cas_runner/cli.py"
+        ]
+      },
+      {
+        "name": "Application",
+        "purpose": "Orchestration, flow execution, and service layer",
+        "paths": [
+          "src/cas_runner/runner.py",
+          "src/cas_runner/governance/governance_action_service.py",
+          "src/cas_runner/governance/governance_action_engine.py"
+        ]
+      },
+      {
+        "name": "Domain",
+        "purpose": "Domain entities, value objects, and business rules",
+        "paths": [
+          "src/cas_runner/governance/models.py",
+          "src/cas_runner/steering/models.py"
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "purpose": "External integrations, persistence, and technical support",
+        "paths": [
+          "src/cas_runner/llm/litellm_client.py",
+          "src/cas_runner/llm/mock_client.py",
+          "src/cas_runner/dashboard/health_model.py",
+          "src/cas_runner/bootstrap.py"
+        ]
+      }
+    ],
+    "components": [
+      {
+        "name": "FlowRunner",
+        "path": "src/cas_runner/runner.py",
+        "responsibility": "Executes main flow orchestrating governance and LLM interactions."
+      },
+      {
+        "name": "GovernanceActionService",
+        "path": "src/cas_runner/governance/governance_action_service.py",
+        "responsibility": "Facade for executing governance actions via engine."
+      },
+      {
+        "name": "GovernanceActionEngine",
+        "path": "src/cas_runner/governance/governance_action_engine.py",
+        "responsibility": "Handles state transitions and action validation."
+      },
+      {
+        "name": "ComplianceEngine",
+        "path": "src/cas_runner/governance/compliance_engine.py",
+        "responsibility": "Evaluates compliance rules and produces findings."
+      },
+      {
+        "name": "AgenticMerger",
+        "path": "src/cas_runner/governance/agentic_merger.py",
+        "responsibility": "Merges governance blocks (agentic contribution, but structural in nature)."
+      },
+      {
+        "name": "LiteLLMClient",
+        "path": "src/cas_runner/llm/litellm_client.py",
+        "responsibility": "Concrete LLM client using LiteLLM."
+      },
+      {
+        "name": "MockLLMClient",
+        "path": "src/cas_runner/llm/mock_client.py",
+        "responsibility": "Concrete LLM client for testing/mock."
+      },
+      {
+        "name": "HealthModel",
+        "path": "src/cas_runner/dashboard/health_model.py",
+        "responsibility": "Calculates health status and reasons from metrics."
+      },
+      {
+        "name": "Bootstrap",
+        "path": "src/cas_runner/bootstrap.py",
+        "responsibility": "Initialises workspace and merges governance blocks."
+      }
+    ],
+    "dependencies": [
+      "FlowRunner -> GovernanceActionService, LLM clients, Bootstrap",
+      "GovernanceActionService -> GovernanceActionEngine, Models",
+      "GovernanceActionEngine -> TransitionRegistry, Models",
+      "ComplianceEngine -> Models (ComplianceFinding etc.)",
+      "CLI -> FlowRunner",
+      "Dashboard -> HealthModel"
+    ]
   },
-  "patterns": [],
+  "patterns": [
+    {
+      "id": "pydantic-domain-entity-modeling",
+      "name": "Pydantic Domain Entity Modeling",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "domain",
+        "complexity": "medium",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Domain entities and value objects are modeled using Pydantic models with validation and serialization.",
+      "intent": "Define strongly typed data structures for domain concepts and ensure data integrity.",
+      "context": "Governance and steering modules need to represent complex inventory, health, and capability data.",
+      "forces": [
+        "Need for data validation",
+        "Desire for clear domain boundaries",
+        "Need for serialization to JSON/YAML"
+      ],
+      "solution": "Use Pydantic BaseModel classes to define domain entities, with fields typed, defaults, and validations. Expose them for use across layers.",
+      "implementation_signals": [
+        "Models with field validators",
+        "Classes inheriting from BaseModel",
+        "Usage of typing generics for records"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/models.py",
+          "symbols": [
+            "ResolutionResult",
+            "TraceableMetric",
+            "GovernanceInventory",
+            "GovernanceHealth",
+            "GovernanceThroughput",
+            "GovernanceRisks",
+            "ComplianceFinding",
+            "ComplianceMetrics",
+            "GovernanceException",
+            "GovernanceAction"
+          ]
+        },
+        {
+          "path": "src/cas_runner/steering/models.py",
+          "symbols": [
+            "RawGitDelta",
+            "PromptFact",
+            "SteeringRuntimeIndex",
+            "CapabilityRecord",
+            "CapabilitySet",
+            "CapabilityLineage",
+            "ArchitecturalDelta"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Type safety",
+          "Automated validation",
+          "Serialization support",
+          "Clear domain vocabulary"
+        ],
+        "costs": [
+          "Additional boilerplate",
+          "Potential for over-validation"
+        ],
+        "failure_modes": [
+          "Overly rigid models when domain evolves"
+        ]
+      },
+      "reuse_notes": "Can be reused for any domain entity that requires validation and serialization.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": false
+      }
+    },
+    {
+      "id": "transition-registry-state-machine",
+      "name": "Transition Registry State Machine",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "medium",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Governance actions are controlled via a registry of allowed state transitions.",
+      "intent": "Ensure valid transitions between governance states and enforce business rules.",
+      "context": "GovernanceActionEngine uses TransitionRegistry to map expected transitions.",
+      "forces": [
+        "Need to prevent invalid actions",
+        "Desire for explicit state management",
+        "Extensibility for new transitions"
+      ],
+      "solution": "Define a registry of allowed transitions; engine validates requested transitions against it.",
+      "implementation_signals": [
+        "Presence of TransitionRegistry class",
+        "Methods for checking allowed transitions"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/governance_action_engine.py",
+          "symbols": [
+            "TransitionRegistry",
+            "GovernanceActionEngine"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Clear state machine",
+          "Prevents invalid actions",
+          "Easy to add new transitions"
+        ],
+        "costs": [
+          "Can become complex for large systems"
+        ],
+        "failure_modes": [
+          "Registry misalignment with actual domain"
+        ]
+      },
+      "reuse_notes": "Useful for any stateful workflow where transition validation is needed.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": true
+      }
+    },
+    {
+      "id": "provider-adapter-strategy",
+      "name": "Provider Adapter Strategy",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "LLM clients are abstracted behind a common interface, allowing different providers (LiteLLM, Mock) to be swapped.",
+      "intent": "Decouple the core runner from concrete LLM implementation details.",
+      "context": "Runner uses LLM client via interface; multiple implementations exist.",
+      "forces": [
+        "Need for testability",
+        "Support multiple providers",
+        "Isolate I/O"
+      ],
+      "solution": "Define an abstract client interface; implement concrete clients (LiteLLM, Mock) that plug in.",
+      "implementation_signals": [
+        "Multiple client classes with similar method signatures",
+        "Factory or selector to pick client"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/llm/litellm_client.py",
+          "symbols": [
+            "LiteLLMClient"
+          ]
+        },
+        {
+          "path": "src/cas_runner/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Testability",
+          "Flexibility",
+          "Isolation of external dependencies"
+        ],
+        "costs": [
+          "Interface design effort"
+        ],
+        "failure_modes": [
+          "Incomplete abstraction if clients diverge"
+        ]
+      },
+      "reuse_notes": "Applies to any external API client that needs pluggable backends.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": true
+      }
+    },
+    {
+      "id": "rule-engine-compliance",
+      "name": "Rule Engine Compliance Pattern",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "domain",
+        "complexity": "medium",
+        "coupling": "medium",
+        "extensibility": "medium"
+      },
+      "summary": "Compliance checks are executed by a dedicated engine that evaluates rules against governance inventories.",
+      "intent": "Centralize compliance validation logic and produce findings.",
+      "context": "ComplianceEngine likely consumes governance models and produces compliance findings and metrics.",
+      "forces": [
+        "Need for consistent rule enforcement",
+        "Ability to extend with new rules",
+        "Separation of concerns"
+      ],
+      "solution": "Implement a compliance engine with rule evaluation methods, producing structured findings.",
+      "implementation_signals": [
+        "Class named ComplianceEngine",
+        "Methods for checking rules"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/compliance_engine.py",
+          "symbols": [
+            "ComplianceEngine"
+          ]
+        },
+        {
+          "path": "src/cas_runner/governance/models.py",
+          "symbols": [
+            "ComplianceFinding",
+            "ComplianceMetrics"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Centralized logic",
+          "Predictable outputs",
+          "Extensible via rule additions"
+        ],
+        "costs": [
+          "Potential for rule explosion"
+        ],
+        "failure_modes": [
+          "Rules not updated with domain changes"
+        ]
+      },
+      "reuse_notes": "Applicable for any domain requiring validation or compliance checks.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": true
+      }
+    },
+    {
+      "id": "health-assessment-model",
+      "name": "Health Assessment Model",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "medium"
+      },
+      "summary": "System health is computed via a dedicated health model that aggregates status and reasons.",
+      "intent": "Provide a standardized way to calculate and report system health.",
+      "context": "Dashboard module uses health_model to evaluate health status from governance metrics.",
+      "forces": [
+        "Need for consistent health indicators",
+        "Reasons for status",
+        "Reusable across views"
+      ],
+      "solution": "Define HealthStatus enum and calculate_health function that returns status and reasons.",
+      "implementation_signals": [
+        "HealthStatus class",
+        "calculate_health function",
+        "get_health_reasons function"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/dashboard/health_model.py",
+          "symbols": [
+            "HealthStatus",
+            "calculate_health",
+            "get_health_reasons"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Consistency",
+          "Clear diagnostic info"
+        ],
+        "costs": [
+          "Limited scope"
+        ],
+        "failure_modes": [
+          "Over-simplification"
+        ]
+      },
+      "reuse_notes": "Can be applied to any dashboard or monitoring module.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": false
+      }
+    },
+    {
+      "id": "bootstrap-workspace-init",
+      "name": "Bootstrap Workspace Initialization",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "medium",
+        "coupling": "medium",
+        "extensibility": "medium"
+      },
+      "summary": "Workspace initialization and governance block merging are performed during bootstrap.",
+      "intent": "Set up the environment for the CAS system and inject governance blocks.",
+      "context": "bootstrap.py provides init_workspace and merge_cas_governance_block functions.",
+      "forces": [
+        "Need for repeatable setup",
+        "Merge external governance config",
+        "Ensure idempotency"
+      ],
+      "solution": "Expose bootstrap functions that create directory structure and merge configuration blocks.",
+      "implementation_signals": [
+        "Functions named init_workspace and merge_cas_governance_block"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/bootstrap.py",
+          "symbols": [
+            "merge_cas_governance_block",
+            "bootstrap",
+            "init_workspace"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Automated setup",
+          "Consistent merges"
+        ],
+        "costs": [
+          "Potential for overwriting user config"
+        ],
+        "failure_modes": [
+          "Non-idempotent merges"
+        ]
+      },
+      "reuse_notes": "Useful for tools that need to prepare a workspace with configuration.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": true
+      }
+    },
+    {
+      "id": "cli-runner-separation",
+      "name": "CLI-Runner Separation",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "presentation",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "medium"
+      },
+      "summary": "The CLI entry point delegates to a FlowRunner, keeping presentation logic separate from execution.",
+      "intent": "Decouple user interface from application logic for maintainability and testability.",
+      "context": "cli.py exposes main() and runner.py has FlowRunner.",
+      "forces": [
+        "Separation of concerns",
+        "Testability",
+        "Reuse of runner"
+      ],
+      "solution": "CLI parses arguments and invokes runner; runner encapsulates flow execution.",
+      "implementation_signals": [
+        "main function in cli.py",
+        "FlowRunner class in runner.py"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/cli.py",
+          "symbols": [
+            "main"
+          ]
+        },
+        {
+          "path": "src/cas_runner/runner.py",
+          "symbols": [
+            "FlowRunner"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Clean entry point",
+          "Runner reusable"
+        ],
+        "costs": [
+          "Indirection"
+        ],
+        "failure_modes": [
+          "CLI becoming too thin or too fat"
+        ]
+      },
+      "reuse_notes": "Standard for most command-line applications.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": false
+      }
+    },
+    {
+      "id": "governance-action-service-facade",
+      "name": "Governance Action Service Facade",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "medium"
+      },
+      "summary": "A service layer exposes governance actions to higher-level components, hiding underlying engine complexity.",
+      "intent": "Provide a simplified API for executing governance actions.",
+      "context": "GovernanceActionService likely wraps GovernanceActionEngine and related logic.",
+      "forces": [
+        "Simplify client interaction",
+        "Encapsulate orchestration",
+        "Provide transactional boundary"
+      ],
+      "solution": "Create a service class that delegates to engine and models.",
+      "implementation_signals": [
+        "Class named GovernanceActionService"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/governance_action_service.py",
+          "symbols": [
+            "GovernanceActionService"
+          ]
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Clean API",
+          "Hides complexity"
+        ],
+        "costs": [
+          "Potential for leaky abstraction"
+        ],
+        "failure_modes": [
+          "Service becoming god object"
+        ]
+      },
+      "reuse_notes": "Common pattern for encapsulating business operations behind a simpler interface.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "evidence_type": "symbolic",
+        "inferred": true
+      }
+    }
+  ],
   "anti_patterns": [],
-  "cross_cutting_concerns": [],
-  "open_questions": []
+  "cross_cutting_concerns": [
+    {
+      "concern": "Logging and observability",
+      "evidence": "Not explicitly identified; however OpenTelemetry dependencies suggest tracing capabilities."
+    },
+    {
+      "concern": "Configuration management",
+      "evidence": "Bootstrap and governance block merging handle configuration, but no centralized config class was observed."
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "How are governance actions persisted and restored across sessions?",
+      "context": "No evidence of persistence layer beyond in-memory models."
+    },
+    {
+      "question": "What is the relationship between the steering models (e.g., CapabilityRecord) and governance models?",
+      "context": "Separate modules but might represent overlapping domain concepts."
+    },
+    {
+      "question": "Is there a formal interface for LLM clients?",
+      "context": "Multiple client classes exist but no explicit interface was detected in the symbol list."
+    }
+  ]
 }

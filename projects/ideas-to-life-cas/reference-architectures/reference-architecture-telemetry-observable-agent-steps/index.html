@@ -3312,6 +3312,78 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent Runner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#opentelemetry-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenTelemetry SDK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#traceablemetric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TraceableMetric
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace-exporter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace Exporter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otlp-collector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTLP Collector
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace Store
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3322,34 +3394,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#selected-standards-technologies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Selected Standards &amp; Technologies
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-considered-set-aside" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives Considered &amp; Set Aside
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3427,97 +3471,104 @@
 
 <h1 id="reference-architecture-telemetry-observable-agent-steps">Reference Architecture: Telemetry-Observable Agent Steps</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>Instruments pipeline execution and agent interactions with OpenTelemetry to track latency, token usage, and step errors across complex execution lifecycles.</p>
+<p>This reference architecture describes the Telemetry-Observable Agent Steps pattern, which instruments multi-step agent pipelines with OpenTelemetry to provide end-to-end visibility into latency, token usage, error rates, and cost. The pattern is essential for debugging and governing agentic systems where hidden LLM calls and nested tool invocations can cause unpredictable behavior.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Complex, multi-step LLM and autonomous agent orchestration pipelines where nested tool calls make failure attribution difficult.</li>
-<li>Environments requiring precise attribution of token consumption, model inference latency, and operational cost across individual agent steps.</li>
-<li>Distributed agent workflows requiring standardized trace context propagation across heterogeneous services or runtime environments.</li>
-<li>Regulated or enterprise environments demanding auditable tracking of execution paths and error boundaries.</li>
+<li>Use when your agent pipeline involves multiple steps, sub-agents, or LLM calls that must be traced as part of an end-to-end request.</li>
+<li>Use when you need to monitor token consumption and step-level latency to identify bottlenecks and control costs.</li>
+<li>Use when you require auditability and governance of agent decisions for compliance or incident response.</li>
+<li>Use when you need to correlate logs, metrics, and traces across distributed agent runs (e.g., multiple services or worker processes).</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Simple, single-invocation LLM calls or deterministic scripts where standard runtime structured logging provides adequate observability.</li>
-<li>Extremely low-latency, real-time edge streaming applications where span creation and attribute serialization impose unacceptable execution overhead.</li>
-<li>Scenarios where complete offline isolation is required and local persistence of trace contexts is unsupported or unnecessary.</li>
+<li>Do not use when the system is a simple single-step function or a synchronous script with no internal branching or asynchronous calls—standard logging may be sufficient.</li>
+<li>Do not use when the operational overhead of running a telemetry backend (e.g., Jaeger, Tempo) is not justified by the system’s criticality or expected usage.</li>
+<li>Do not use if the agent pipeline runs entirely within a single process, has minimal failure modes, and does not require cross-service correlation.</li>
+<li>Do not use if your team cannot commit to maintaining the telemetry infrastructure and acting on the signals, otherwise it becomes a cost without value.</li>
 </ul>
 <h2 id="overview">Overview</h2>
+<p>The following diagram illustrates the high-level components and data flow for the Telemetry-Observable Agent Steps pattern. The agent pipeline emits spans and metrics through the OpenTelemetry SDK, which are then exported to a collector and persisted in an observability backend.</p>
 <pre class="mermaid"><code>flowchart LR
-    orchestrator["Agent Orchestrator (Container)"]
-    stepRunner["Step Execution Runtime (Container)"]
-    telemetryLayer["Telemetry &amp; Metric Handler (Container)"]
-    metricStore[("Local Telemetry Store (Data store)")]
-    otelCollector["OpenTelemetry Collector (External System)"]
-    modelService["Foundation Model Service (External System)"]
+    agent["Agent Pipeline (Container)"]
+    otel["OpenTelemetry SDK (Container)"]
+    metric["TraceableMetric (Model) (Container)"]
+    exporter["Trace Exporter (Container)"]
+    backend[("Observability Backend (Store)")]
+    collector["OTLP Collector (External System)"]
 
-    orchestrator --&gt;|1. Dispatch step with context| stepRunner
-    stepRunner --&gt;|2. Invoke inference| modelService
-    stepRunner --&gt;|3. Record execution metrics| telemetryLayer
-    telemetryLayer --&gt;|4. Persist local trace context| metricStore
-    telemetryLayer --&gt;|5. Export spans and metrics via OTLP| otelCollector
+    agent --&gt;|1. Instrument spans| otel
+    otel --&gt;|2. Record metrics| metric
+    metric --&gt;|3. Export traces| exporter
+    exporter --&gt;|4. Send OTLP| collector
+    collector --&gt;|5. Persist| backend
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class orchestrator,stepRunner,telemetryLayer container
-    class metricStore store
-    class otelCollector,modelService external</code></pre>
+    class agent,otel,metric,exporter container
+    class backend store
+    class collector external</code></pre>
 <h2 id="components">Components</h2>
+<h3 id="agent-runner">Agent Runner</h3>
 <ul>
-<li><strong>Agent Orchestrator</strong> (<code>src/cas_runner/orchestrator</code>): Coordinates multi-step agent pipelines, initializes the root trace context, and propagates traceparent metadata across step boundaries.</li>
-<li><strong>Step Execution Runtime</strong> (<code>src/cas_runner/execution</code>): Executes discrete agent steps, wraps tool executions in distinct child spans, and captures prompt tokens, completion tokens, and runtime exceptions.</li>
-<li><strong>Telemetry &amp; Metric Handler</strong> (<code>src/cas_runner/governance/models.py</code>): Encapsulates TraceableMetric contracts, handles sanitization of span attributes, and manages batch exporting to telemetry collectors.</li>
-<li><strong>Local Telemetry Store</strong> (<code>src/cas_runner/knowledge/local_knowledge_provider.py</code>): Provides deterministic local persistence for trace manifests and operational logs for offline evaluation and auditability.</li>
-<li><strong>OpenTelemetry Collector</strong> (<code>external/collector</code>): Ingests OpenTelemetry Protocol (OTLP) traces and metrics, performing enterprise aggregation, routing, and centralized storage integration.</li>
+<li><strong>Path</strong>: <code>src/cas_runner</code></li>
+<li><strong>Responsibility</strong>: Orchestrates agentic steps, creates spans for each step and sub-call, and attaches the trace context. It is the entry point for the telemetry lifecycle.</li>
+</ul>
+<h3 id="opentelemetry-sdk">OpenTelemetry SDK</h3>
+<ul>
+<li><strong>Path</strong>: <code>pyproject.toml</code> (dependency: <code>opentelemetry-api</code>, <code>opentelemetry-sdk</code>)</li>
+<li><strong>Responsibility</strong>: Provides the API and SDK for tracing and metrics, manages the span lifecycle, context propagation, and exports via configured exporters.</li>
+</ul>
+<h3 id="traceablemetric">TraceableMetric</h3>
+<ul>
+<li><strong>Path</strong>: <code>src/cas_runner/governance/models.py</code></li>
+<li><strong>Responsibility</strong>: Encapsulates metric records that carry trace context, enabling correlation between step-level metrics and distributed traces.</li>
+</ul>
+<h3 id="trace-exporter">Trace Exporter</h3>
+<ul>
+<li><strong>Path</strong>: Not directly specified; typically configured via the OpenTelemetry SDK</li>
+<li><strong>Responsibility</strong>: Converts spans and metrics into OTLP format and sends them to a collector or directly to the backend, handling batching and retries.</li>
+</ul>
+<h3 id="otlp-collector">OTLP Collector</h3>
+<ul>
+<li><strong>Path</strong>: External infrastructure</li>
+<li><strong>Responsibility</strong>: Receives telemetry from exporters, performs central policy enforcement (filtering, sampling, buffering), and forwards to the storage backend.</li>
+</ul>
+<h3 id="trace-store">Trace Store</h3>
+<ul>
+<li><strong>Path</strong>: External backend (e.g., Jaeger, Grafana Tempo)</li>
+<li><strong>Responsibility</strong>: Provides persistent storage and querying capabilities for traces and metrics, enabling dashboards, alerting, and post-incident analysis.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<h3 id="selected-standards-technologies">Selected Standards &amp; Technologies</h3>
-<ul>
-<li><strong>OpenTelemetry API &amp; SDK (<code>opentelemetry-api</code>, <code>opentelemetry-sdk</code>)</strong>: Standardized, vendor-agnostic specification for distributed traces, metrics, and contextual baggage.</li>
-<li><strong>OTLP (gRPC / HTTP Protobuf)</strong>: Industry-standard protocol for pushing instrumentation data to telemetry gateways.</li>
-<li><strong>Pydantic Data Contracts (<code>TraceableMetric</code>)</strong>: Guarantees typed enforcement of metric payloads and telemetry schema consistency across agent steps.</li>
-</ul>
-<h3 id="alternatives-considered-set-aside">Alternatives Considered &amp; Set Aside</h3>
-<ul>
-<li><strong>Proprietary Vendor Tracing SDKs (e.g., Datadog, New Relic native SDKs)</strong>: Rejected to prevent vendor lock-in and retain export flexibility across sovereign or hybrid cloud environments.</li>
-<li><strong>Raw Unstructured Application Logging</strong>: Set aside due to high querying overhead, lack of context propagation across asynchronous steps, and inability to build reliable automated latency/cost alerting.</li>
-<li><strong>Custom In-House Trace Context Headers</strong>: Rejected in favor of W3C TraceContext standards natively supported by OpenTelemetry.</li>
-</ul>
+<p>OpenTelemetry (Python) is the primary implementation, with OTLP as the transport protocol. A collector (e.g., OpenTelemetry Collector) can be used for buffering, filtering, and central policy before storage. For the backend, Jaeger, Grafana Tempo, or Datadog are viable; Prometheus can complement for metrics. Alternatives considered: custom logging with correlation IDs, but OTel provides standardized context propagation and is the industry standard for distributed tracing. The TraceableMetric model was developed in-house to bind metrics to trace context, a feature not natively available in all backends.</p>
 <h2 id="variants">Variants</h2>
-<ul>
-<li><strong>Asynchronous Non-Blocking Export (Default)</strong>: Telemetry spans and metrics are queued in an in-memory batch processor and exported asynchronously to avoid blocking agent inference cycles. Ideal for production execution environments.</li>
-<li><strong>Synchronous Local File Persistence</strong>: Spans and <code>TraceableMetric</code> objects are synchronously flushed to a structured local directory via <code>LocalKnowledgeProvider</code>. Ideal for local evaluation, test suites, and decoupled CI/CD verification where no remote collector is reachable.</li>
-<li><strong>Redacted Enterprise Mode</strong>: Enforces prompt and completion masking prior to span attribute assignment to prevent leakage of Personally Identifiable Information (PII) or sensitive proprietary context to monitoring backends.</li>
-</ul>
+<ol>
+<li><strong>Sampling</strong>: Head-based, tail-based, or rate-limited sampling to control telemetry volume and cost.</li>
+<li><strong>Synchronous vs asynchronous exports</strong>: Synchronous for immediate feedback, asynchronous to reduce request latency overhead.</li>
+<li><strong>Full instrumentation vs targeted</strong>: Instrument all steps or only critical subcalls; targeted reduces overhead and noise.</li>
+<li><strong>OTLP direct vs collector</strong>: Direct to vendor versus via a collector for centralized control, masking, and multi-backend routing.</li>
+<li><strong>Metric granularity</strong>: Per-step metrics vs aggregate pipeline metrics; token-level metrics can be sensitive and require aggregation policies.</li>
+</ol>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Failures in tracing or metric export do not interrupt the core agent execution path. Bounded in-memory queues protect process stability under network degradation.</li>
-<li><strong>Performance &amp; Latency</strong>: Overhead is restricted to &lt; 2ms per step. Batch span processors flush asynchronously to prevent tail latency degradation.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Standardized token recording enables instant query visibility into cost drivers per tenant, prompt revision, and tool call.</li>
-<li><strong>Operability</strong>: Adheres to W3C distributed tracing standards, ensuring compatibility across enterprise observability suites (Jaeger, Prometheus, Grafana Tempo, Datadog).</li>
+<li><strong>Reliability</strong>: The telemetry subsystem must not introduce failures; use asynchronous exports with retry and backoff, and avoid blocking the main pipeline.</li>
+<li><strong>Performance &amp; Latency</strong>: Overhead should remain below 5% of request latency; sampling and efficient span closures help achieve this.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Storage and egress costs scale with volume; enforce sampling, retention policies, and deduplication to manage costs.</li>
+<li><strong>Operability</strong>: Provide dashboards for step latency, token usage, error rate, and cost per run; ensure correlation IDs are preserved across all telemetry; integrate with alerting for anomalous patterns.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Unsanitized Payload Injection in Span Attributes</strong>: Do not write raw user prompts, PII, or full responses directly into attributes. Use redaction utilities and store structured metadata instead.</li>
-<li><strong>Synchronous Export in Hot Inference Paths</strong>: Avoid <code>SimpleSpanProcessor</code> in production workloads to prevent network latency from inflating agent execution durations.</li>
-<li><strong>Context Severing in Asynchronous Sub-Tasks</strong>: Always propagate context explicitly into spawned concurrent tasks or worker processes using <code>context.attach()</code>.</li>
+<li><strong>Over-instrumentation</strong>: Creating a span for every function call leads to excessive overhead and storage. <strong>Remedy</strong>: Define a minimum span set and use sampling.</li>
+<li><strong>Missing context propagation</strong>: Breaking trace context across async boundaries or queues results in orphaned spans. <strong>Remedy</strong>: Use OpenTelemetry context propagation libraries and ensure propagation in all async tasks.</li>
+<li><strong>Span leaks</strong>: Forgetting to close spans causes memory leaks and incorrect durations. <strong>Remedy</strong>: Use context managers or decorators; enforce code reviews.</li>
+<li><strong>Treating telemetry as optional</strong>: Ignoring alerts or not acting on telemetry data undermines the investment. <strong>Remedy</strong>: Set SLOs and conduct regular telemetry reviews.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<ol>
-<li><strong>SDK Baseline</strong>: Add <code>opentelemetry-api</code> and <code>opentelemetry-sdk</code> to runtime dependencies.</li>
-<li><strong>Metric Definition</strong>: Adopt <code>TraceableMetric</code> models for standardizing step-level execution metrics.</li>
-<li><strong>Context Instrumentation</strong>: Ensure agent execution handlers initialize traces and properly nest sub-steps.</li>
-<li><strong>Export Configuration</strong>: Direct OTLP exporter to local collectors or enterprise observability backends.</li>
-</ol>
-<p><strong>Governance Ownership</strong>:
-- <strong>Domain</strong>: Intelligence Platform Architecture
-- <strong>Initiative</strong>: Enterprise Agent Observability (<code>ideas-to-life-cas</code>)
-- <strong>Owner</strong>: Runner Runtime Platform Engineering Team</p>
+<p>Start by instrumenting the critical agent loop with spans around each step. Add the OTLP exporter and a local Jaeger/Tempo instance for development. Gradually introduce sampling and add metrics for token usage. Maintain a telemetry roadmap and assign ownership to the platform team. Governance ownership should be set in the telemetry initiative (domain_id and initiative_id) to ensure standards and SLOs are enforced. The pattern is already implemented in the ideas-to-life-cas project; extend it to other agentic workflows by reusing the same OpenTelemetry setup and TraceableMetric model.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR: Distributed Tracing Standard for Agent Execution Pipelines</li>
-<li>Model Contract: <code>src/cas_runner/governance/models.py</code></li>
-<li>Provider Implementation: <code>src/cas_runner/knowledge/local_knowledge_provider.py</code></li>
+<li><strong>Source Evidence</strong>: <a href="../../../pyproject.toml">pyproject.toml</a>, <a href="../../../src/cas_runner/governance/models.py">TraceableMetric model</a></li>
+<li><strong>Governance</strong>: This pattern is part of the global observability standards for agentic systems. See domain and initiative ownership for further guidance.</li>
 </ul>
 
 
@@ -3525,9 +3576,6 @@
 
 
 
-
-  
-  
 
 
 

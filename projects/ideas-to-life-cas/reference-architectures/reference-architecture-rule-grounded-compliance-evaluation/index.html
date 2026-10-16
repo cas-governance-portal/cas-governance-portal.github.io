@@ -3312,6 +3312,67 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complianceengine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComplianceEngine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rulecontexts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RuleContexts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliancefinding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComplianceFinding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliancemetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComplianceMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ci-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3399,87 +3460,123 @@
 
 <h1 id="reference-architecture-rule-grounded-compliance-evaluation">Reference Architecture: Rule-Grounded Compliance Evaluation</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>The Rule-Grounded Compliance Evaluation pattern provides automated, deterministic, and machine-readable architectural governance for codebases by verifying pull request deltas against codified rule repositories. Traditional architectural review processes rely heavily on manual human inspection or subjective LLM-as-a-judge evaluations, leading to deployment bottlenecks and inconsistent policy enforcement. This pattern codifies organizational architecture standards and domain boundary rules into machine-enforceable definitions, parsing repository deltas to evaluate violations and yield structured compliance metrics.</p>
+<p>This pattern provides a systematic, automated approach to evaluating code and architectural deltas against codified rule sets, generating structured compliance findings and metrics. It is designed to integrate into CI/CD pipelines to enforce organizational standards before merge.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Automated pull request gating: When enforcing domain boundaries, module layering, dependency constraints, or API specifications in continuous integration pipelines.</li>
-<li>Verifiable audit trails: When enterprise governance mandates reproducible, machine-readable records of compliance posture across release branches.</li>
-<li>Large-scale monorepos: When cross-team architectural drift occurs frequently due to decoupled development teams modifying shared boundaries.</li>
-<li>Mitigating subjective LLM drift: When introducing AI-assisted evaluations where model judgments must be strictly anchored to authoritative ground-truth rules rather than generic prompt intuition.</li>
+<li>You need to continuously verify that repository changes conform to architectural and coding standards.</li>
+<li>Human architectural review is a bottleneck and slowing down deployment velocity.</li>
+<li>You have a growing codebase with multiple teams and need consistent governance.</li>
+<li>You require deterministic, auditable compliance checks that produce structured output for dashboards and reporting.</li>
+<li>You want to capture institutional knowledge in machine-readable rules that evolve with your architecture.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Micro-repositories with trivial domain boundaries: Where standard compiler flags or baseline linters (e.g., flake8, eslint) provide exhaustive coverage without custom architectural logic.</li>
-<li>Dynamic behavioral runtime testing: When verifying system performance, latency, or integration faults under load (utilize integration test suites or synthetic transaction monitors instead).</li>
-<li>Exploratory prototyping phases: When architecture is intentionally volatile and rapid experimentation precedes the crystallization of domain contracts.</li>
+<li>For purely syntactic linting that can be handled by established linters (e.g., ESLint, Pylint) without architectural context.</li>
+<li>When rules are highly subjective and cannot be codified without losing nuance.</li>
+<li>When the team lacks the discipline to maintain the rule repository, leading to staleness.</li>
+<li>In prototypes or short-lived experiments where overhead outweighs benefits.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    gitDelta["Git Delta Provider (External System)"]
-    compEngine["ComplianceEngine (Container)"]
-    ruleStore[("Rule Knowledge Base (Data store)")]
-    evalReporter["Finding Reporter (Container)"]
-    ciRunner["CI Pipeline Runner (External System)"]
+    src["Code/Diff (Source)"]
+    ci["CI/CD Pipeline"]
+    comp["ComplianceEngine (Container)"]
+    rules["Rule Contexts (Data store)"]
+    findings["Findings &amp; Metrics (Data store)"]
+    report["Report/Decision (Container)"]
 
-    ciRunner --&gt;|1. Trigger on PR| compEngine
-    gitDelta --&gt;|2. Ingest RawGitDelta| compEngine
-    ruleStore --&gt;|3. Load Rule Contexts| compEngine
-    compEngine --&gt;|4. Emit ComplianceFinding &amp; Metrics| evalReporter
-    evalReporter --&gt;|5. PR Status / Gate Status| ciRunner
+    src --&gt;|1. Delta| ci
+    ci --&gt;|2. Trigger| comp
+    comp --&gt;|3. Load| rules
+    comp --&gt;|4. Evaluate| findings
+    findings --&gt;|5. Results| report
+    report --&gt;|6. Pass/Fail| ci
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class compEngine,evalReporter container
-    class ruleStore store
-    class gitDelta,ciRunner external</code></pre>
+    class ci,comp,report container
+    class rules,findings store
+    class src external</code></pre>
+<p>The workflow starts with a code delta (e.g., from a pull request). The CI pipeline triggers the ComplianceEngine, which loads the appropriate rule contexts from the rule store. It evaluates the delta against the rules, producing structured findings and composite metrics. These results are then used to generate a report and make a pass/fail decision, feeding back into the CI pipeline.</p>
 <h2 id="components">Components</h2>
-<ul>
-<li><strong>ComplianceEngine</strong> (<code>src/cas_runner/governance/compliance_engine.py</code>): Ingests repository diffs (<code>RawGitDelta</code>), applies matching rules, and coordinates static and semantic analyzers against file changes.</li>
-<li><strong>Compliance Models</strong> (<code>src/cas_runner/governance/models.py</code>): Houses data definitions including <code>ComplianceFinding</code> (capturing violation details, file coordinates, and rule IDs) and <code>ComplianceMetrics</code> (composite score computation).</li>
-<li><strong>Rule Knowledge Repository</strong> (<code>cas-knowledge/rules/</code>): Declarative rule context definitions outlining boundary constraints, forbidden imports, and mandatory architectural patterns.</li>
-<li><strong>CI Pipeline Runner</strong> (<code>.github/workflows/cas-build-validation.yml</code>): Pipeline orchestration layer invoking the evaluation engine on pull request triggers and reporting gate outcomes.</li>
-</ul>
+<h3 id="complianceengine">ComplianceEngine</h3>
+<p>The core engine that coordinates the evaluation. It takes a diff, applies rule contexts, and returns structured results. It is implemented in <code>src/cas_runner/governance/compliance_engine.py</code>. Its responsibilities include:
+- Extracting changed files and content from the git diff.
+- Loading and parsing rule definitions.
+- Matching rules to code patterns and evaluating conditions.
+- Aggregating findings into metrics.
+- Emitting results in a structured format (e.g., JSON).</p>
+<h3 id="rulecontexts">RuleContexts</h3>
+<p>A collection of rule definitions stored in a versioned repository (typically YAML files). Each rule specifies:
+- <strong>ID</strong>: Unique identifier (e.g., <code>ARC-001</code>).
+- <strong>Description</strong>: Human-readable explanation.
+- <strong>Applicability</strong>: Conditions under which the rule applies (e.g., file types, directories).
+- <strong>Severity</strong>: Error, warning, info.
+- <strong>Pattern</strong>: Regex or logical expression to match.
+- <strong>Action</strong>: How to interpret a match (e.g., prohibit, require).</p>
+<p>Rules are loaded dynamically by the ComplianceEngine, allowing updates without changing engine code.</p>
+<h3 id="compliancefinding">ComplianceFinding</h3>
+<p>An individual data object representing a single non-compliance event. It is defined in <code>src/cas_runner/governance/models.py</code> using Pydantic. Fields include:
+- <code>rule_id</code>
+- <code>file_path</code>
+- <code>line_start</code>, <code>line_end</code>
+- <code>message</code>
+- <code>severity</code>
+- <code>context</code> (optional metadata)</p>
+<h3 id="compliancemetrics">ComplianceMetrics</h3>
+<p>Aggregated output summarizing the compliance status. It typically includes:
+- <code>total_findings</code>
+- <code>critical_findings</code>
+- <code>pass_rate</code>
+- <code>status</code> (pass/warn/fail)
+- <code>evaluation_timestamp</code></p>
+<p>This can be serialized to JSON for dashboards and further processing.</p>
+<h3 id="ci-integration">CI Integration</h3>
+<p>An integration layer that plugs the engine into the CI pipeline. This is typically a GitHub Actions workflow that runs on pull requests. It orchestrates the engine, captures its output, and decides whether to pass or fail the check. It can also post comments with findings to the PR.</p>
 <h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li><strong>Pydantic v2</strong>: Enforces strict typing and serialization for compliance entities and findings.</li>
-<li><strong>Structured Rule Formats (YAML/JSON)</strong>: Retains declarative, version-controlled architecture policies. Alternative set aside: <em>Hardcoded code checks</em>, which prevent centralized updates and cross-repository sharing.</li>
-<li><strong>AST Analysis Engines</strong>: Employs structural AST parsing over brittle regex-only scanning.</li>
-<li><strong>Targeted Model Contexts</strong>: Restricts LLM evaluation to localized diff snippets with explicit rule context prompts, setting aside <em>Full-file Prompt LLM Judges</em> to prevent high cost and hallucinations.</li>
+<li><strong>Python 3.10+</strong>: Chosen for its simplicity, robust standard library, and excellent support for code analysis (e.g., <code>ast</code>, <code>git</code> subprocess).</li>
+<li><strong>Pydantic v2</strong>: Used for data models to ensure type safety and easy JSON serialization.</li>
+<li><strong>YAML</strong>: For rule definitions—human-readable, easy to review, and supports comments.</li>
+<li><strong>Git CLI</strong>: For extracting diffs, using subprocess to avoid additional dependencies.</li>
+<li><strong>GitHub Actions</strong>: As the CI orchestrator, given the project is hosted on GitHub.</li>
 </ul>
+<p>Alternatives considered:
+- <strong>SonarQube</strong>: Comprehensive but heavy, complex to configure, and not tailored to architectural rules.
+- <strong>ESLint with custom plugins</strong>: Good for JavaScript but not language-agnostic.
+- <strong>Open Policy Agent (OPA)</strong>: Offers general policy evaluation but requires a different data model and has a steeper learning curve.</p>
 <h2 id="variants">Variants</h2>
-<ul>
-<li><strong>Strict Blocking Gate</strong>: Fails CI pipelines on any critical violation, preventing merge.</li>
-<li><strong>Passive Audit &amp; Telemetry</strong>: Scans main release branches periodically to track architectural drift trends without interrupting developer workflows.</li>
-<li><strong>Hybrid Static-Semantic Evaluation</strong>: Runs zero-cost AST checks first, deferring only ambiguous semantic cases to model-guided evaluators.</li>
-</ul>
-<h2 id="non-functional-characteristics">Non-functional characteristics</h2>
-<ul>
-<li><strong>Reliability</strong>: Eliminates subjective review variance by grounding checks in concrete rule sets.</li>
-<li><strong>Performance &amp; Latency</strong>: Optimizes pipeline execution by restricting analysis to git diff hunks (&lt; 5 seconds for standard PRs).</li>
-<li><strong>Cost &amp; Efficiency</strong>: Minimizes token usage by filtering candidates statically before invoking LLMs.</li>
-<li><strong>Operability</strong>: Produces industry-standard SARIF/JSON outputs compatible with common CI/CD dashboard tools.</li>
-</ul>
-<h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
-<ul>
-<li><strong>Unbounded LLM Judge</strong>: Relying on generic model prompts without concrete rule references. <em>Remedy</em>: Bind every evaluation to an explicit rule context file.</li>
-<li><strong>Rule Bloat &amp; Stagnation</strong>: Accumulating dead rules that trigger false alarms. <em>Remedy</em>: Enforce rule versioning and deprecation reviews.</li>
-<li><strong>All-or-Nothing Merge Blocking</strong>: Blocking merges on informational style notes. <em>Remedy</em>: Strict tiering between <code>error</code> (blocking) and <code>warning</code> / <code>info</code> (advisory).</li>
-</ul>
-<h2 id="adoption-guidance">Adoption guidance</h2>
 <ol>
-<li><strong>Starting Point</strong>: Identify 3-5 critical structural boundaries in the system and author them as declarative rules in <code>cas-knowledge</code>.</li>
-<li><strong>Migration Path</strong>: Deploy in passive reporting mode to measure accuracy and calibrate false-positive rates before turning on blocking gates in CI.</li>
-<li><strong>Governance Ownership</strong>:</li>
-<li><strong>Domain ID</strong>: <code>architecture-governance</code></li>
-<li><strong>Initiative ID</strong>: <code>automated-ci-guardrails</code></li>
-<li><strong>Owner</strong>: Enterprise Architecture &amp; Developer Experience</li>
+<li><strong>Synchronous vs Asynchronous</strong>: In CI, the pattern runs synchronously to provide immediate feedback. For large codebases, it could run asynchronously via a message queue to avoid blocking the pipeline, though this delays feedback.</li>
+<li><strong>Strict vs Advisory</strong>: The report can be configured to fail the build (strict) or merely warn (advisory) initially, allowing gradual adoption before enforcement.</li>
+<li><strong>Scoped vs Full</strong>: The evaluation can be scoped to only changed files or run against the entire codebase, with trade-offs between speed and completeness.</li>
+<li><strong>Centralized vs Distributed Rules</strong>: Rules can be stored in a single governance repo or distributed across repositories, but centralization simplifies versioning and consistency.</li>
+<li><strong>Rule Versioning</strong>: Rules may be versioned with semantic versioning to support migrations and compatibility with older codebases.</li>
 </ol>
+<h2 id="non-functional-characteristics">Non-functional characteristics</h2>
+<p><strong>Reliability</strong>: The pattern is deterministic—given the same input and rule set, it produces identical results. It integrates with CI and provides clear pass/fail signals. However, it depends on the quality and currency of the rule set; stale rules can cause false confidence or noise.
+<strong>Performance &amp; Latency</strong>: Evaluation is typically fast (milliseconds to seconds) for moderate codebases. Performance scales linearly with the number of rules and changed files. Diff analysis reduces workload compared to full scans. In CI, the overhead is acceptable compared to other build steps.
+<strong>Cost &amp; Efficiency</strong>: Minimal operational cost—no additional infrastructure beyond the CI runner. Rule maintenance is the primary ongoing cost, but it can be shared across teams. The pattern reduces human review time, making it cost-efficient in the long term.
+<strong>Operability</strong>: The system is simple to operate: rules are in version control, results are logged and stored. It can emit metrics to monitoring systems. The main challenge is keeping rules up-to-date and managing rule proliferation.</p>
+<h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
+<ol>
+<li><strong>Rule Explosion</strong>: Continuously adding rules without pruning leads to a massive rule repository that is hard to manage and consumes excessive compute. <em>Remedy</em>: Regularly review rules, remove obsolete ones, and consolidate overlapping checks.</li>
+<li><strong>Hardcoded Rules</strong>: Embedding rules directly in the engine code prevents dynamic updates and makes testing difficult. <em>Remedy</em>: Keep rules as external data files (YAML/JSON) with schema validation.</li>
+<li><strong>Ignoring Findings</strong>: Producing findings but not acting on them diminishes trust and allows violations to persist. <em>Remedy</em>: Implement a clear escalation path and require sign-off for waived findings.</li>
+<li><strong>Over-reliance on Automation</strong>: Relying solely on automated rules without human oversight for architectural intent can miss emerging design patterns or out-of-scope changes. <em>Remedy</em>: Combine with periodic architectural reviews and allow human override mechanism with audit trail.</li>
+<li><strong>Rule Staleness</strong>: Rules become outdated as architecture evolves, causing false positives or missed issues. <em>Remedy</em>: Assign a rule owner and review them along with architecture decision records (ADRs).</li>
+</ol>
+<h2 id="adoption-guidance">Adoption guidance</h2>
+<p><strong>Starting Point</strong>: Begin with a small set of high-value rules (e.g., prohibited dependencies, naming conventions, required architecture layers). Integrate the ComplianceEngine into the CI pipeline for a single repository and run in advisory mode to collect feedback.
+<strong>Migration Path</strong>: Once the rule set stabilizes and teams agree on outcomes, switch to strict mode. Gradually expand coverage to more rules and more repositories. Establish a governance board to own the rule repository and review changes.
+<strong>Governance Ownership</strong>: Assign <code>domain_id</code> to the architecture governance domain and <code>initiative_id</code> to the current project (e.g., 'ideas-to-life-cas'). The principal architect or a nominated technical lead should act as owner (contact: architect@example.com). Coordinate with ADR owners to align rules with documented decisions.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../src/cas_runner/governance/compliance_engine.py">Compliance Engine Source</a></li>
-<li><a href="../../../src/cas_runner/governance/models.py">Governance Data Models</a></li>
-<li><a href="../../../.github/workflows/cas-build-validation.yml">Build Validation CI Workflow</a></li>
+<li>ADR-014: Automated Governance in CI</li>
+<li>ComplianceEngine source: <code>src/cas_runner/governance/compliance_engine.py</code></li>
+<li>Data Models: <code>src/cas_runner/governance/models.py</code></li>
+<li>CI Workflow: <code>.github/workflows/cas-build-validation.yml</code></li>
 </ul>
 
 
@@ -3487,9 +3584,6 @@
 
 
 
-
-  
-  
 
 
 
