@@ -12,24 +12,20 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceAction,
-      ComplianceFinding, TraceableMetric) - Pydantic models for governance domain
-      objects.
-    - src/cas_runner/steering/models.py (CapabilityRecord, ArchitecturalDelta, RawGitDelta)
-      - Pydantic models for steering and architectural data.
-  description: Domain entities and value objects are defined as Pydantic BaseModel
-    classes, providing validation, serialization, and schema definition.
+    - src/cas_runner/governance/models.py (GovernanceAction, ComplianceFinding, GovernanceHealth)
+    - src/cas_runner/steering/models.py (CapabilityRecord, RawGitDelta)
+  description: Uses Pydantic models to define domain entities with validation and
+    serialization.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Ensure type safety and data integrity across the system''s domain objects.'
-  - 'Context: The CAS system handles governance inventories, actions, capabilities,
-    and architectural deltas that need consistent validation and structured representation.'
-  - 'Force: Ingestion of diverse data from files, LLM outputs, and external tools.'
-  - 'Force: Need for explicit contracts for data exchange between modules.'
-  - 'Force: Desire for easy integration with serialization (JSON) and external validation
-    tools.'
+  - 'Intent: Represent business concepts as typed, validated data structures.'
+  - 'Context: The project depends on Pydantic 2.12.5 and defines models in governance
+    and steering modules.'
+  - 'Force: Need for input validation'
+  - 'Force: Type safety across modules'
+  - 'Force: Serialization to YAML/JSON for persistence'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -45,21 +41,17 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - The registry likely holds state transition maps and the engine executes them.
-  description: Governance actions are governed by a state machine where valid transitions
-    are registered in a central registry.
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry)
+  description: A registry that centralizes state transition rules for governance actions.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide deterministic and maintainable state tracking for governance
-    actions.'
-  - 'Context: Governance actions need to move through predefined states (e.g., proposed,
-    approved, applied) while ensuring no invalid transitions occur.'
-  - 'Force: Multiple action types with different lifecycle rules'
-  - 'Force: Need for explicit control over state changes'
-  - 'Force: Avoidance of scattered state-checking logic'
+  - 'Intent: Manage allowed state transitions without scattered if-else logic.'
+  - 'Context: Governance actions likely move through states (e.g., proposed, approved,
+    retired). The TransitionRegistry provides a lookup map.'
+  - 'Force: Need to enforce valid state changes'
+  - 'Force: Avoid hardcoding transition logic in many places'
   evidence_strength: medium
   confidence: medium
 - pattern_id: pure-functional-health-evaluation
@@ -2625,3 +2617,196 @@ pattern_proposals:
   - 'Force: Keep it simple for maintainability'
   evidence_strength: medium
   confidence: medium
+- pattern_id: service-layer-orchestration
+  name: Service Layer Orchestration
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+  description: A dedicated service class coordinates governance operations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple use case workflows from the CLI and infrastructure details.'
+  - 'Context: GovernanceActionService likely orchestrates actions using the engine,
+    compliance checks, and persistence.'
+  - 'Force: Need for separation of concerns'
+  - 'Force: Reusable business operations across entry points'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: external-client-adapter
+  name: External Client Adapter
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient)
+    - src/cas_runner/llm/mock_client.py (MockLLClient)
+  description: Provides interchangeable adapters for external LLM services.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Allow the rest of the system to use LLM functionality without coupling
+    to a specific provider.'
+  - 'Context: Both LiteLLMClient and MockLLClient exist, likely implementing a common
+    interface.'
+  - 'Force: Need for testability without real LLM calls'
+  - 'Force: Ability to switch providers or use local mocks'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: bootstrap-workspace-initialization
+  name: Bootstrap Workspace Initialization
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block)
+  description: A bootstrap routine initializes workspace structure and applies governance
+    configuration.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure a consistent project layout and merge governance blocks into existing
+    config.'
+  - 'Context: bootstrap.py provides functions to set up the environment, likely creating
+    directories and merging YAML blocks.'
+  - 'Force: Need for reproducible setup'
+  - 'Force: Centralized governance configuration in a reusable block'
+  evidence_strength: high
+  confidence: high
+- pattern_id: knowledge-artifact-repository-structure
+  name: Knowledge Artifact Repository Structure
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/
+    - cas-knowledge/projects/
+    - cas-knowledge/templates/pattern_template.md
+  description: A standardized directory hierarchy for storing knowledge artifacts
+    (global, projects, runtime, templates).
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Organize architecture knowledge in a predictable way to support reuse
+    and retrieval.'
+  - 'Context: cas-knowledge directory contains subdirectories for global (decisions,
+    patterns, rules), projects, runtime (traces, evaluations), and templates.'
+  - 'Force: Need for consistency across projects'
+  - 'Force: Scalability of knowledge base'
+  evidence_strength: high
+  confidence: high
+- pattern_id: health-calculation-model
+  name: Health Calculation Model
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+  description: Simple pattern for calculating health status from metrics and providing
+    reasons.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a lightweight way to assess system health based on configurable
+    thresholds.'
+  - 'Context: health_model.py defines HealthStatus enum and functions to calculate
+    health.'
+  - 'Force: Need for quick health indicators'
+  - 'Force: Decouple health computation from display'
+  evidence_strength: high
+  confidence: high
+- pattern_id: compliance-engine
+  name: Compliance Engine
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine)
+  description: Dedicated engine for evaluating artifacts against governance rules.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Centralize compliance checking so that rules are easily added and evaluated.'
+  - 'Context: ComplianceEngine likely accepts rules and data, returning findings.'
+  - 'Force: Need for pluggable rule sets'
+  - 'Force: Keep validation separate from business logic'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: steering-data-models
+  name: Steering Data Models
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-05'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (RawGitDelta, CapabilityRecord, CapabilitySet,
+      CapabilityLineage, ArchitecturalDelta)
+  description: Rich data models for capturing capability, lineage, and architectural
+    deltas.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Model complex steering information in a structured and extensible way.'
+  - 'Context: steering/models.py contains many dataclasses and Pydantic models representing
+    capabilities, git deltas, and more.'
+  - 'Force: Need to represent complex relationships'
+  - 'Force: Persistence and serialization requirements'
+  evidence_strength: high
+  confidence: high
