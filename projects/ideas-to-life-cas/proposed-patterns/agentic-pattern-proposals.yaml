@@ -2751,27 +2751,28 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-05'
+    date: '2026-11-06'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real LLM client using
-      LiteLLM.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client for deterministic
-      responses.
-  description: LLM interactions are abstracted behind a common client interface, allowing
-    real (LiteLLM) and mock implementations to be used interchangeably.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production LLM client
+      using LiteLLM.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client for offline
+      and deterministic testing.
+  description: Abstracts LLM access behind a common client interface, enabling real
+    and mock implementations to be swapped seamlessly.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Decouple agent logic from specific LLM vendors and enable testing/determinism.'
-  - 'Context: The llm module defines LiteLLMClient and MockLLMClient, both presumably
-    exposing the same interface (e.g., generate).'
-  - 'Force: Vendor lock-in'
-  - 'Force: Cost of live LLM calls'
-  - 'Force: Need for repeatable tests'
+  - 'Intent: Isolate LLM provider specifics to make the system testable and portable
+    across environments.'
+  - 'Context: The LLM client lives under src/cas_runner/llm/ and is used by the FlowRunner
+    and governance engines.'
+  - 'Force: Need to support different LLM providers without changing agent logic.'
+  - 'Force: Testing requires deterministic, non-deterministic LLM responses.'
+  - 'Force: Cost and latency vary across providers.'
   evidence_strength: high
   confidence: high
 - pattern_id: centralized-flow-runner-pipeline
@@ -4605,5 +4606,310 @@ pattern_proposals:
   - 'Force: Need to measure governance success'
   - 'Force: Transparency for humans'
   - 'Force: Actionable metrics'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: centralised-flow-orchestrator
+  name: Centralised Flow Orchestrator
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Central orchestrator that runs steps
+      sequentially.
+  description: FlowRunner acts as a single orchestrator that sequences steps and passes
+    a shared context across the pipeline.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Maintain deterministic execution order and a single point of control
+    for agentic workflows.'
+  - 'Context: The runner is the top-level entry point for executing governance flows.'
+  - 'Force: Need for deterministic step ordering in governance processes.'
+  - 'Force: Shared context must be passed and mutated between steps.'
+  - 'Force: Central control simplifies error handling and rollback.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: declarative-governance-action-engine
+  name: Declarative Governance Action Engine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Declarative transition-to-action mapping.
+  description: Governance actions are defined declaratively as transitions, and the
+    engine executes matching actions based on state changes.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make governance decisions explicit, auditable, and consistent by encoding
+    them as transition rules.'
+  - 'Context: The governance action engine is part of the governance layer, used after
+    steps to determine next actions.'
+  - 'Force: Need to encode complex governance policies without hardcoding them in
+    each step.'
+  - 'Force: Actions must be traceable and reusable.'
+  - 'Force: Different states require different actions.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: automated-compliance-gate
+  name: Automated Compliance Gate
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Validates
+      artifacts against compliance rules.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
+      Data models for compliance results.
+  description: ComplianceEngine acts as an automated gate that validates governance
+    artifacts against predefined rules before they are accepted.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enforce quality and safety constraints on agent-generated artifacts.'
+  - 'Context: The compliance engine is called after steps that produce new governance
+    artifacts.'
+  - 'Force: Need to prevent incorrect or unsafe artifacts from entering the knowledge
+    base.'
+  - 'Force: Compliance rules must be deterministic and testable.'
+  - 'Force: Failures should be actionable.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: agentic-context-merge
+  name: Agentic Context Merge
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merges governance
+      blocks into existing config.
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block) - Helper function for
+      merging governance block.
+  description: AgenticMerger integrates LLM-generated governance blocks into existing
+    configuration, preserving continuity and provenance.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Combine agent-generated content with existing governance state without
+    destructive overwrites.'
+  - 'Context: Used after LLM generation, to write new governance blocks into the workspace.'
+  - 'Force: Agent output may be incomplete or conflicting with existing content.'
+  - 'Force: Need for deterministic merging to avoid duplicate or lost data.'
+  - 'Force: Merged result must be valid and usable.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-metric-aggregation
+  name: Health Metric Aggregation
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health aggregation logic.
+  description: Health model aggregates governance metrics into a single health score
+    and reasons, providing an at-a-glance system view.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Give humans a quick, interpretable signal on the state of the agentic
+    governance system.'
+  - 'Context: The health model is used in a dashboard or reporting surface.'
+  - 'Force: Need to summarise many metrics into a single status.'
+  - 'Force: Status must be explainable.'
+  - 'Force: Different metrics have different importance.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: evidence-first-persistent-memory
+  name: Evidence-First Persistent Memory
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/decisions/ - Directory for architecture decision records.
+    - cas-knowledge/global/patterns/ - Directory for pattern documentation.
+    - cas-knowledge/templates/ - Templates for consistent artifact generation.
+  description: Governance artifacts (decisions, patterns, signals) are stored persistently
+    in a knowledge base to serve as evidence and memory.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a durable, inspectable record of agent decisions and rationale
+    for accountability and reuse.'
+  - 'Context: The cas-knowledge directory is the system''s long-term memory, organised
+    by global/project/runtime areas.'
+  - 'Force: Agent decisions need to be auditable.'
+  - 'Force: Knowledge must be reusable across projects.'
+  - 'Force: Storage must be simple and file-based for version control.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: template-driven-governance-artifacts
+  name: Template-Driven Governance Artifacts
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/architecture_decision_record_template.md - Template
+      for ADRs.
+    - cas-knowledge/templates/pattern_template.md - Template for pattern documentation.
+  description: Governance artifacts are generated from predefined templates to enforce
+    structure, consistency, and downstream validation.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure LLM-generated governance artifacts conform to expected formats
+    for downstream tools.'
+  - 'Context: Templates for ADRs, patterns, signals, etc., are stored under cas-knowledge/templates.'
+  - 'Force: LLM output is free-form, but downstream processing needs structured fields.'
+  - 'Force: Consistency across artifacts is required.'
+  - 'Force: Templates should be easy to modify without changing code.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: ci-governance-enforcement
+  name: CI Governance Enforcement
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .github/workflows/cas-build-validation.yml - CI workflow for validation.
+    - .github/workflows/cas-continuous-architecture.yml - Workflow for continuous
+      architecture checks.
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers) - Validation script for
+      workflows.
+  description: Governance validation is enforced via GitHub Actions workflows, running
+    checks outside the agent runtime.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Automate governance checks in CI to catch issues early and enforce rules
+    consistently.'
+  - 'Context: Workflows like cas-build-validation.yml and cas-continuous-architecture.yml
+    trigger on PRs or pushes.'
+  - 'Force: Manual checks are error-prone and not repeatable.'
+  - 'Force: CI should not require human intervention.'
+  - 'Force: Validation logic must be decoupled from agent runtime.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: distributed-tracing-observability
+  name: Distributed Tracing Observability
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - pyproject.toml (opentelemetry-api, opentelemetry-sdk) - Dependencies for distributed
+      tracing.
+  description: OpenTelemetry is integrated to trace agentic execution, providing visibility
+    into multi-step flows.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable debugging and performance analysis of agentic pipelines.'
+  - 'Context: OpenTelemetry API and SDK are declared as dependencies, likely used
+    in FlowRunner or step decorators.'
+  - 'Force: Agentic flows are complex to debug without tracing.'
+  - 'Force: Need to capture step execution time and context.'
+  - 'Force: Tracing should not significantly degrade performance.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: architectural-intent-tracking
+  name: Architectural Intent Tracking
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (ArchitecturalDelta, SteeringRuntimeIndex,
+      CapabilityRecord) - Models for architectural intent and deltas.
+  description: Steering models capture architectural intent and changes (deltas) to
+    support planning and impact analysis.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make agentic architectural changes explicit and measurable.'
+  - 'Context: Part of the steering layer, likely used to generate steering reports
+    or trigger actions.'
+  - 'Force: Architectural changes need to be quantifiable.'
+  - 'Force: Impact on existing architecture should be understood.'
+  - 'Force: Data should be structured for downstream processing.'
   evidence_strength: medium
   confidence: medium
