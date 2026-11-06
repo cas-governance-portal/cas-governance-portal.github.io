@@ -4023,36 +4023,33 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: agentic-merger
-  name: Agentic Merger of Governance Deltas
+  name: Agentic Knowledge Merger
   pattern_classification: governance
-  pattern_maturity: strategic_direction
+  pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-05'
+    date: '2026-11-06'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Handles merging
-      of governance changes.
-    - src/cas_runner/bootstrap.py (merge_cas_governance_block) - Bootstraps baseline
-      by merging governance blocks.
-  description: Agent-generated governance changes are merged into the baseline via
-    a dedicated merger component, preserving canonical structure.
-  pattern_type: emerging
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merges governance
+      blocks into files.
+  description: AgenticMerger merges agent-generated governance blocks into existing
+    files, preserving structure and avoiding duplication.
+  pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To integrate updates from multiple agent sources into a single, consistent
-    governance baseline without manual intervention.'
-  - 'Context: The CAS system receives governance blocks (e.g., architecture decisions,
-    rules) from agents. The AgenticMerger reconciles these with existing content,
-    and bootstrap''s merge_cas_governance_block applies them during workspace setup.'
-  - 'Force: Multiple sources of truth'
-  - 'Force: Conflicting updates'
-  - 'Force: Need for idempotence'
+  - 'Intent: To safely integrate new steering decisions into the persistent governance
+    knowledge base.'
+  - 'Context: The merger is used during bootstrap and governance updates to combine
+    agent output with existing files.'
+  - 'Force: file format stability'
+  - 'Force: avoiding data loss'
+  - 'Force: idempotency'
   evidence_strength: medium
   confidence: medium
 - pattern_id: governance-state-machine
@@ -4336,33 +4333,34 @@ pattern_proposals:
   evidence_strength: medium
   confidence: medium
 - pattern_id: compliance-gate
-  name: Compliance Gate
+  name: Compliance Enforcement Gate
   pattern_classification: governance
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-05'
+    date: '2026-11-06'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluates
-      compliance.
-    - src/cas_runner/governance/models.py (ComplianceFinding) - Output type of compliance
-      check.
-  description: Changes are evaluated against governance rules by a dedicated compliance
-    engine, blocking non-compliant actions.
+      governance content against rules.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
+      Result models for compliance checks.
+  description: A ComplianceEngine evaluates agent outputs against governance rules
+    before they are persisted, acting as a gate for quality and safety.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Prevent architectural changes that violate established rules.'
-  - 'Context: ComplianceEngine is invoked during the pipeline, likely after a change
-    is proposed, to check against cas-knowledge rules.'
-  - 'Force: Need for consistent governance'
-  - 'Force: Balancing strictness vs flexibility'
+  - 'Intent: To prevent non-compliant or unsafe governance decisions from being applied.'
+  - 'Context: GovernanceActionService invokes ComplianceEngine to check findings before
+    performing actions.'
+  - 'Force: need for rule enforcement'
+  - 'Force: LLM output variability'
+  - 'Force: organisational policies'
   evidence_strength: high
   confidence: high
 - pattern_id: governance-action-transition
@@ -4911,5 +4909,309 @@ pattern_proposals:
   - 'Force: Architectural changes need to be quantifiable.'
   - 'Force: Impact on existing architecture should be understood.'
   - 'Force: Data should be structured for downstream processing.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: central-pipeline-orchestration
+  name: Central Pipeline Orchestration
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Central orchestrator defining pipeline
+      execution.
+  description: A single FlowRunner executes a sequence of steps, mutating a shared
+    context passed between each phase, ensuring deterministic and traceable execution.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To coordinate multi-step agentic workflows in a controlled, sequential
+    manner with shared state.'
+  - 'Context: The CAS FlowRunner is the core orchestrator in `src/cas_runner/runner.py`,
+    driving the entire architecture steering flow.'
+  - 'Force: need for deterministic execution'
+  - 'Force: traceability'
+  - 'Force: reproducibility'
+  - 'Force: control over LLM calls'
+  evidence_strength: high
+  confidence: high
+- pattern_id: llm-provider-adapter
+  name: LLM Provider Adapter
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production LLM client.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client for deterministic
+      responses.
+  description: LLM clients are abstracted behind a common interface (LiteLLMClient,
+    MockLLMClient) to decouple core logic from specific providers and enable testing.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To allow swapping LLM providers and using deterministic mocks in tests
+    without changing business logic.'
+  - 'Context: The system includes both LiteLLMClient and MockLLMClient in `src/cas_runner/llm/`,
+    suggesting a consistent interface.'
+  - 'Force: vendor lock-in'
+  - 'Force: testing without external dependencies'
+  - 'Force: cost optimisation'
+  evidence_strength: high
+  confidence: high
+- pattern_id: typed-data-contracts
+  name: Typed Data Contracts for Agent I/O
+  pattern_classification: architectural
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (CapabilityRecord, ArchitecturalDelta, SteeringRuntimeIndex)
+      - Typed models for agent data exchange.
+  description: Pydantic models in `steering/models.py` define structured contracts
+    for agent inputs, outputs, and architectural deltas, ensuring type safety and
+    validation.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To prevent malformed data from flowing between orchestration steps and
+    to formalise the contracts between agent and system.'
+  - 'Context: Steering models like CapabilityRecord, ArchitecturalDelta, and SteeringRuntimeIndex
+    define the data shapes used across the pipeline.'
+  - 'Force: LLM output unpredictability'
+  - 'Force: need for schema validation'
+  - 'Force: cross-component communication'
+  evidence_strength: high
+  confidence: high
+- pattern_id: state-transition-registry
+  name: State Transition Registry for Governance
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Defines and enforces valid state transitions.
+  description: A TransitionRegistry within GovernanceActionEngine explicitly defines
+    allowed state transitions, acting as a guardrail for governance operations.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To ensure governance actions only occur when the system is in a valid
+    state, preventing inconsistent or unsafe transitions.'
+  - 'Context: GovernanceActionEngine uses the registry to validate proposed actions
+    against current governance inventory state.'
+  - 'Force: state complexity'
+  - 'Force: need for invariants'
+  - 'Force: preventing invalid workflows'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-evaluation-metric
+  name: Health Evaluation Metric for Agentic Systems
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health computation from metrics.
+  description: A health model computes a health status from governance metrics and
+    trace data, providing a dashboard for monitoring agentic system performance.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To quantify the health of the CAS system in a single score for monitoring
+    and alerting.'
+  - 'Context: The dashboard module includes HealthStatus and calculate_health functions
+    to evaluate governance health.'
+  - 'Force: need for operational visibility'
+  - 'Force: complexity of multi-dimensional metrics'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: bootstrap-workspace-initialisation
+  name: Bootstrap Workspace Initialisation
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block)
+      - Initialisation logic for workspace.
+  description: A bootstrap process initialises the workspace by creating necessary
+    directories, merging governance blocks, and setting up the environment for agentic
+    execution.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To guarantee a consistent starting state for the agentic pipeline, reducing
+    environment-specific failures.'
+  - 'Context: CLI entry point calls bootstrap to prepare the CAS workspace before
+    running flows.'
+  - 'Force: non-deterministic environments'
+  - 'Force: need for idempotent setup'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: ci-workflow-validation
+  name: CI Workflow Validation Gate
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_zero_hardcoding,
+      check_no_unpinned_installers, check_retired_workflow) - Static checks for CI
+      quality.
+  description: A Python script (validate_workflows.py) enforces quality standards
+    on GitHub Actions workflows, preventing hardcoding, unpinned installers, and dead
+    code.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To ensure CI workflows are reproducible, maintainable, and free from
+    common anti-patterns.'
+  - 'Context: This validation script is used in CAS build validation workflows to
+    enforce CI quality.'
+  - 'Force: CI configuration drift'
+  - 'Force: reproducibility concerns'
+  - 'Force: security of unversioned installers'
+  evidence_strength: high
+  confidence: high
+- pattern_id: persistent-knowledge-base
+  name: Persistent Knowledge Base for Agentic Memory
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global - Global governance and pattern storage.
+    - cas-knowledge/runtime - Runtime traces and execution profiles.
+  description: A structured directory hierarchy (cas-knowledge) stores governance
+    decisions, patterns, rules, and traces, acting as the long-term memory of the
+    agentic system.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To provide a persistent, versioned store for all agent-generated and
+    human-validated knowledge.'
+  - 'Context: The `cas-knowledge` directory contains global governance, project-specific
+    decisions, runtime traces, and templates.'
+  - 'Force: need for auditability'
+  - 'Force: knowledge reuse'
+  - 'Force: separation of global vs project knowledge'
+  evidence_strength: high
+  confidence: high
+- pattern_id: mock-llm-for-testing
+  name: Mock LLM for Deterministic Testing
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
+      deterministic LLM responses.
+  description: A mock LLM client provides deterministic canned responses, enabling
+    unit and integration tests without external API calls or latency.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To allow the CAS pipeline to be tested in CI without relying on live
+    LLM services.'
+  - 'Context: MockLLMClient is present alongside LiteLLMClient, suggesting it can
+    be swapped in for tests.'
+  - 'Force: cost of live calls'
+  - 'Force: non-determinism'
+  - 'Force: network availability'
+  evidence_strength: high
+  confidence: high
+- pattern_id: trace-persistence
+  name: Runtime Trace Persistence
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime - Directory for traces and evaluation data.
+  description: The system persists execution traces and evaluation profiles under
+    cas-knowledge/runtime, enabling post-hoc analysis and health scoring.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To record execution details for debugging, auditing, and computing health
+    metrics.'
+  - 'Context: Runtime directory contains evaluations, traces, and execution-profile.yaml,
+    suggesting a trace capture mechanism.'
+  - 'Force: need for auditing'
+  - 'Force: diagnosis of failures'
+  - 'Force: continuous improvement'
   evidence_strength: medium
   confidence: medium

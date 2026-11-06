@@ -3,311 +3,190 @@
     "repo_name": "ideas-to-life-cas",
     "repo_version_or_commit": null,
     "focus": "agentic-ai",
-    "generated_at": "2026-11-06T09:34:38.241465",
-    "scope_notes": "Analysis based on repository structure, key file symbols, and architectural documentation. Full code contents not inspected; patterns inferred from module names, symbol signatures, and docs.",
+    "generated_at": "2026-11-06T10:16:20.652214",
+    "scope_notes": "Extraction based on repository structure and key file symbols. Focus on agentic orchestration, LLM contracts, governance state transitions, and CI enforcement.",
     "analysis_limits": [
-      "Only partial file contents available; symbols and directory tree used.",
-      "Some patterns inferred from architecture docs rather than direct code inspection.",
-      "No runtime trace or execution data to confirm behavioural claims."
+      "Only file paths and symbol names were inspected; full source code not available for detailed analysis.",
+      "Agentic behaviour inferred from component names and documentation references.",
+      "No runtime traces or execution profile contents examined."
     ],
     "default_domain": [
-      "architecture-governance",
-      "developer-tools"
+      "architecture",
+      "governance"
     ],
     "default_sources": [
-      "docs/architecture/",
-      "src/cas_runner/"
+      "src/cas_runner",
+      "docs/architecture"
     ]
   },
   "system_map": {
-    "overview": "A runner-based agentic system that orchestrates architecture governance flows, delegating text-generation and analysis to LLM clients while enforcing strict validation, compliance, and governance action execution.",
+    "overview": "A centralised pipeline (CAS Runner) that uses LLM-backed decision-making to continuously steer architecture governance, with compliance checks, state transitions, and persistent knowledge storage.",
     "agents": [
       {
         "name": "FlowRunner",
-        "role": "Central orchestrator that sequences governance steps and passes a shared execution context.",
+        "role": "Orchestrates the end-to-end CAS execution flow, coordinating steps and propagating a shared execution context.",
         "paths": [
           "src/cas_runner/runner.py"
         ],
         "inputs": [
-          "workflow definition",
-          "initial context"
+          "initial context",
+          "configuration"
         ],
         "outputs": [
-          "final context",
-          "execution result"
+          "execution results",
+          "updated context"
         ],
         "depends_on": [
-          "LLMClient",
+          "LiteLLMClient",
+          "MockLLMClient",
+          "GovernanceActionService"
+        ]
+      },
+      {
+        "name": "GovernanceActionService",
+        "role": "Applies governance actions based on transition rules and agent decisions, invoking compliance checks.",
+        "paths": [
+          "src/cas_runner/governance/governance_action_service.py"
+        ],
+        "inputs": [
+          "governance inventory",
+          "decision"
+        ],
+        "outputs": [
+          "governance action",
+          "resolution result"
+        ],
+        "depends_on": [
           "GovernanceActionEngine",
           "ComplianceEngine"
         ]
       },
       {
-        "name": "GovernanceActionEngine",
-        "role": "Decides and executes governance actions based on registered transition rules.",
+        "name": "LiteLLMClient",
+        "role": "Provides LLM inference for decision generation and analysis, abstracting multiple providers.",
         "paths": [
-          "src/cas_runner/governance/governance_action_engine.py"
+          "src/cas_runner/llm/litellm_client.py"
         ],
         "inputs": [
-          "current state",
-          "transition trigger"
+          "prompt",
+          "model configuration"
         ],
         "outputs": [
-          "governance action",
-          "updated state"
+          "text response"
         ],
         "depends_on": [
-          "TransitionRegistry"
+          "external LLM providers"
         ]
       },
       {
-        "name": "ComplianceEngine",
-        "role": "Validates governance artifacts against compliance rules, returning findings and metrics.",
+        "name": "MockLLMClient",
+        "role": "Deterministic LLM client used for testing and CI pipelines without external dependencies.",
         "paths": [
-          "src/cas_runner/governance/compliance_engine.py"
-        ],
-        "inputs": [
-          "governance artifact",
-          "compliance rules"
-        ],
-        "outputs": [
-          "compliance findings",
-          "compliance metrics"
-        ],
-        "depends_on": [
-          "models.py"
-        ]
-      },
-      {
-        "name": "LLMClient",
-        "role": "Provides LLM-based text generation and analysis as a tool for other agents.",
-        "paths": [
-          "src/cas_runner/llm/litellm_client.py",
           "src/cas_runner/llm/mock_client.py"
         ],
         "inputs": [
           "prompt",
-          "model parameters"
+          "mock response data"
         ],
         "outputs": [
-          "generated text",
-          "LLM response"
+          "canned text response"
         ],
         "depends_on": []
       }
     ],
     "orchestration": {
       "style": "centralised",
-      "description": "FlowRunner acts as a central orchestrator, executing steps in a deterministic sequence and passing a shared context object.",
+      "description": "A single FlowRunner drives the pipeline sequentially, with each step having a defined contract for input/output and shared context mutation.",
       "evidence": [
         "src/cas_runner/runner.py#FlowRunner"
       ]
     },
     "tools_and_integrations": [
       {
-        "name": "LiteLLMClient",
+        "name": "LiteLLM",
         "type": "llm",
         "used_by": [
-          "FlowRunner",
-          "GovernanceActionEngine"
+          "LiteLLMClient"
         ],
-        "purpose": "Provides access to multiple LLM providers through a unified interface.",
+        "purpose": "Unified interface to multiple LLM providers, enabling model switching without code changes.",
         "evidence": [
           "src/cas_runner/llm/litellm_client.py#LiteLLMClient"
         ]
       },
       {
-        "name": "MockLLMClient",
+        "name": "MockLLM",
         "type": "llm",
         "used_by": [
-          "FlowRunner",
-          "GovernanceActionEngine"
+          "MockLLMClient"
         ],
-        "purpose": "Provides deterministic, scripted LLM responses for testing and offline development.",
+        "purpose": "Canned responses for deterministic testing and validation of agentic flows.",
         "evidence": [
           "src/cas_runner/llm/mock_client.py#MockLLMClient"
-        ]
-      },
-      {
-        "name": "OpenTelemetry",
-        "type": "platform",
-        "used_by": [
-          "FlowRunner"
-        ],
-        "purpose": "Distributed tracing and observability for agentic execution flows.",
-        "evidence": [
-          "pyproject.toml#dependencies"
         ]
       },
       {
         "name": "GitHub Actions",
         "type": "platform",
         "used_by": [
-          "System as a whole"
+          "FlowRunner (CI integrations)"
         ],
-        "purpose": "Automate governance validation and build in CI/CD pipelines.",
+        "purpose": "Automated validation, build, and governance sync workflows that enforce agent output constraints.",
         "evidence": [
-          ".github/workflows/cas-build-validation.yml",
-          ".github/workflows/cas-continuous-architecture.yml"
+          ".github/workflows"
         ]
       },
       {
-        "name": "JSONSchema",
-        "type": "tool",
+        "name": "Knowledge Store",
+        "type": "data",
         "used_by": [
-          "ComplianceEngine",
+          "GovernanceActionService",
           "AgenticMerger"
         ],
-        "purpose": "Validate governance artifacts against structured schemas.",
+        "purpose": "Persists governance decisions, patterns, rules, and traces for reuse and evidence-based steering.",
         "evidence": [
-          "pyproject.toml#dependencies",
-          "src/cas_runner/governance/compliance_engine.py"
+          "cas-knowledge"
         ]
       }
     ],
     "state_and_memory": [
       {
         "kind": "persistent",
-        "description": "Governance knowledge base storing decisions, patterns, signals, and rules under cas-knowledge.",
+        "description": "Governance inventory, decisions, patterns, rules stored in cas-knowledge hierarchy.",
         "evidence": [
-          "cas-knowledge/global/decisions/",
-          "cas-knowledge/global/patterns/"
+          "cas-knowledge/global",
+          "cas-knowledge/governance",
+          "cas-knowledge/runtime"
         ]
       },
       {
-        "kind": "persistent",
-        "description": "Runtime traces and execution profiles for post-hoc analysis.",
+        "kind": "ephemeral",
+        "description": "Execution context passed between steps in FlowRunner, holding prompts and intermediate results.",
         "evidence": [
-          "cas-knowledge/runtime/traces/",
-          "cas-knowledge/runtime/execution-profile.yaml"
+          "src/cas_runner/runner.py#FlowRunner"
         ]
       },
       {
         "kind": "derived",
-        "description": "Steering runtime index and architectural deltas derived from changeset analysis.",
+        "description": "Health status and compliance metrics computed from trace metrics and rule contexts.",
         "evidence": [
-          "src/cas_runner/steering/models.py#SteeringRuntimeIndex",
-          "src/cas_runner/steering/models.py#ArchitecturalDelta"
+          "src/cas_runner/dashboard/health_model.py#calculate_health",
+          "src/cas_runner/governance/compliance_engine.py#ComplianceEngine"
         ]
       }
     ]
   },
   "patterns": [
     {
-      "id": "llm-provider-abstraction",
-      "name": "LLM Provider Abstraction",
+      "id": "central-pipeline-orchestration",
+      "name": "Central Pipeline Orchestration",
       "type": "pattern",
-      "agentic_concern": "control",
+      "agentic_concern": "execution",
       "agentic_profile": {
         "system_shape": "single-agent",
         "orchestration_mode": "sequential",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
-          "evidence": [
-            "src/cas_runner/llm/litellm_client.py",
-            "src/cas_runner/llm/mock_client.py"
-          ]
-        },
-        "tool_protocols": {
-          "mcp": "absent",
-          "tool_calling": "present",
-          "notes": "LLM calls are wrapped behind a client interface, but no MCP protocol is used.",
-          "evidence": [
-            "src/cas_runner/llm/litellm_client.py#LiteLLMClient"
-          ]
-        },
-        "optimisation_targets": {
-          "primary": "developer-velocity",
-          "secondary": [
-            "cost",
-            "reliability"
-          ],
-          "notes": "Abstraction allows swapping providers without changing orchestration logic."
-        },
-        "simplicity_vs_autonomy": {
-          "position": "balanced",
-          "rationale": "Provides a standard interface while retaining flexibility to use different LLM backends."
-        }
-      },
-      "summary": "Abstracts LLM access behind a common client interface, enabling real and mock implementations to be swapped seamlessly.",
-      "tags": [
-        "llm",
-        "abstraction",
-        "portability",
-        "testing"
-      ],
-      "domain": [
-        "architecture-governance",
-        "developer-tools"
-      ],
-      "related_experiments": [],
-      "related_learnings": [],
-      "sources": [
-        "src/cas_runner/llm/"
-      ],
-      "maturity": "stable",
-      "intent": "Isolate LLM provider specifics to make the system testable and portable across environments.",
-      "context": "The LLM client lives under src/cas_runner/llm/ and is used by the FlowRunner and governance engines.",
-      "forces": [
-        "Need to support different LLM providers without changing agent logic.",
-        "Testing requires deterministic, non-deterministic LLM responses.",
-        "Cost and latency vary across providers."
-      ],
-      "solution": "Define a common interface (e.g., a base class) with two implementations: LiteLLMClient for real calls and MockLLMClient for scripted responses. The rest of the system depends on the interface, not the concrete type.",
-      "implementation_signals": [
-        "Multiple client classes implementing the same interface.",
-        "Client selection logic in dependency injection or factory."
-      ],
-      "evidence": [
-        {
-          "path": "src/cas_runner/llm/litellm_client.py",
-          "symbols": [
-            "LiteLLMClient"
-          ],
-          "note": "Production LLM client using LiteLLM."
-        },
-        {
-          "path": "src/cas_runner/llm/mock_client.py",
-          "symbols": [
-            "MockLLMClient"
-          ],
-          "note": "Mock client for offline and deterministic testing."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Testability",
-          "Provider portability",
-          "Reduced lock-in"
-        ],
-        "costs": [
-          "Abstraction overhead",
-          "Potential loss of provider-specific features"
-        ],
-        "failure_modes": [
-          "If interface is too generic, provider-specific optimisations may be missed."
-        ]
-      },
-      "reuse_notes": "Applicable to any agentic system that calls LLMs and needs swapable providers or test doubles.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "abstraction_level": "structural",
-        "reuse_potential": "high",
-        "evidence_strength": "strong"
-      }
-    },
-    {
-      "id": "centralised-flow-orchestrator",
-      "name": "Centralised Flow Orchestrator",
-      "type": "pattern",
-      "agentic_concern": "control",
-      "agentic_profile": {
-        "system_shape": "single-agent",
-        "orchestration_mode": "sequential",
-        "agent_to_agent": {
-          "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
           "evidence": [
             "src/cas_runner/runner.py#FlowRunner"
           ]
@@ -315,31 +194,33 @@
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Orchestrator calls steps directly, not via external tool protocol.",
+          "notes": "LLM calls are made through the client, not via MCP or tool-calling protocols.",
           "evidence": [
-            "src/cas_runner/runner.py#FlowRunner"
+            "src/cas_runner/llm/litellm_client.py"
           ]
         },
         "optimisation_targets": {
           "primary": "reliability",
           "secondary": [
-            "latency"
+            "quality",
+            "developer-velocity"
           ],
-          "notes": "Sequential execution ensures order and simplifies debugging."
+          "notes": "Sequential pipeline with shared context ensures deterministic execution and easy tracing."
         },
         "simplicity_vs_autonomy": {
-          "position": "balanced",
-          "rationale": "Central control provides determinism; steps have limited autonomy."
+          "position": "simplicity",
+          "rationale": "Centralised orchestration reduces autonomy but improves control and predictability."
         }
       },
-      "summary": "FlowRunner acts as a single orchestrator that sequences steps and passes a shared context across the pipeline.",
+      "summary": "A single FlowRunner executes a sequence of steps, mutating a shared context passed between each phase, ensuring deterministic and traceable execution.",
       "tags": [
         "orchestration",
-        "pipeline",
-        "control-flow"
+        "context-propagation",
+        "pipeline"
       ],
       "domain": [
-        "architecture-governance"
+        "architecture",
+        "governance"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -347,18 +228,19 @@
         "src/cas_runner/runner.py"
       ],
       "maturity": "stable",
-      "intent": "Maintain deterministic execution order and a single point of control for agentic workflows.",
-      "context": "The runner is the top-level entry point for executing governance flows.",
+      "intent": "To coordinate multi-step agentic workflows in a controlled, sequential manner with shared state.",
+      "context": "The CAS FlowRunner is the core orchestrator in `src/cas_runner/runner.py`, driving the entire architecture steering flow.",
       "forces": [
-        "Need for deterministic step ordering in governance processes.",
-        "Shared context must be passed and mutated between steps.",
-        "Central control simplifies error handling and rollback."
+        "need for deterministic execution",
+        "traceability",
+        "reproducibility",
+        "control over LLM calls"
       ],
-      "solution": "FlowRunner holds a list of steps and executes them sequentially, passing a context object that accumulates results. Steps are given access to context and can modify it.",
+      "solution": "Implement a central runner that holds a mutable context object and invokes steps in a defined order, each step reading and updating the context.",
       "implementation_signals": [
-        "A runner class with a loop that iterates over steps.",
-        "Context object passed to each step's execute method.",
-        "Steps are registered or configured in a list."
+        "FlowRunner class",
+        "shared context object",
+        "sequential step invocation"
       ],
       "evidence": [
         {
@@ -366,43 +248,239 @@
           "symbols": [
             "FlowRunner"
           ],
-          "note": "Central orchestrator that runs steps sequentially."
+          "note": "Central orchestrator defining pipeline execution."
         }
       ],
       "consequences": {
         "benefits": [
-          "Deterministic execution",
-          "Simpler debugging",
-          "Easy to add new steps"
+          "predictable execution flow",
+          "easy logging and tracing",
+          "simple error handling"
         ],
         "costs": [
-          "Single point of failure",
-          "Limited parallelism",
-          "Pipeline can become monolithic"
+          "limited parallelism",
+          "single point of failure",
+          "tight coupling between steps"
         ],
         "failure_modes": [
-          "If runner crashes, entire flow stops without recovery; context may become inconsistent."
+          "context mutation bugs",
+          "step failure aborts entire pipeline"
         ]
       },
-      "reuse_notes": "Useful for any agentic system that requires a fixed sequence of operations with shared state.",
+      "reuse_notes": "Use for agentic systems requiring deterministic, stepwise orchestration with shared state. Consider adding parallel branches for performance-sensitive steps.",
       "confidence": "high",
       "extraction_metadata": {
         "abstraction_level": "foundational",
-        "reuse_potential": "medium",
-        "evidence_strength": "moderate"
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
       }
     },
     {
-      "id": "declarative-governance-action-engine",
-      "name": "Declarative Governance Action Engine",
+      "id": "llm-provider-adapter",
+      "name": "LLM Provider Adapter",
       "type": "pattern",
       "agentic_concern": "control",
       "agentic_profile": {
         "system_shape": "single-agent",
-        "orchestration_mode": "event-driven",
+        "orchestration_mode": "unknown",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
+          "evidence": [
+            "src/cas_runner/llm/litellm_client.py"
+          ]
+        },
+        "tool_protocols": {
+          "mcp": "absent",
+          "tool_calling": "absent",
+          "notes": "Adapter pattern for LLM providers, not exposing tool-calling."
+        },
+        "optimisation_targets": {
+          "primary": "cost",
+          "secondary": [
+            "reliability",
+            "quality"
+          ],
+          "notes": "Abstraction allows switching to cheaper or more reliable providers."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "balanced",
+          "rationale": "Adapter gives flexibility without sacrificing deterministic orchestration."
+        }
+      },
+      "summary": "LLM clients are abstracted behind a common interface (LiteLLMClient, MockLLMClient) to decouple core logic from specific providers and enable testing.",
+      "tags": [
+        "abstraction",
+        "llm",
+        "testing"
+      ],
+      "domain": [
+        "architecture"
+      ],
+      "related_experiments": [],
+      "related_learnings": [],
+      "sources": [
+        "src/cas_runner/llm/"
+      ],
+      "maturity": "stable",
+      "intent": "To allow swapping LLM providers and using deterministic mocks in tests without changing business logic.",
+      "context": "The system includes both LiteLLMClient and MockLLMClient in `src/cas_runner/llm/`, suggesting a consistent interface.",
+      "forces": [
+        "vendor lock-in",
+        "testing without external dependencies",
+        "cost optimisation"
+      ],
+      "solution": "Define a common client interface and provide multiple implementations (LiteLLM for production, Mock for tests) that are injected into the orchestrator.",
+      "implementation_signals": [
+        "LiteLLMClient",
+        "MockLLMClient",
+        "shared interface"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/llm/litellm_client.py",
+          "symbols": [
+            "LiteLLMClient"
+          ],
+          "note": "Production LLM client."
+        },
+        {
+          "path": "src/cas_runner/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ],
+          "note": "Mock client for deterministic responses."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "flexibility",
+          "testability",
+          "portability"
+        ],
+        "costs": [
+          "extra abstraction layer",
+          "possible feature loss when switching providers"
+        ],
+        "failure_modes": [
+          "interface mismatch when adding new providers",
+          "mock not representative of real behaviour"
+        ]
+      },
+      "reuse_notes": "Adopt when the agentic system relies on external LLM calls and requires testability or provider flexibility.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "foundational",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "typed-data-contracts",
+      "name": "Typed Data Contracts for Agent I/O",
+      "type": "pattern",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "unknown",
+          "evidence": [
+            "src/cas_runner/steering/models.py"
+          ]
+        },
+        "tool_protocols": {
+          "mcp": "absent",
+          "tool_calling": "absent",
+          "notes": "Contracts are Pydantic models, not protocol-based."
+        },
+        "optimisation_targets": {
+          "primary": "quality",
+          "secondary": [
+            "reliability"
+          ],
+          "notes": "Typed models ensure data validity and reduce LLM output errors."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "balanced",
+          "rationale": "Strict contracts limit autonomy but enforce correctness."
+        }
+      },
+      "summary": "Pydantic models in `steering/models.py` define structured contracts for agent inputs, outputs, and architectural deltas, ensuring type safety and validation.",
+      "tags": [
+        "schema",
+        "validation",
+        "pydantic"
+      ],
+      "domain": [
+        "architecture"
+      ],
+      "related_experiments": [],
+      "related_learnings": [],
+      "sources": [
+        "src/cas_runner/steering/models.py"
+      ],
+      "maturity": "stable",
+      "intent": "To prevent malformed data from flowing between orchestration steps and to formalise the contracts between agent and system.",
+      "context": "Steering models like CapabilityRecord, ArchitecturalDelta, and SteeringRuntimeIndex define the data shapes used across the pipeline.",
+      "forces": [
+        "LLM output unpredictability",
+        "need for schema validation",
+        "cross-component communication"
+      ],
+      "solution": "Use Pydantic models to define all structured data exchanged in the agentic flow, with validation at boundaries.",
+      "implementation_signals": [
+        "CapabilityRecord",
+        "ArchitecturalDelta",
+        "SteeringRuntimeIndex"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/steering/models.py",
+          "symbols": [
+            "CapabilityRecord",
+            "ArchitecturalDelta",
+            "SteeringRuntimeIndex"
+          ],
+          "note": "Typed models for agent data exchange."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "validation",
+          "IDE support",
+          "clear contracts",
+          "reduced error handling"
+        ],
+        "costs": [
+          "boilerplate",
+          "rigidity when data shapes evolve"
+        ],
+        "failure_modes": [
+          "over-strict schemas reject legitimate LLM output",
+          "migration overhead when schema changes"
+        ]
+      },
+      "reuse_notes": "Apply to any agentic system where LLM outputs are consumed by deterministic code; use schema validation at trust boundaries.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "foundational",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "state-transition-registry",
+      "name": "State Transition Registry for Governance",
+      "type": "pattern",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "unknown",
           "evidence": [
             "src/cas_runner/governance/governance_action_engine.py"
           ]
@@ -410,31 +488,28 @@
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Actions are executed directly in code, not through an external tool.",
-          "evidence": [
-            "src/cas_runner/governance/governance_action_engine.py"
-          ]
+          "notes": "State machine embedded in code."
         },
         "optimisation_targets": {
-          "primary": "quality",
+          "primary": "reliability",
           "secondary": [
             "safety"
           ],
-          "notes": "Declarative transitions make governance rules explicit and auditable."
+          "notes": "Enforces valid transitions to prevent invalid governance actions."
         },
         "simplicity_vs_autonomy": {
           "position": "simplicity",
-          "rationale": "Rules are predefined; engine only triggers them, leaving no room for autonomous decisions."
+          "rationale": "Registry restricts allowed actions, reducing autonomous but dangerous behaviour."
         }
       },
-      "summary": "Governance actions are defined declaratively as transitions, and the engine executes matching actions based on state changes.",
+      "summary": "A TransitionRegistry within GovernanceActionEngine explicitly defines allowed state transitions, acting as a guardrail for governance operations.",
       "tags": [
-        "governance",
         "state-machine",
-        "rules"
+        "governance",
+        "validation"
       ],
       "domain": [
-        "architecture-governance"
+        "governance"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -442,18 +517,17 @@
         "src/cas_runner/governance/governance_action_engine.py"
       ],
       "maturity": "stable",
-      "intent": "Make governance decisions explicit, auditable, and consistent by encoding them as transition rules.",
-      "context": "The governance action engine is part of the governance layer, used after steps to determine next actions.",
+      "intent": "To ensure governance actions only occur when the system is in a valid state, preventing inconsistent or unsafe transitions.",
+      "context": "GovernanceActionEngine uses the registry to validate proposed actions against current governance inventory state.",
       "forces": [
-        "Need to encode complex governance policies without hardcoding them in each step.",
-        "Actions must be traceable and reusable.",
-        "Different states require different actions."
+        "state complexity",
+        "need for invariants",
+        "preventing invalid workflows"
       ],
-      "solution": "TransitionRegistry holds a set of transition rules (from state to state with conditions). GovernanceActionEngine evaluates current state and triggers the appropriate action.",
+      "solution": "Centralise allowed transitions in a registry and check before executing any action.",
       "implementation_signals": [
-        "A registry of transition objects.",
-        "Engine with a method that takes current state and returns an action.",
-        "Actions are executed with side-effects on the system."
+        "TransitionRegistry",
+        "GovernanceActionEngine"
       ],
       "evidence": [
         {
@@ -462,25 +536,25 @@
             "TransitionRegistry",
             "GovernanceActionEngine"
           ],
-          "note": "Declarative transition-to-action mapping."
+          "note": "Defines and enforces valid state transitions."
         }
       ],
       "consequences": {
         "benefits": [
-          "Transparency",
-          "Reusability",
-          "Reduced complexity in individual steps"
+          "explicit state model",
+          "prevents invalid actions",
+          "easier reasoning"
         ],
         "costs": [
-          "Learning curve",
-          "May require many small classes",
-          "Transition rules can become complex"
+          "configuration boilerplate",
+          "may be too restrictive for novel cases"
         ],
         "failure_modes": [
-          "If transitions are not exhaustive, some states may cause no action."
+          "missing transition rules block legitimate actions",
+          "registry drift from actual state"
         ]
       },
-      "reuse_notes": "Applicable to any system that needs a declarative state machine for actions (e.g., workflow engines, policy enforcement).",
+      "reuse_notes": "Use in agentic systems where actions must be constrained by state to ensure safety and consistency.",
       "confidence": "medium",
       "extraction_metadata": {
         "abstraction_level": "structural",
@@ -489,8 +563,8 @@
       }
     },
     {
-      "id": "automated-compliance-gate",
-      "name": "Automated Compliance Gate",
+      "id": "compliance-gate",
+      "name": "Compliance Enforcement Gate",
       "type": "pattern",
       "agentic_concern": "evaluation",
       "agentic_profile": {
@@ -498,7 +572,7 @@
         "orchestration_mode": "sequential",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
           "evidence": [
             "src/cas_runner/governance/compliance_engine.py"
           ]
@@ -506,31 +580,28 @@
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Compliance checks are done in-process via Python logic.",
-          "evidence": [
-            "src/cas_runner/governance/compliance_engine.py"
-          ]
+          "notes": "Rule-based evaluation, no external tools."
         },
         "optimisation_targets": {
           "primary": "safety",
           "secondary": [
             "quality"
           ],
-          "notes": "Prevents non-compliant artifacts from being promoted."
+          "notes": "Ensures governance outputs adhere to predefined rules."
         },
         "simplicity_vs_autonomy": {
           "position": "simplicity",
-          "rationale": "Compliance is hardcoded as rules, not learned or adaptive."
+          "rationale": "External gate restricts autonomous actions to compliant ones."
         }
       },
-      "summary": "ComplianceEngine acts as an automated gate that validates governance artifacts against predefined rules before they are accepted.",
+      "summary": "A ComplianceEngine evaluates agent outputs against governance rules before they are persisted, acting as a gate for quality and safety.",
       "tags": [
-        "compliance",
+        "guardrail",
         "validation",
-        "safety"
+        "governance"
       ],
       "domain": [
-        "architecture-governance"
+        "governance"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -538,18 +609,18 @@
         "src/cas_runner/governance/compliance_engine.py"
       ],
       "maturity": "stable",
-      "intent": "Enforce quality and safety constraints on agent-generated artifacts.",
-      "context": "The compliance engine is called after steps that produce new governance artifacts.",
+      "intent": "To prevent non-compliant or unsafe governance decisions from being applied.",
+      "context": "GovernanceActionService invokes ComplianceEngine to check findings before performing actions.",
       "forces": [
-        "Need to prevent incorrect or unsafe artifacts from entering the knowledge base.",
-        "Compliance rules must be deterministic and testable.",
-        "Failures should be actionable."
+        "need for rule enforcement",
+        "LLM output variability",
+        "organisational policies"
       ],
-      "solution": "ComplianceEngine takes an artifact and a set of rules, returns findings and metrics, and may block acceptance if violations are found.",
+      "solution": "Implement a dedicated engine that runs rules against generated content and returns structured compliance findings.",
       "implementation_signals": [
-        "Methods like check() or validate() returning a list of findings.",
-        "Use of JSONSchema or custom rules.",
-        "Compliance findings include severity and action."
+        "ComplianceEngine",
+        "ComplianceFinding",
+        "ComplianceMetrics"
       ],
       "evidence": [
         {
@@ -557,7 +628,7 @@
           "symbols": [
             "ComplianceEngine"
           ],
-          "note": "Validates artifacts against compliance rules."
+          "note": "Evaluates governance content against rules."
         },
         {
           "path": "src/cas_runner/governance/models.py",
@@ -565,42 +636,43 @@
             "ComplianceFinding",
             "ComplianceMetrics"
           ],
-          "note": "Data models for compliance results."
+          "note": "Result models for compliance checks."
         }
       ],
       "consequences": {
         "benefits": [
-          "Improved quality",
-          "Safety enforcement",
-          "Early detection of issues"
+          "enforces policy",
+          "improves trust",
+          "catch issues early"
         ],
         "costs": [
-          "Extra processing time",
-          "May reject valid artifacts if rules are too strict"
+          "rule maintenance",
+          "potential false positives"
         ],
         "failure_modes": [
-          "Incomplete rules may let invalid artifacts pass."
+          "rules become outdated",
+          "gate blocks legitimate governance changes"
         ]
       },
-      "reuse_notes": "Can be reused in any agentic system that needs to validate LLM outputs against business rules.",
+      "reuse_notes": "Use as a mandatory checkpoint in agentic pipelines to ensure outputs conform to organisational policies.",
       "confidence": "high",
       "extraction_metadata": {
         "abstraction_level": "structural",
         "reuse_potential": "high",
-        "evidence_strength": "moderate"
+        "evidence_strength": "strong"
       }
     },
     {
-      "id": "agentic-context-merge",
-      "name": "Agentic Context Merge",
+      "id": "agentic-merger",
+      "name": "Agentic Knowledge Merger",
       "type": "pattern",
       "agentic_concern": "memory",
       "agentic_profile": {
         "system_shape": "single-agent",
-        "orchestration_mode": "sequential",
+        "orchestration_mode": "unknown",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
           "evidence": [
             "src/cas_runner/governance/agentic_merger.py"
           ]
@@ -608,31 +680,28 @@
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Merge is done programmatically, not through a tool.",
-          "evidence": [
-            "src/cas_runner/governance/agentic_merger.py"
-          ]
+          "notes": "Merge via file manipulation."
         },
         "optimisation_targets": {
           "primary": "quality",
           "secondary": [
             "reliability"
           ],
-          "notes": "Merges agent outputs without losing existing state."
+          "notes": "Ensures new knowledge is integrated without corrupting existing governance."
         },
         "simplicity_vs_autonomy": {
           "position": "balanced",
-          "rationale": "The merger automatically integrates outputs, but with deterministic rules."
+          "rationale": "Automated merging but with checks."
         }
       },
-      "summary": "AgenticMerger integrates LLM-generated governance blocks into existing configuration, preserving continuity and provenance.",
+      "summary": "AgenticMerger merges agent-generated governance blocks into existing files, preserving structure and avoiding duplication.",
       "tags": [
+        "knowledge-integration",
         "merge",
-        "state-management",
         "persistence"
       ],
       "domain": [
-        "architecture-governance"
+        "governance"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -640,18 +709,16 @@
         "src/cas_runner/governance/agentic_merger.py"
       ],
       "maturity": "stable",
-      "intent": "Combine agent-generated content with existing governance state without destructive overwrites.",
-      "context": "Used after LLM generation, to write new governance blocks into the workspace.",
+      "intent": "To safely integrate new steering decisions into the persistent governance knowledge base.",
+      "context": "The merger is used during bootstrap and governance updates to combine agent output with existing files.",
       "forces": [
-        "Agent output may be incomplete or conflicting with existing content.",
-        "Need for deterministic merging to avoid duplicate or lost data.",
-        "Merged result must be valid and usable."
+        "file format stability",
+        "avoiding data loss",
+        "idempotency"
       ],
-      "solution": "AgenticMerger uses a strategy to merge new blocks (e.g., sections, decisions) into existing YAML or config files, with conflict detection.",
+      "solution": "Implement a dedicated component that reads existing content, applies merge logic, and writes back, preserving governance blocks.",
       "implementation_signals": [
-        "A merger class with methods like merge_gov_block() or apply().",
-        "Use of schema validation after merge.",
-        "Handling of duplicate keys or sections."
+        "AgenticMerger"
       ],
       "evidence": [
         {
@@ -659,31 +726,25 @@
           "symbols": [
             "AgenticMerger"
           ],
-          "note": "Merges governance blocks into existing config."
-        },
-        {
-          "path": "src/cas_runner/bootstrap.py",
-          "symbols": [
-            "merge_cas_governance_block"
-          ],
-          "note": "Helper function for merging governance block."
+          "note": "Merges governance blocks into files."
         }
       ],
       "consequences": {
         "benefits": [
-          "Preserves existing state",
-          "Reduces risk of data loss",
-          "Supports iterative refinement"
+          "safe updates",
+          "incremental learning",
+          "auditability"
         ],
         "costs": [
-          "Complex merge logic",
-          "Potential for merge conflicts if not handled well"
+          "merge conflict handling",
+          "complex file manipulation"
         ],
         "failure_modes": [
-          "If merge logic is buggy, it may corrupt existing governance files."
+          "merge corruption",
+          "loss of manual edits"
         ]
       },
-      "reuse_notes": "Useful for any system that combines LLM output with persistent state (e.g., knowledge bases, configuration files).",
+      "reuse_notes": "Use when agent-generated content must be persistently integrated into structured files (e.g., YAML, Markdown) with existing content.",
       "confidence": "medium",
       "extraction_metadata": {
         "abstraction_level": "structural",
@@ -692,8 +753,8 @@
       }
     },
     {
-      "id": "health-metric-aggregation",
-      "name": "Health Metric Aggregation",
+      "id": "health-evaluation-metric",
+      "name": "Health Evaluation Metric for Agentic Systems",
       "type": "pattern",
       "agentic_concern": "evaluation",
       "agentic_profile": {
@@ -709,31 +770,29 @@
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "No external tool involved; pure computation from metrics.",
-          "evidence": [
-            "src/cas_runner/dashboard/health_model.py"
-          ]
+          "notes": "Aggregates metrics into a health score."
         },
         "optimisation_targets": {
           "primary": "quality",
           "secondary": [
-            "safety"
+            "reliability",
+            "observability"
           ],
-          "notes": "Provides a health score for governance system."
+          "notes": "Provides runtime visibility into system health."
         },
         "simplicity_vs_autonomy": {
-          "position": "simplicity",
-          "rationale": "Health is computed from fixed metrics, not learned."
+          "position": "balanced",
+          "rationale": "Health metric informs human oversight."
         }
       },
-      "summary": "Health model aggregates governance metrics into a single health score and reasons, providing an at-a-glance system view.",
+      "summary": "A health model computes a health status from governance metrics and trace data, providing a dashboard for monitoring agentic system performance.",
       "tags": [
-        "monitoring",
-        "health",
-        "metrics"
+        "observability",
+        "metrics",
+        "monitoring"
       ],
       "domain": [
-        "architecture-governance"
+        "operations"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -741,18 +800,17 @@
         "src/cas_runner/dashboard/health_model.py"
       ],
       "maturity": "stable",
-      "intent": "Give humans a quick, interpretable signal on the state of the agentic governance system.",
-      "context": "The health model is used in a dashboard or reporting surface.",
+      "intent": "To quantify the health of the CAS system in a single score for monitoring and alerting.",
+      "context": "The dashboard module includes HealthStatus and calculate_health functions to evaluate governance health.",
       "forces": [
-        "Need to summarise many metrics into a single status.",
-        "Status must be explainable.",
-        "Different metrics have different importance."
+        "need for operational visibility",
+        "complexity of multi-dimensional metrics"
       ],
-      "solution": "calculate_health() takes governance metrics and computes an overall status (e.g., healthy, warning, critical) with a list of reasons.",
+      "solution": "Define a health model that aggregates metrics (e.g., compliance rate, throughput) into a status with reasons.",
       "implementation_signals": [
-        "A HealthStatus enum.",
-        "A function that takes metrics and returns health score and reasons.",
-        "Thresholds for categorising health."
+        "HealthStatus",
+        "calculate_health",
+        "get_health_reasons"
       ],
       "evidence": [
         {
@@ -762,24 +820,118 @@
             "calculate_health",
             "get_health_reasons"
           ],
-          "note": "Health aggregation logic."
+          "note": "Health computation from metrics."
         }
       ],
       "consequences": {
         "benefits": [
-          "Quick visibility",
-          "Actionable reasons",
-          "Simple integration"
+          "single health score",
+          "improved observability",
+          "early warning"
         ],
         "costs": [
-          "May oversimplify complex state",
-          "Metrics must be kept up-to-date"
+          "simplification of complex state",
+          "metric selection bias"
         ],
         "failure_modes": [
-          "If metrics are not updated, health may be misleading."
+          "misleading health score",
+          "metric collection failures"
         ]
       },
-      "reuse_notes": "Applicable to any monitoring dashboard for agentic systems.",
+      "reuse_notes": "Adopt for agentic systems where operational monitoring is needed; design health metrics to be transparent and configurable.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "moderate"
+      }
+    },
+    {
+      "id": "bootstrap-workspace-initialisation",
+      "name": "Bootstrap Workspace Initialisation",
+      "type": "pattern",
+      "agentic_concern": "execution",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "unknown",
+          "evidence": [
+            "src/cas_runner/bootstrap.py"
+          ]
+        },
+        "tool_protocols": {
+          "mcp": "absent",
+          "tool_calling": "absent",
+          "notes": "Initialises filesystem and merges governance blocks."
+        },
+        "optimisation_targets": {
+          "primary": "reliability",
+          "secondary": [
+            "developer-velocity"
+          ],
+          "notes": "Ensures clean start and consistent state."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "simplicity",
+          "rationale": "Predefined initialisation ensures reproducibility."
+        }
+      },
+      "summary": "A bootstrap process initialises the workspace by creating necessary directories, merging governance blocks, and setting up the environment for agentic execution.",
+      "tags": [
+        "initialisation",
+        "setup",
+        "reproducibility"
+      ],
+      "domain": [
+        "governance"
+      ],
+      "related_experiments": [],
+      "related_learnings": [],
+      "sources": [
+        "src/cas_runner/bootstrap.py"
+      ],
+      "maturity": "stable",
+      "intent": "To guarantee a consistent starting state for the agentic pipeline, reducing environment-specific failures.",
+      "context": "CLI entry point calls bootstrap to prepare the CAS workspace before running flows.",
+      "forces": [
+        "non-deterministic environments",
+        "need for idempotent setup"
+      ],
+      "solution": "Implement a bootstrap function that creates standard directories, merges governance templates, and validates configuration.",
+      "implementation_signals": [
+        "bootstrap",
+        "init_workspace",
+        "merge_cas_governance_block"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/bootstrap.py",
+          "symbols": [
+            "bootstrap",
+            "init_workspace",
+            "merge_cas_governance_block"
+          ],
+          "note": "Initialisation logic for workspace."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "consistent environment",
+          "easier onboarding",
+          "idempotent setup"
+        ],
+        "costs": [
+          "additional startup time",
+          "possible over-configuration"
+        ],
+        "failure_modes": [
+          "bootstrap failures block usage",
+          "merge conflicts with user customisations"
+        ]
+      },
+      "reuse_notes": "Apply to agentic systems that require a well-defined workspace for outputs and state.",
       "confidence": "medium",
       "extraction_metadata": {
         "abstraction_level": "implementation",
@@ -788,49 +940,141 @@
       }
     },
     {
-      "id": "evidence-first-persistent-memory",
-      "name": "Evidence-First Persistent Memory",
+      "id": "ci-workflow-validation",
+      "name": "CI Workflow Validation Gate",
       "type": "pattern",
-      "agentic_concern": "memory",
+      "agentic_concern": "safety",
       "agentic_profile": {
-        "system_shape": "multi-agent",
-        "orchestration_mode": "unknown",
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential",
         "agent_to_agent": {
-          "present": "true",
-          "mechanism": "blackboard",
+          "present": "false",
+          "mechanism": "unknown",
           "evidence": [
-            "cas-knowledge/",
-            "cas-knowledge/global/decisions/"
+            "specs/090-simplify-cicd-workflows/validate_workflows.py"
           ]
         },
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Knowledge base acts as a shared blackboard for agents.",
+          "notes": "Static validation of workflow YAML files."
+        },
+        "optimisation_targets": {
+          "primary": "reliability",
+          "secondary": [
+            "safety"
+          ],
+          "notes": "Prevents misconfigured CI from breaking builds."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "simplicity",
+          "rationale": "Automated checks constrain CI changes."
+        }
+      },
+      "summary": "A Python script (validate_workflows.py) enforces quality standards on GitHub Actions workflows, preventing hardcoding, unpinned installers, and dead code.",
+      "tags": [
+        "ci/cd",
+        "validation",
+        "quality"
+      ],
+      "domain": [
+        "operations"
+      ],
+      "related_experiments": [],
+      "related_learnings": [],
+      "sources": [
+        "specs/090-simplify-cicd-workflows/validate_workflows.py"
+      ],
+      "maturity": "stable",
+      "intent": "To ensure CI workflows are reproducible, maintainable, and free from common anti-patterns.",
+      "context": "This validation script is used in CAS build validation workflows to enforce CI quality.",
+      "forces": [
+        "CI configuration drift",
+        "reproducibility concerns",
+        "security of unversioned installers"
+      ],
+      "solution": "Implement static checks that scan workflow YAML for specific patterns (hardcoding, unpinned versions) and fail the build if violations are found.",
+      "implementation_signals": [
+        "check_yaml_syntax",
+        "check_zero_hardcoding",
+        "check_no_unpinned_installers",
+        "check_retired_workflow"
+      ],
+      "evidence": [
+        {
+          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
+          "symbols": [
+            "check_zero_hardcoding",
+            "check_no_unpinned_installers",
+            "check_retired_workflow"
+          ],
+          "note": "Static checks for CI quality."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "reduces CI failures",
+          "improves reproducibility",
+          "enforces standards"
+        ],
+        "costs": [
+          "additional maintenance",
+          "may reject valid but unconventional workflows"
+        ],
+        "failure_modes": [
+          "false positives",
+          "rules become outdated"
+        ]
+      },
+      "reuse_notes": "Utilise for any agentic or non-agentic project to enforce CI best practices through automated validation.",
+      "confidence": "high",
+      "extraction_metadata": {
+        "abstraction_level": "implementation",
+        "reuse_potential": "high",
+        "evidence_strength": "strong"
+      }
+    },
+    {
+      "id": "persistent-knowledge-base",
+      "name": "Persistent Knowledge Base for Agentic Memory",
+      "type": "pattern",
+      "agentic_concern": "memory",
+      "agentic_profile": {
+        "system_shape": "hybrid",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "false",
+          "mechanism": "shared-state",
           "evidence": [
-            "cas-knowledge/global/decisions/"
+            "cas-knowledge/"
           ]
+        },
+        "tool_protocols": {
+          "mcp": "absent",
+          "tool_calling": "absent",
+          "notes": "File-based persistent storage."
         },
         "optimisation_targets": {
           "primary": "quality",
           "secondary": [
             "reliability"
           ],
-          "notes": "Stores rationale and evidence for future reference."
+          "notes": "Stores governance knowledge for reuse and audit."
         },
         "simplicity_vs_autonomy": {
           "position": "balanced",
-          "rationale": "Agents rely on persistent memory but with human oversight."
+          "rationale": "Persistent memory enables learning but is static."
         }
       },
-      "summary": "Governance artifacts (decisions, patterns, signals) are stored persistently in a knowledge base to serve as evidence and memory.",
+      "summary": "A structured directory hierarchy (cas-knowledge) stores governance decisions, patterns, rules, and traces, acting as the long-term memory of the agentic system.",
       "tags": [
         "memory",
-        "knowledge-base",
+        "knowledge-management",
         "persistence"
       ],
       "domain": [
-        "architecture-governance"
+        "governance",
+        "architecture"
       ],
       "related_experiments": [],
       "related_learnings": [],
@@ -838,52 +1082,51 @@
         "cas-knowledge/"
       ],
       "maturity": "stable",
-      "intent": "Provide a durable, inspectable record of agent decisions and rationale for accountability and reuse.",
-      "context": "The cas-knowledge directory is the system's long-term memory, organised by global/project/runtime areas.",
+      "intent": "To provide a persistent, versioned store for all agent-generated and human-validated knowledge.",
+      "context": "The `cas-knowledge` directory contains global governance, project-specific decisions, runtime traces, and templates.",
       "forces": [
-        "Agent decisions need to be auditable.",
-        "Knowledge must be reusable across projects.",
-        "Storage must be simple and file-based for version control."
+        "need for auditability",
+        "knowledge reuse",
+        "separation of global vs project knowledge"
       ],
-      "solution": "Use a structured file hierarchy (decisions, patterns, signals) with YAML/Markdown templates to store evidence.",
+      "solution": "Organise knowledge into a hierarchical directory structure with clear conventions for governance, patterns, decisions, and runtime data.",
       "implementation_signals": [
-        "Directories like cas-knowledge/global/decisions/.",
-        "Template files for different artifact types.",
-        "Use of GitHub for versioning."
+        "cas-knowledge/global",
+        "cas-knowledge/projects",
+        "cas-knowledge/runtime"
       ],
       "evidence": [
         {
-          "path": "cas-knowledge/global/decisions/",
+          "path": "cas-knowledge/global",
           "symbols": [],
-          "note": "Directory for architecture decision records."
+          "note": "Global governance and pattern storage."
         },
         {
-          "path": "cas-knowledge/global/patterns/",
+          "path": "cas-knowledge/runtime",
           "symbols": [],
-          "note": "Directory for pattern documentation."
-        },
-        {
-          "path": "cas-knowledge/templates/",
-          "symbols": [],
-          "note": "Templates for consistent artifact generation."
+          "note": "Runtime traces and execution profiles."
         }
       ],
       "consequences": {
         "benefits": [
-          "Accountability",
-          "Reuse",
-          "Traceability"
+          "durable memory",
+          "audit trail",
+          "reuse of patterns",
+          "separate project contexts"
         ],
         "costs": [
-          "Need to maintain templates",
-          "Potential for stale information"
+          "storage overhead",
+          "naming conventions must be enforced",
+          "version control complexity"
         ],
         "failure_modes": [
-          "If not updated, knowledge may diverge from actual state."
+          "knowledge duplication",
+          "stale information",
+          "difficulty in large-scale search"
         ]
       },
-      "reuse_notes": "Applicable to any agentic system that needs a persistent knowledge base for decisions.",
-      "confidence": "medium",
+      "reuse_notes": "Adopt in agentic systems that require long-term learning and governance; design with clear taxonomy and versioning.",
+      "confidence": "high",
       "extraction_metadata": {
         "abstraction_level": "foundational",
         "reuse_potential": "high",
@@ -891,461 +1134,376 @@
       }
     },
     {
-      "id": "template-driven-governance-artifacts",
-      "name": "Template-Driven Governance Artifacts",
+      "id": "mock-llm-for-testing",
+      "name": "Mock LLM for Deterministic Testing",
       "type": "pattern",
-      "agentic_concern": "planning",
+      "agentic_concern": "evaluation",
       "agentic_profile": {
         "system_shape": "single-agent",
         "orchestration_mode": "sequential",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
           "evidence": [
-            "cas-knowledge/templates/"
+            "src/cas_runner/llm/mock_client.py"
           ]
         },
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Templates are used to structure agent output.",
-          "evidence": [
-            "cas-knowledge/templates/"
-          ]
-        },
-        "optimisation_targets": {
-          "primary": "developer-velocity",
-          "secondary": [
-            "quality"
-          ],
-          "notes": "Reduces errors and speeds up generation."
-        },
-        "simplicity_vs_autonomy": {
-          "position": "simplicity",
-          "rationale": "Agents follow pre-defined templates, limiting creativity but ensuring consistency."
-        }
-      },
-      "summary": "Governance artifacts are generated from predefined templates to enforce structure, consistency, and downstream validation.",
-      "tags": [
-        "templates",
-        "standardization",
-        "prompting"
-      ],
-      "domain": [
-        "architecture-governance"
-      ],
-      "related_experiments": [],
-      "related_learnings": [],
-      "sources": [
-        "cas-knowledge/templates/"
-      ],
-      "maturity": "stable",
-      "intent": "Ensure LLM-generated governance artifacts conform to expected formats for downstream tools.",
-      "context": "Templates for ADRs, patterns, signals, etc., are stored under cas-knowledge/templates.",
-      "forces": [
-        "LLM output is free-form, but downstream processing needs structured fields.",
-        "Consistency across artifacts is required.",
-        "Templates should be easy to modify without changing code."
-      ],
-      "solution": "Write Markdown/YAML templates with placeholders that are filled by the agent, and validate against schema.",
-      "implementation_signals": [
-        "Template files with placeholder syntax (e.g., {{variable}}).",
-        "Use of prompt instructions to fill templates.",
-        "Validation step after generation."
-      ],
-      "evidence": [
-        {
-          "path": "cas-knowledge/templates/architecture_decision_record_template.md",
-          "symbols": [],
-          "note": "Template for ADRs."
-        },
-        {
-          "path": "cas-knowledge/templates/pattern_template.md",
-          "symbols": [],
-          "note": "Template for pattern documentation."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Consistency",
-          "Easier parsing",
-          "Improved quality"
-        ],
-        "costs": [
-          "May stifle creativity",
-          "Template maintenance burden"
-        ],
-        "failure_modes": [
-          "If templates are outdated, artifacts may be invalid."
-        ]
-      },
-      "reuse_notes": "Applicable to any agentic system that produces structured documents or configurations.",
-      "confidence": "medium",
-      "extraction_metadata": {
-        "abstraction_level": "structural",
-        "reuse_potential": "high",
-        "evidence_strength": "weak"
-      }
-    },
-    {
-      "id": "ci-governance-enforcement",
-      "name": "CI Governance Enforcement",
-      "type": "pattern",
-      "agentic_concern": "safety",
-      "agentic_profile": {
-        "system_shape": "multi-agent",
-        "orchestration_mode": "sequential",
-        "agent_to_agent": {
-          "present": "false",
-          "mechanism": "shared-state",
-          "evidence": [
-            ".github/workflows/"
-          ]
-        },
-        "tool_protocols": {
-          "mcp": "absent",
-          "tool_calling": "absent",
-          "notes": "CI runs external validation scripts; no LLM tool protocol.",
-          "evidence": [
-            ".github/workflows/cas-build-validation.yml"
-          ]
-        },
-        "optimisation_targets": {
-          "primary": "safety",
-          "secondary": [
-            "reliability"
-          ],
-          "notes": "Automates validation to prevent regressions."
-        },
-        "simplicity_vs_autonomy": {
-          "position": "balanced",
-          "rationale": "CI enforces rules automatically, but humans still maintain the workflows."
-        }
-      },
-      "summary": "Governance validation is enforced via GitHub Actions workflows, running checks outside the agent runtime.",
-      "tags": [
-        "ci/cd",
-        "validation",
-        "automation"
-      ],
-      "domain": [
-        "architecture-governance"
-      ],
-      "related_experiments": [],
-      "related_learnings": [],
-      "sources": [
-        ".github/workflows/"
-      ],
-      "maturity": "stable",
-      "intent": "Automate governance checks in CI to catch issues early and enforce rules consistently.",
-      "context": "Workflows like cas-build-validation.yml and cas-continuous-architecture.yml trigger on PRs or pushes.",
-      "forces": [
-        "Manual checks are error-prone and not repeatable.",
-        "CI should not require human intervention.",
-        "Validation logic must be decoupled from agent runtime."
-      ],
-      "solution": "Define GitHub Actions workflows that run validation scripts (e.g., validate_workflows.py) as part of CI.",
-      "implementation_signals": [
-        "Workflow files with build and validation steps.",
-        "Scripts that check YAML syntax, schema, and policies.",
-        "Use of composite actions for setup."
-      ],
-      "evidence": [
-        {
-          "path": ".github/workflows/cas-build-validation.yml",
-          "symbols": [],
-          "note": "CI workflow for validation."
-        },
-        {
-          "path": ".github/workflows/cas-continuous-architecture.yml",
-          "symbols": [],
-          "note": "Workflow for continuous architecture checks."
-        },
-        {
-          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
-          "symbols": [
-            "check_yaml_syntax",
-            "check_zero_hardcoding",
-            "check_no_unpinned_installers"
-          ],
-          "note": "Validation script for workflows."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Automation",
-          "Consistency",
-          "Early feedback"
-        ],
-        "costs": [
-          "Maintenance of CI workflows",
-          "Potential for false failures"
-        ],
-        "failure_modes": [
-          "If CI is not updated, it may miss new governance rules."
-        ]
-      },
-      "reuse_notes": "Applicable to any project that needs enforcement of quality gates in CI.",
-      "confidence": "medium",
-      "extraction_metadata": {
-        "abstraction_level": "structural",
-        "reuse_potential": "medium",
-        "evidence_strength": "moderate"
-      }
-    },
-    {
-      "id": "distributed-tracing-observability",
-      "name": "Distributed Tracing Observability",
-      "type": "pattern",
-      "agentic_concern": "control",
-      "agentic_profile": {
-        "system_shape": "single-agent",
-        "orchestration_mode": "sequential",
-        "agent_to_agent": {
-          "present": "false",
-          "mechanism": "shared-state",
-          "evidence": [
-            "pyproject.toml"
-          ]
-        },
-        "tool_protocols": {
-          "mcp": "absent",
-          "tool_calling": "absent",
-          "notes": "Uses OpenTelemetry for tracing, not for tool control.",
-          "evidence": [
-            "pyproject.toml#dependencies"
-          ]
+          "notes": "Canned responses."
         },
         "optimisation_targets": {
           "primary": "reliability",
           "secondary": [
             "developer-velocity"
           ],
-          "notes": "Tracing helps debug multi-step flows."
+          "notes": "Enables offline testing."
         },
         "simplicity_vs_autonomy": {
           "position": "simplicity",
-          "rationale": "Observability is added around deterministic steps, not to give agents autonomy."
+          "rationale": "Fully controlled responses for testability."
         }
       },
-      "summary": "OpenTelemetry is integrated to trace agentic execution, providing visibility into multi-step flows.",
+      "summary": "A mock LLM client provides deterministic canned responses, enabling unit and integration tests without external API calls or latency.",
       "tags": [
-        "observability",
-        "tracing",
-        "monitoring"
+        "testing",
+        "mock",
+        "determinism"
       ],
       "domain": [
-        "architecture-governance"
+        "testing"
       ],
       "related_experiments": [],
       "related_learnings": [],
       "sources": [
-        "pyproject.toml",
-        "src/cas_runner/"
+        "src/cas_runner/llm/mock_client.py"
       ],
-      "maturity": "validating",
-      "intent": "Enable debugging and performance analysis of agentic pipelines.",
-      "context": "OpenTelemetry API and SDK are declared as dependencies, likely used in FlowRunner or step decorators.",
+      "maturity": "stable",
+      "intent": "To allow the CAS pipeline to be tested in CI without relying on live LLM services.",
+      "context": "MockLLMClient is present alongside LiteLLMClient, suggesting it can be swapped in for tests.",
       "forces": [
-        "Agentic flows are complex to debug without tracing.",
-        "Need to capture step execution time and context.",
-        "Tracing should not significantly degrade performance."
+        "cost of live calls",
+        "non-determinism",
+        "network availability"
       ],
-      "solution": "Wrap step execution with OpenTelemetry spans to record timing and context, and export to a backend.",
+      "solution": "Implement a mock client that returns preconfigured responses based on input, and allow dependency injection to select it in test configs.",
       "implementation_signals": [
-        "Import of opentelemetry in dependency list.",
-        "Use of @tracer.start_as_current_span in runner or steps.",
-        "Configuration for exporters."
+        "MockLLMClient"
       ],
       "evidence": [
         {
-          "path": "pyproject.toml",
+          "path": "src/cas_runner/llm/mock_client.py",
           "symbols": [
-            "opentelemetry-api",
-            "opentelemetry-sdk"
+            "MockLLMClient"
           ],
-          "note": "Dependencies for distributed tracing."
+          "note": "Mock implementation for deterministic LLM responses."
         }
       ],
       "consequences": {
         "benefits": [
-          "Debugability",
-          "Performance monitoring",
-          "End-to-end visibility"
+          "fast tests",
+          "no external dependencies",
+          "reproducible CI"
         ],
         "costs": [
-          "Overhead",
-          "Requires backend setup"
+          "mock behaviour may differ from real LLM",
+          "requires maintaining scripted responses"
         ],
         "failure_modes": [
-          "If tracing is not properly configured, it may not capture all spans."
+          "mock becomes outdated",
+          "tests pass while production fails"
         ]
       },
-      "reuse_notes": "Applicable to any agentic system that needs detailed execution logging.",
-      "confidence": "low",
+      "reuse_notes": "Use as part of a provider adapter pattern to enable deterministic testing in agentic applications.",
+      "confidence": "high",
       "extraction_metadata": {
         "abstraction_level": "implementation",
         "reuse_potential": "high",
-        "evidence_strength": "weak"
+        "evidence_strength": "strong"
       }
     },
     {
-      "id": "architectural-intent-tracking",
-      "name": "Architectural Intent Tracking",
+      "id": "trace-persistence",
+      "name": "Runtime Trace Persistence",
       "type": "pattern",
-      "agentic_concern": "planning",
+      "agentic_concern": "observability",
       "agentic_profile": {
         "system_shape": "single-agent",
-        "orchestration_mode": "unknown",
+        "orchestration_mode": "sequential",
         "agent_to_agent": {
           "present": "false",
-          "mechanism": "shared-state",
+          "mechanism": "unknown",
           "evidence": [
-            "src/cas_runner/steering/models.py"
+            "cas-knowledge/runtime/traces"
           ]
         },
         "tool_protocols": {
           "mcp": "absent",
           "tool_calling": "absent",
-          "notes": "Models are pure data structures, not tools.",
-          "evidence": [
-            "src/cas_runner/steering/models.py"
-          ]
+          "notes": "File-based trace storage."
         },
         "optimisation_targets": {
-          "primary": "quality",
+          "primary": "observability",
           "secondary": [
-            "reliability"
+            "quality"
           ],
-          "notes": "Tracks architectural changes to understand impact."
+          "notes": "Enables post-hoc analysis and health evaluation."
         },
         "simplicity_vs_autonomy": {
-          "position": "simplicity",
-          "rationale": "Intent is captured through structured models, not autonomous planning."
+          "position": "balanced",
+          "rationale": "Traces support oversight without constraining agent behaviour."
         }
       },
-      "summary": "Steering models capture architectural intent and changes (deltas) to support planning and impact analysis.",
+      "summary": "The system persists execution traces and evaluation profiles under cas-knowledge/runtime, enabling post-hoc analysis and health scoring.",
       "tags": [
-        "planning",
-        "architecture",
-        "delta"
+        "observability",
+        "tracing",
+        "evaluation"
       ],
       "domain": [
-        "architecture-governance"
+        "operations"
       ],
       "related_experiments": [],
       "related_learnings": [],
       "sources": [
-        "src/cas_runner/steering/models.py"
+        "cas-knowledge/runtime"
       ],
-      "maturity": "exploring",
-      "intent": "Make agentic architectural changes explicit and measurable.",
-      "context": "Part of the steering layer, likely used to generate steering reports or trigger actions.",
+      "maturity": "stable",
+      "intent": "To record execution details for debugging, auditing, and computing health metrics.",
+      "context": "Runtime directory contains evaluations, traces, and execution-profile.yaml, suggesting a trace capture mechanism.",
       "forces": [
-        "Architectural changes need to be quantifiable.",
-        "Impact on existing architecture should be understood.",
-        "Data should be structured for downstream processing."
+        "need for auditing",
+        "diagnosis of failures",
+        "continuous improvement"
       ],
-      "solution": "Define Pydantic models for CapabilityRecord, CapabilitySet, ArchitecturalDelta, and SteeringRuntimeIndex to represent changes.",
+      "solution": "Capture key execution events and metrics to files or a structured store for later analysis.",
       "implementation_signals": [
-        "Pydantic BaseModel subclasses with fields for change types and metadata.",
-        "Enums for capability categories and change types.",
-        "Usage in steering logic or reports."
+        "cas-knowledge/runtime/traces",
+        "cas-knowledge/runtime/evaluations",
+        "execution-profile.yaml"
       ],
       "evidence": [
         {
-          "path": "src/cas_runner/steering/models.py",
-          "symbols": [
-            "ArchitecturalDelta",
-            "SteeringRuntimeIndex",
-            "CapabilityRecord"
-          ],
-          "note": "Models for architectural intent and deltas."
+          "path": "cas-knowledge/runtime",
+          "symbols": [],
+          "note": "Directory for traces and evaluation data."
         }
       ],
       "consequences": {
         "benefits": [
-          "Explicit planning",
-          "Impact assessment",
-          "Structured data"
+          "debuggability",
+          "performance analysis",
+          "audit trail"
         ],
         "costs": [
-          "Additional modelling overhead",
-          "May be unused if not integrated"
+          "storage overhead",
+          "privacy concerns",
+          "trace format evolution"
         ],
         "failure_modes": [
-          "If not used, models become dead code."
+          "trace volume grows unbounded",
+          "missing trace data due to configuration"
         ]
       },
-      "reuse_notes": "Useful for any system that needs to track changes in a domain over time.",
+      "reuse_notes": "Adopt in agentic systems where observability is critical; standardise trace schemas to support tooling.",
       "confidence": "medium",
       "extraction_metadata": {
         "abstraction_level": "structural",
-        "reuse_potential": "medium",
+        "reuse_potential": "high",
         "evidence_strength": "moderate"
       }
     }
   ],
-  "anti_patterns": [],
+  "anti_patterns": [
+    {
+      "id": "hardcoded-ci-steps",
+      "name": "Hardcoded CI Steps",
+      "agentic_risk": "opacity",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential"
+      },
+      "tags": [
+        "ci/cd",
+        "maintainability"
+      ],
+      "domain": [
+        "operations"
+      ],
+      "sources": [
+        "specs/090-simplify-cicd-workflows/validate_workflows.py"
+      ],
+      "symptoms": [
+        "Check zero hardcoding flags hardcoded values in workflows.",
+        "Workflow steps embed versions or paths directly."
+      ],
+      "where_observed": [
+        {
+          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
+          "symbols": [
+            "check_zero_hardcoding"
+          ],
+          "note": "Explicitly checks for hardcoded values."
+        }
+      ],
+      "impact": [
+        "Difficult to maintain",
+        "Increases drift risk",
+        "Reduces reproducibility"
+      ],
+      "suggested_remediation": [
+        "Externalise configuration to variables or environment files.",
+        "Use reusable workflows or composite actions to centralise logic."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "unreachable-dry-run",
+      "name": "Unreachable Dry Run in CI",
+      "agentic_risk": "opacity",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential"
+      },
+      "tags": [
+        "ci/cd",
+        "dead-code"
+      ],
+      "domain": [
+        "operations"
+      ],
+      "sources": [
+        "specs/090-simplify-cicd-workflows/validate_workflows.py"
+      ],
+      "symptoms": [
+        "Check for unreachable dry-run steps indicates dead code in workflows.",
+        "Workflow contains a dry-run that never executes."
+      ],
+      "where_observed": [
+        {
+          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
+          "symbols": [
+            "check_no_unreachable_dry_run"
+          ],
+          "note": "Flags unreachable dry-run branches."
+        }
+      ],
+      "impact": [
+        "Confusing for maintainers",
+        "Potential security risk if dry-run is bypassed",
+        "Wasted pipeline time"
+      ],
+      "suggested_remediation": [
+        "Remove dead branches or make dry-run configurable via inputs."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "unpinned-installers",
+      "name": "Unpinned Installer Versions",
+      "agentic_risk": "drift",
+      "agentic_profile": {
+        "system_shape": "single-agent",
+        "orchestration_mode": "sequential"
+      },
+      "tags": [
+        "ci/cd",
+        "reproducibility"
+      ],
+      "domain": [
+        "operations"
+      ],
+      "sources": [
+        "specs/090-simplify-cicd-workflows/validate_workflows.py"
+      ],
+      "symptoms": [
+        "Check for unpinned installers flags missing version pins.",
+        "Workflows use installer commands without version constraints."
+      ],
+      "where_observed": [
+        {
+          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
+          "symbols": [
+            "check_no_unpinned_installers"
+          ],
+          "note": "Validates installer version pinning."
+        }
+      ],
+      "impact": [
+        "Non-reproducible builds",
+        "Supply chain risk",
+        "Intermittent failures due to dependency changes"
+      ],
+      "suggested_remediation": [
+        "Always pin installer versions in CI workflows."
+      ],
+      "confidence": "high"
+    }
+  ],
   "cross_cutting_concerns": [
     {
       "concern": "prompt contracts",
-      "approach": "Templates and schemas (JSONSchema, Pydantic) enforce expected output structure.",
+      "approach": "Typed models and validation via steering models enforce schema on LLM inputs/outputs.",
       "evidence": [
-        "cas-knowledge/templates/",
-        "pyproject.toml#dependencies"
+        "src/cas_runner/steering/models.py"
       ],
-      "notes": "LLM outputs are constrained via templates and validation to reduce drift.",
-      "confidence": "medium"
+      "notes": "Reduces risk of malformed LLM output affecting downstream steps."
     },
     {
       "concern": "evaluation",
-      "approach": "ComplianceEngine and health model provide automated and human-readable evaluation.",
+      "approach": "Compliance engine and health model provide static and dynamic evaluation of governance outputs.",
       "evidence": [
         "src/cas_runner/governance/compliance_engine.py",
         "src/cas_runner/dashboard/health_model.py"
       ],
-      "notes": "Multiple layers of evaluation: compliance gates and health metrics.",
-      "confidence": "high"
+      "notes": "Evaluation is a mix of rule-based and metric-driven."
     },
     {
       "concern": "safety",
-      "approach": "Compliance rules and CI/CD validation act as guardrails for agent output.",
+      "approach": "State transition registry and compliance gate constrain agent actions to valid transitions.",
       "evidence": [
-        ".github/workflows/cas-build-validation.yml",
+        "src/cas_runner/governance/governance_action_engine.py",
         "src/cas_runner/governance/compliance_engine.py"
       ],
-      "notes": "Safety is enforced both at runtime and in the pipeline.",
-      "confidence": "high"
+      "notes": "Safety is enforced by design, not post-hoc."
+    },
+    {
+      "concern": "cost control",
+      "approach": "Provider abstraction (LiteLLM) allows switching to cheaper models; mock client reduces test costs.",
+      "evidence": [
+        "src/cas_runner/llm/"
+      ],
+      "notes": "Cost control is achieved through configurability."
     },
     {
       "concern": "observability",
-      "approach": "OpenTelemetry is used for tracing execution flows.",
+      "approach": "Persistent traces and health metrics provide runtime visibility.",
       "evidence": [
-        "pyproject.toml#dependencies"
+        "cas-knowledge/runtime",
+        "src/cas_runner/dashboard/health_model.py"
       ],
-      "notes": "Observability is declared but not deeply integrated based on available evidence.",
-      "confidence": "low"
+      "notes": "Observability is centralised in the knowledge store."
     }
   ],
   "open_questions": [
     {
-      "question": "How are steps defined and discovered in the FlowRunner?",
-      "why_it_matters": "Determines whether the pipeline is extensible without changing the runner.",
-      "evidence_gap": "No step registry or plugin mechanism observed in symbols.",
-      "suggested_next_check": "Inspect src/cas_runner/steps/ if exists, or the runner's step instantiation."
+      "question": "What are the explicit agent boundaries in this system? The code exposes orchestration components rather than explicit agent classes.",
+      "why_it_matters": "Understanding where the agent starts and ends is critical for assessing autonomy and control.",
+      "evidence_gap": "No agent definitions found in symbol listings; only orchestrator and service classes.",
+      "suggested_next_check": "Inspect docs/architecture/cas-agentic-development-flow.md for agent description."
     },
     {
-      "question": "Is there human-in-the-loop approval for governance actions?",
-      "why_it_matters": "Affects the level of autonomy and accountability.",
-      "evidence_gap": "No approval mechanism seen in code symbols.",
-      "suggested_next_check": "Look for asynchronous approval flows or user input in governance action engine."
+      "question": "How does FlowRunner handle parallel execution or branching? Current evidence suggests purely sequential.",
+      "why_it_matters": "Parallelism could improve performance but introduces coordination complexity.",
+      "evidence_gap": "No concurrency symbols observed in runner.py.",
+      "suggested_next_check": "Examine runner.py source code for any async or thread-based execution."
     },
     {
-      "question": "How are LLM prompts constructed? Are they built from templates or code?",
-      "why_it_matters": "Prompt engineering directly affects output quality and drift.",
-      "evidence_gap": "No prompt-related symbols beyond PromptFact in steering models.",
-      "suggested_next_check": "Search for prompt template files or functions that assemble prompts."
+      "question": "What is the lifecycle of governance actions in relation to compliance checks?",
+      "why_it_matters": "The order of compliance validation vs action execution impacts failure handling.",
+      "evidence_gap": "Interactions between GovernanceActionService and ComplianceEngine not fully visible.",
+      "suggested_next_check": "Inspect governance_action_service.py for call sequence."
     }
   ]
 }
