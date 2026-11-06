@@ -12,27 +12,28 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceInventory, ComplianceFinding,
-      GovernanceAction)
-    - src/cas_runner/steering/models.py (CapabilityRecord, ArchitecturalDelta)
-    - src/cas_runner/dashboard/health_model.py (HealthStatus)
-  description: Domain entities are modeled as Pydantic BaseModel classes, providing
-    validation, serialization, and type safety.
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
+      ComplianceMetrics, GovernanceException, GovernanceAction)
+    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, PromptFact, SteeringRuntimeIndex,
+      CapabilityCategory, CapabilityRecordType, CapabilityRecord, CapabilitySet, CapabilityLineage,
+      ArchitecturalDelta)
+  description: Domain entities are defined as Pydantic models to enforce validation
+    and schema.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To represent complex governance and steering concepts as strongly typed,
-    validated data structures.'
-  - 'Context: The system needs to handle various domain objects (GovernanceInventory,
-    CapabilityRecord, etc.) that are passed between layers and persist across runs.'
-  - 'Force: Need for input validation to prevent malformed data'
-  - 'Force: Desire for easy serialization to/from JSON/YAML'
-  - 'Force: Need for code maintainability and self-documenting data structures'
+  - 'Intent: Provide structured, validated, and serializable domain objects.'
+  - 'Context: The system has multiple domain concepts: governance models and steering
+    models, defined in models.py files.'
+  - 'Force: Need for validation'
+  - 'Force: Serialization to/from JSON'
+  - 'Force: Type safety'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
-  name: Transition Registry for State Machines
+  name: Transition Registry State Machine
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
@@ -45,18 +46,17 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry)
-  description: The GovernanceActionEngine uses a TransitionRegistry to define and
-    enforce allowed state transitions for governance actions.
+  description: A registry of allowed state transitions enables controlled state changes.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To provide explicit control over state changes and prevent invalid transitions.'
-  - 'Context: Governance actions have states (e.g., pending, approved, rejected) that
-    must follow a defined lifecycle.'
-  - 'Force: Need for robust state management'
-  - 'Force: Desire to centralize transition rules'
-  - 'Force: Support for future state additions without modifying core logic'
+  - 'Intent: Manage governance action states and ensure only valid transitions occur.'
+  - 'Context: GovernanceActionEngine has a TransitionRegistry to track permissible
+    state changes.'
+  - 'Force: Need to prevent invalid transitions'
+  - 'Force: Traceable state changes'
+  - 'Force: Explicit state machine logic'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -477,39 +477,32 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: service-layer-facade
-  name: Service Layer Application Facade
-  pattern_classification: governance
-  pattern_maturity: established
+  name: Service Layer Facade
+  pattern_classification: architectural
+  pattern_maturity: emerging
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-11-06'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - Coordinates governance action resolution and execution logic.
-    - src/cas_runner/runner.py (FlowRunner) - Main execution coordinator wrapping
-      flow execution.
-    - src/cas_runner/cli.py (main) - Entry point dispatching user commands directly
-      into service facades.
-  description: Orchestrates complex multi-engine operations behind high-level application
-    service interfaces.
-  pattern_type: implemented
+  description: A service class provides a unified API for complex business operations.
+  pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide a clean boundary between external callers (CLI, automated workflows)
-    and underlying compliance/governance engines.'
-  - 'Context: A single governance invocation requires inspecting inventories, verifying
-    compliance, and executing actions.'
-  - 'Force: Clients should not need to instantiate and coordinate multiple internal
-    engines.'
-  - 'Force: Workflow scripts and CLI handlers must remain lightweight.'
-  evidence_strength: high
-  confidence: high
+  - 'Intent: Encapsulate business logic behind a single service to decouple callers
+    from implementation details.'
+  - 'Context: GovernanceActionService exposes governance action operations.'
+  - 'Force: Multiple operations on domain model'
+  - 'Force: Need for transactional consistency'
+  - 'Force: Separation of concerns'
+  evidence_strength: medium
+  confidence: medium
 - pattern_id: swappable-provider-adapter
   name: Swappable Provider Adapter
   pattern_classification: architectural
@@ -2770,21 +2763,23 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-05'
+    date: '2026-11-06'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/compliance_engine.py (ComplianceEngine)
-  description: Dedicated engine for evaluating artifacts against governance rules.
+  description: A dedicated engine ensures governance actions meet compliance rules.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Centralize compliance checking so that rules are easily added and evaluated.'
-  - 'Context: ComplianceEngine likely accepts rules and data, returning findings.'
-  - 'Force: Need for pluggable rule sets'
-  - 'Force: Keep validation separate from business logic'
+  - 'Intent: Centralize compliance checking to ensure all actions adhere to defined
+    rules.'
+  - 'Context: Governance actions must be checked against compliance rules before execution.'
+  - 'Force: Need for consistent rule enforcement'
+  - 'Force: Separation of policy from action execution'
+  - 'Force: Extensibility of rules'
   evidence_strength: medium
   confidence: medium
 - pattern_id: steering-data-models
@@ -3271,3 +3266,117 @@ pattern_proposals:
   - 'Force: Ease of navigation by humans and tools'
   evidence_strength: medium
   confidence: medium
+- pattern_id: llm-client-adapter
+  name: LLM Client Adapter
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient)
+    - src/cas_runner/llm/mock_client.py (MockLLMClient)
+  description: Multiple LLM clients implement a common interface to allow swapping
+    between real and mock implementations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Isolate LLM integration behind an abstraction to support different providers
+    or test mocks.'
+  - 'Context: Code uses LLM for prompt-based operations but needs to switch between
+    real and mock clients.'
+  - 'Force: Need for testability'
+  - 'Force: Provider flexibility'
+  - 'Force: Consistent API'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: bootstrap-workspace-setup
+  name: Bootstrap Workspace Setup
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block,
+      merge_claude_settings, _create_symlink_or_copy)
+  description: A bootstrap process initializes the workspace by merging configs and
+    creating symlinks.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure consistent workspace setup across deployments and environments.'
+  - 'Context: The project requires merging governance blocks into configuration files
+    and linking skill directories.'
+  - 'Force: Need for reproducible setup'
+  - 'Force: Multiple configuration files'
+  - 'Force: Symlink management for cross-project resources'
+  evidence_strength: high
+  confidence: high
+- pattern_id: health-model-derived-value
+  name: Health Model Derived Value
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+  description: Health status is computed from underlying metrics, providing a derived
+    domain value.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a consolidated view of system health based on multiple metrics.'
+  - 'Context: Dashboard needs to show health of the system based on various metrics.'
+  - 'Force: Need to aggregate metrics'
+  - 'Force: Avoid storing derived state'
+  - 'Force: Consistent calculation logic'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: flow-runner-orchestration
+  name: Flow Runner Orchestration
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-06'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner)
+  description: A dedicated runner orchestrates the execution of a workflow or flow.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate the flow logic from the individual steps to enable reuse and
+    composition.'
+  - 'Context: The system uses a FlowRunner to execute sequences of operations, likely
+    driven by configuration.'
+  - 'Force: Need to manage sequential or conditional execution'
+  - 'Force: Decouple steps from orchestration'
+  - 'Force: Support testability and flexibility'
+  evidence_strength: low
+  confidence: low
