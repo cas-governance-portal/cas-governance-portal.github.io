@@ -928,28 +928,24 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/runner.py (FlowRunner) - Main execution engine managing workflow
-      phases.
-    - docs/architecture/cas-orchestration-flow.md - Visualizes sequential flow and
-      checkpointing logic.
-  description: Coordinates multi-step agent and deterministic evaluation tasks through
-    a centralised, linear execution runner with shared context propagation.
+    - src/cas_runner/runner.py (FlowRunner) - Contains execution loop.
+  description: FlowRunner executes a list of steps in a fixed order, passing a mutable
+    shared context between them.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Execute ordered architectural analysis and synthesis steps deterministically,
-    terminating immediately on critical compliance failures.'
-  - 'Context: The central coordinator for executing CAS commands via CLI or GitHub
-    Actions workflows.'
-  - 'Force: Autonomous agent loops can spin indefinitely or deviate without strict
-    step boundaries.'
-  - 'Force: CI/CD systems demand deterministic exit codes and structured stage results.'
+  - 'Intent: Provide a clear, repeatable execution path for multi-step agent workflows.'
+  - 'Context: The core runner in the system, likely used to process architecture changes
+    end-to-end.'
+  - 'Force: Complexity of multi-step workflows'
+  - 'Force: Need for debugging'
+  - 'Force: Deterministic outcomes'
   evidence_strength: high
   confidence: high
 - pattern_id: compliance-driven-health-scoring
@@ -2756,24 +2752,23 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real LLM client implementation.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real implementation using
+      LiteLLM.
     - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
-      tests.
-  description: LLM interactions are abstracted behind a client interface, allowing
-    the system to use different providers (real or mock) without changing the orchestration
-    logic.
+      tests and CI.
+  description: Abstracts LLM invocation behind a common client interface to enable
+    provider-agnostic agent execution.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Decouple agentic workflows from specific LLM providers to improve flexibility
-    and testability.'
-  - 'Context: The system defines a common interface (LiteLLMClient and MockLLMClient)
-    that returns LLM responses for prompts. The runner depends on this interface,
-    not a concrete provider.'
-  - 'Force: Provider variability'
-  - 'Force: Cost management'
-  - 'Force: Testing without network calls'
+  - 'Intent: Decouple agent logic from specific LLM vendors to allow flexible and
+    testable deployments.'
+  - 'Context: Used throughout the system whenever a step requires natural language
+    processing or generation.'
+  - 'Force: Provider lock-in'
+  - 'Force: Testing determinism'
+  - 'Force: Cost variability'
   evidence_strength: high
   confidence: high
 - pattern_id: centralized-flow-runner-pipeline
@@ -4024,65 +4019,62 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: agentic-merger
-  name: Agentic Knowledge Merger
-  pattern_classification: governance
+  name: Agentic Output Merger
+  pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merges governance
-      blocks into files.
-  description: AgenticMerger merges agent-generated governance blocks into existing
-    files, preserving structure and avoiding duplication.
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Class responsible
+      for merging.
+  description: AgenticMerger combines agent-generated configuration blocks (e.g.,
+    governance rules) into a single coherent file.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To safely integrate new steering decisions into the persistent governance
-    knowledge base.'
-  - 'Context: The merger is used during bootstrap and governance updates to combine
-    agent output with existing files.'
-  - 'Force: file format stability'
-  - 'Force: avoiding data loss'
-  - 'Force: idempotency'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Allow multiple agents or automated processes to contribute to shared
+    configuration without overwriting each other.'
+  - 'Context: Used during bootstrap and possibly during runtime to integrate new governance
+    inputs.'
+  - 'Force: Collaborative authoring'
+  - 'Force: Avoiding conflicts'
+  - 'Force: Idempotency'
+  evidence_strength: high
+  confidence: high
 - pattern_id: governance-state-machine
-  name: State Machine for Governance Actions
-  pattern_classification: governance
+  name: Governance State Machine
+  pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-05'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Engine and registry for state transitions.
-    - src/cas_runner/governance/models.py (GovernanceAction) - Action model.
-  description: Governance actions are modelled as state transitions, with an explicit
-    registry of allowed transitions enforced by an engine.
+      - State transition logic.
+  description: GovernanceActionEngine uses a TransitionRegistry to enforce valid state
+    transitions and generate corresponding actions.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To control governance lifecycle changes (e.g., approval, promotion) by
-    defining permissible state transitions and validating actions.'
-  - 'Context: The governance system supports actions like promoting a pattern or approving
-    a decision. GovernanceActionEngine uses TransitionRegistry to check whether an
-    action is allowed from the current state.'
-  - 'Force: Need to prevent invalid transitions'
-  - 'Force: Diverse governance states'
-  - 'Force: Requirements for auditability'
+  - 'Intent: Model governance workflows as explicit state machines to prevent illegal
+    or premature actions.'
+  - 'Context: Applied to govern architecture decision lifecycles.'
+  - 'Force: Predictability'
+  - 'Force: Traceability'
+  - 'Force: Regulatory requirements'
   evidence_strength: high
   confidence: high
 - pattern_id: capability-lineage-tracking
@@ -5064,34 +5056,34 @@ pattern_proposals:
   confidence: medium
 - pattern_id: bootstrap-workspace-initialisation
   name: Bootstrap Workspace Initialisation
-  pattern_classification: governance
+  pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block)
-      - Initialisation logic for workspace.
-  description: A bootstrap process initialises the workspace by creating necessary
-    directories, merging governance blocks, and setting up the environment for agentic
-    execution.
+    - src/cas_runner/bootstrap.py (bootstrap, merge_cas_governance_block, _create_symlink_or_copy)
+      - Core setup routines.
+  description: Bootstrap logic prepares the workspace by merging governance blocks,
+    updating settings, and creating symlinks before agent execution.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To guarantee a consistent starting state for the agentic pipeline, reducing
-    environment-specific failures.'
-  - 'Context: CLI entry point calls bootstrap to prepare the CAS workspace before
-    running flows.'
-  - 'Force: non-deterministic environments'
-  - 'Force: need for idempotent setup'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Provide a repeatable and deterministic environment initialisation for
+    agentic processes.'
+  - 'Context: Invoked during setup or CI/CD to ensure all paths and configurations
+    are correct.'
+  - 'Force: Multiple repositories'
+  - 'Force: Consistency'
+  - 'Force: Reproducibility'
+  evidence_strength: high
+  confidence: high
 - pattern_id: ci-workflow-validation
   name: CI Workflow Validation Gate
   pattern_classification: intelligence
@@ -5946,5 +5938,209 @@ pattern_proposals:
   - 'Force: Need for debugging'
   - 'Force: Performance monitoring'
   - 'Force: Distributed tracing'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: governance-compliance-guardrail
+  name: Governance Compliance Guardrail
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Core validation
+      logic.
+  description: A ComplianceEngine validates proposed architecture changes against
+    a set of rules, acting as a guardrail for agentic actions.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that any change suggested by an agent adheres to pre-defined architectural
+    standards.'
+  - 'Context: Applied within governance workflows to block or flag non-compliant decisions.'
+  - 'Force: Regulatory constraints'
+  - 'Force: Consistency'
+  - 'Force: Agent mistakes'
+  evidence_strength: high
+  confidence: high
+- pattern_id: steering-contract-models
+  name: Steering Contract Models
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (RawGitDelta, PromptFact, ArchitecturalDelta)
+      - Strongly typed models.
+  description: Steering models define typed structures for git deltas, prompt facts,
+    and architectural deltas, forming explicit contracts for agent inputs and outputs.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure consistent and validated data exchange between system components
+    and LLM agents.'
+  - 'Context: Used in the steering module to convert raw git changes into structured
+    facts for agent analysis.'
+  - 'Force: Data inconsistency'
+  - 'Force: Parsing errors'
+  - 'Force: LLM input quality'
+  evidence_strength: high
+  confidence: high
+- pattern_id: health-observability
+  name: Health Observability
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health computation logic.
+  description: Health model calculates system health based on aggregated metrics,
+    providing observability for agent-driven processes.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Give operators and agents a real-time view of system status to detect
+    degradation early.'
+  - 'Context: Likely used in dashboards or monitoring endpoints.'
+  - 'Force: Complexity of distributed systems'
+  - 'Force: Need for early warning'
+  - 'Force: Actionable metrics'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: deterministic-mock-client
+  name: Deterministic Mock LLM Client
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation.
+  description: MockLLMClient replaces real LLM calls with predetermined responses
+    to ensure deterministic test outcomes.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable fast, reliable tests and CI runs without depending on external
+    LLM services.'
+  - 'Context: Used in unit tests and any automated validation where LLM calls are
+    not desired.'
+  - 'Force: Test flakiness'
+  - 'Force: Cost of LLM calls'
+  - 'Force: Reproducibility'
+  evidence_strength: high
+  confidence: high
+- pattern_id: knowledge-base-as-memory
+  name: Knowledge Base as Persistent Memory
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/decisions - Stores decisions.
+    - cas-knowledge/global/patterns - Stores patterns.
+    - cas-knowledge/global/rules - Stores rules.
+  description: The cas-knowledge directory serves as a persistent, human-and-agent
+    readable store for decisions, patterns, rules, and signals.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide long-term memory for agents to refer to and update, enabling
+    institutional learning.'
+  - 'Context: All governance and steering processes likely read from and write to
+    this knowledge base.'
+  - 'Force: Knowledge retention'
+  - 'Force: Consistency across projects'
+  - 'Force: Agent access'
+  evidence_strength: high
+  confidence: high
+- pattern_id: governance-action-service
+  name: Governance Action Service
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Service layer.
+  description: GovernanceActionService provides a higher-level interface to apply
+    governance actions, decoupling client code from engine internals.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Offer a clean API for triggering governance actions without exposing
+    state machine details.'
+  - 'Context: Used by FlowRunner or other controllers to initiate governance processes.'
+  - 'Force: Complexity of engine'
+  - 'Force: Reusability'
+  - 'Force: Testability'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: agentic-bootstrap-merge
+  name: Agentic Configuration Merge during Bootstrap
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block) - Merge function.
+  description: Merge governance blocks during bootstrap to ensure a single, consistent
+    configuration for all agents and processes.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Avoid fragmented or conflicting configurations when multiple agents contribute.'
+  - 'Context: During initial setup of a project workspace.'
+  - 'Force: Multiple governance sources'
+  - 'Force: Version consistency'
+  - 'Force: Agent readiness'
   evidence_strength: medium
   confidence: medium
