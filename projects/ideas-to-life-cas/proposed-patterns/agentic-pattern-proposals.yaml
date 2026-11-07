@@ -2744,35 +2744,36 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: llm-provider-abstraction
-  name: LLM Provider Abstraction via Client Interface
+  name: LLM Provider Abstraction
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real provider client.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client implementing
-      the same interface.
-    - pyproject.toml - Declares dependency on litellm, the provider-agnostic library.
-  description: All LLM interactions are routed through a client that can be backed
-    by either LiteLLM or a mock, isolating agent code from provider specifics.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real LLM client implementation.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
+      tests.
+  description: LLM interactions are abstracted behind a client interface, allowing
+    the system to use different providers (real or mock) without changing the orchestration
+    logic.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide a uniform interface to LLM providers to ensure portability and
-    testability.'
-  - 'Context: The cas_runner package includes a dedicated llm/ directory with two
-    implementations of a client: LiteLLMClient and MockLLMClient.'
-  - 'Force: Vendor lock-in'
-  - 'Force: Testing without external dependencies'
-  - 'Force: Cost control'
+  - 'Intent: Decouple agentic workflows from specific LLM providers to improve flexibility
+    and testability.'
+  - 'Context: The system defines a common interface (LiteLLMClient and MockLLMClient)
+    that returns LLM responses for prompts. The runner depends on this interface,
+    not a concrete provider.'
+  - 'Force: Provider variability'
+  - 'Force: Cost management'
+  - 'Force: Testing without network calls'
   evidence_strength: high
   confidence: high
 - pattern_id: centralized-flow-runner-pipeline
@@ -5569,5 +5570,381 @@ pattern_proposals:
   - 'Force: Manual checks are slow and inconsistent'
   - 'Force: Governance rules should be enforced consistently'
   - 'Force: Need to integrate with existing CI/CD'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: governed-agentic-action
+  name: Governed Agentic Action
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Central
+      point for checking agent actions against rules.
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Generates actions when compliance fails.
+  description: Agentic actions are constrained by a governance layer that checks compliance
+    and enforces rules before any AI-driven change is approved.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that AI agents do not make uncontrolled changes to the architecture
+    knowledge base or system configuration.'
+  - 'Context: The CAS system integrates external agents (e.g., Claude Code) that propose
+    modifications, but every change must pass through a compliance engine to verify
+    it aligns with rules.'
+  - 'Force: Need for agent autonomy'
+  - 'Force: Strict enterprise governance'
+  - 'Force: Regulatory compliance'
+  evidence_strength: high
+  confidence: high
+- pattern_id: shared-context-pipeline
+  name: Shared Context Pipeline
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner.execute) - Implements the pipeline loop
+      and context passing.
+  description: A central flow runner executes a sequence of steps, passing a shared
+    context object that is mutated by each step, ensuring consistent state propagation.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Execute multi-step agentic workflows in a linear fashion while maintaining
+    a single execution context.'
+  - 'Context: The CAS runner orchestrates steps like rule evaluation, LLM calls, and
+    knowledge updates. Each step reads and writes to a Context object.'
+  - 'Force: Need for deterministic execution order'
+  - 'Force: Complex state management'
+  - 'Force: Debugging ease'
+  evidence_strength: high
+  confidence: high
+- pattern_id: governance-as-code
+  name: Governance as Code
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/rules/ - Directory containing governance rules.
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Loads and
+      enforces rules.
+  description: Governance rules and architecture constraints are defined as machine-readable
+    YAML files that are parsed and enforced by a compliance engine.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make governance rules explicit, versioned, and automatically enforceable
+    against agent actions.'
+  - 'Context: The CAS system stores rules in cas-knowledge/global/rules/ and uses
+    ComplianceEngine to check for violations.'
+  - 'Force: Need for human readable rules'
+  - 'Force: Automated enforcement'
+  - 'Force: Auditability'
+  evidence_strength: high
+  confidence: high
+- pattern_id: agent-contract-schema-validation
+  name: Agent Contract Schema Validation
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (SteeringRuntimeIndex, CapabilityRecord) -
+      Pydantic models for agent data.
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Uses schemas to
+      validate and merge.
+  description: Inter-agent communications are validated against Pydantic models and
+    JSON schemas, ensuring that agent outputs meet expected contracts before being
+    merged into the system.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent malformed data from entering the governance system and ensure
+    type safety across agent boundaries.'
+  - 'Context: When an external agent (e.g., Claude) generates a proposal for architecture
+    changes, the AgenticMerger validates it against expected Pydantic models; if validation
+    fails, the change is rejected.'
+  - 'Force: Heterogeneous agent outputs'
+  - 'Force: Type safety'
+  - 'Force: Error handling'
+  evidence_strength: high
+  confidence: high
+- pattern_id: orchestration-via-cli-and-ci
+  name: Orchestration via CLI and CI
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/cli.py (main) - CLI entry point.
+    - .github/workflows/cas-build-validation.yml - CI workflow triggering the runner.
+  description: Agentic workflows are invoked through a CLI or CI/CD pipelines, providing
+    a deterministic entry point for automation.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Expose agentic capabilities as command-line tools and CI jobs so they
+    can be automated and versioned.'
+  - 'Context: The CAS runner has a CLI (main function) and GitHub Actions workflows
+    that invoke the runner for tasks like building steering projections or validating
+    changes.'
+  - 'Force: Need for user interaction'
+  - 'Force: Automation'
+  - 'Force: Headless execution'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-and-risk-monitoring
+  name: Health and Risk Monitoring
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, get_health_reasons)
+      - Calculates health status.
+    - src/cas_runner/governance/models.py (GovernanceHealth) - Model for governance
+      health metrics.
+  description: The system computes health scores and governance risks to evaluate
+    the state of the architecture and guide agent decisions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide quantitative measures of system health and governance compliance
+    to inform agentic actions.'
+  - 'Context: HealthStatus and get_health_reasons functions calculate a health score
+    based on compliance findings; GovernanceHealth in models.py aggregates governance
+    metrics.'
+  - 'Force: Need for measurable outcomes'
+  - 'Force: Transparency'
+  - 'Force: Early warnings'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: evidence-first-knowledge-management
+  name: Evidence-First Knowledge Management
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/pattern_template.md - Template for patterns requiring
+      evidence.
+    - cas-knowledge/templates/rule_template.md - Template for rules with evidence
+      requirements.
+  description: Architecture knowledge is stored with mandatory evidence references,
+    ensuring that agent-generated claims are traceable to actual code or decisions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent hallucination and unverified claims in architecture documentation
+    by requiring evidence.'
+  - 'Context: All rules, patterns, and signals in cas-knowledge have templates that
+    include evidence fields. Agents are expected to fill these out with concrete references.'
+  - 'Force: LLM hallucination risk'
+  - 'Force: Need for accuracy'
+  - 'Force: Documentation overhead'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: capability-based-state-model
+  name: Capability-Based State Model
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/steering/models.py (CapabilityRecord, CapabilityLineage) - Models
+      for capabilities.
+  description: The system models architecture state as a set of capabilities, each
+    with lineage information, enabling traceability and impact analysis.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Represent the architecture in terms of capabilities to enable more profound
+    analysis and agentic reasoning.'
+  - 'Context: SteeringRuntimeIndex comprises CapabilityRecord objects, each with CapabilityLineage,
+    allowing the system to trace how capabilities evolved.'
+  - 'Force: Complexity of architecture'
+  - 'Force: Need for traceability'
+  - 'Force: Impact analysis'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: human-in-the-loop-approval
+  name: Human-in-the-Loop Approval
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry) -
+      Registry of state transitions, possibly with approval requirements.
+  description: Certain governance actions require human approval before they are executed,
+    preventing automatic modification of critical resources.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Maintain human oversight over high-risk agentic actions.'
+  - 'Context: GovernanceActionEngine has a TransitionRegistry that defines allowed
+    transitions; likely some transitions require manual approval.'
+  - 'Force: Risk of autonomous actions'
+  - 'Force: Regulatory requirements'
+  - 'Force: User trust'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: agentic-validation-workflows
+  name: Agentic Validation Workflows
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding) - Script for validating CI workflows.
+    - .github/workflows/cas-build-validation.yml - CI workflow running validation.
+  description: Automated scripts and CI workflows validate agentic outputs, enforcing
+    conformity to coding standards and governance rules.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that changes (including agent-generated ones) meet predefined
+    quality and governance thresholds before integration.'
+  - 'Context: The repository includes validation scripts that check YAML syntax, hardcoding,
+    unpinned installers, etc., and CI workflows run them on every change.'
+  - 'Force: Code quality'
+  - 'Force: Governance compliance'
+  - 'Force: Automation'
+  evidence_strength: high
+  confidence: high
+- pattern_id: centralised-governance-engine
+  name: Centralised Governance Engine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Handles
+      compliance checks.
+    - src/cas_runner/governance/governance_action_engine.py (GovernanceActionEngine)
+      - Generates actions.
+  description: All governance decisions are processed through a single engine, ensuring
+    consistent application of rules and actions.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a single source of truth for governance checks and actions, avoiding
+    scattered logic.'
+  - 'Context: ComplianceEngine and GovernanceActionEngine are the only components
+    that interact with governance rules.'
+  - 'Force: Consistency'
+  - 'Force: Maintainability'
+  - 'Force: Scalability'
+  evidence_strength: high
+  confidence: high
+- pattern_id: observability-via-opentelemetry
+  name: Observability via OpenTelemetry
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - pyproject.toml (opentelemetry-api, opentelemetry-sdk) - Declares OpenTelemetry
+      dependencies.
+  description: The system is instrumented with OpenTelemetry to collect traces and
+    metrics about agentic workflows, enabling monitoring and debugging.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide visibility into system execution for debugging and performance
+    analysis.'
+  - 'Context: OpenTelemetry is listed as a dependency, and likely integrated in FlowRunner
+    and other components.'
+  - 'Force: Need for debugging'
+  - 'Force: Performance monitoring'
+  - 'Force: Distributed tracing'
   evidence_strength: medium
   confidence: medium

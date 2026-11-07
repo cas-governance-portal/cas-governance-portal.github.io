@@ -3312,56 +3312,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mockllmclient" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MockLLMClient
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-harness" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Harness
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#agent-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agent Pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-fixtures-store" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Fixtures Store
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3449,87 +3399,103 @@
 
 <h1 id="reference-architecture-deterministic-mock-evaluation-harness">Reference Architecture: Deterministic Mock Evaluation Harness</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
+<p>This pattern provides a drop-in mock LLM client that enables deterministic, offline execution of agentic workflows and governance decision flows. It is designed to replace live LLM calls with a scripted, predictable response engine, ensuring that pipelines can be validated end-to-end without network flakiness, model nondeterminism, or associated costs.</p>
 <h3 id="when-to-use-this">When to use this</h3>
-<p>Use this pattern when you need to test agent pipelines or LLM-driven workflows end-to-end without relying on external, nondeterministic, or costly model calls. It is ideal for CI/CD regression testing, offline development, and verification of state transitions, schema validation, and governance decision flows. The pattern provides a drop-in mock LLM client that returns deterministic responses based on configurable fixtures, ensuring fast, repeatable, and zero-cost test execution.</p>
+<ul>
+<li>Use when you need to run agent pipelines in CI/CD environments where live LLM calls are unreliable, slow, or costly.</li>
+<li>Use when end-to-end testing of state transitions, schema validation, and orchestration logic is required, independent of external model behavior.</li>
+<li>Use when you need to reproduce specific LLM outputs (e.g., edge cases, error responses) to test error handling and fallback paths.</li>
+<li>Use for unit and integration tests that must be fast, deterministic, and runnable in parallel.</li>
+<li>Use when you want to establish a baseline for performance or behavior before switching to live models.</li>
+</ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
-<p>Do NOT use this pattern when the goal is to validate real model behavior, prompt tuning, or integration with live external APIs. It is not suitable for performance or load testing that requires actual model latency, nor for scenarios where you need to verify the correctness of model outputs for non-deterministic or creative tasks. If tests must reflect production variability, a real LLM or a recorded-response harness with careful drift management is preferred.</p>
+<ul>
+<li>Do not use as a substitute for integration testing with real LLMs, as mock responses may not reflect actual model output quality or latency.</li>
+<li>Do not use when testing model-specific features (e.g., token limits, streaming, or fine-tuned responses) that cannot be accurately simulated.</li>
+<li>Do not use in production paths where you need genuine LLM reasoning; this pattern is strictly for testing and development.</li>
+<li>Avoid using if your pipeline relies on non-deterministic LLM side effects (e.g., random sampling) that are essential to the business logic.</li>
+</ul>
 <h2 id="overview">Overview</h2>
-<p>The pattern introduces a MockLLMClient that substitutes the production LLM client in test environments. The architecture consists of a Test Harness that drives an Agent Pipeline, which communicates with the MockLLMClient instead of a real LLM. The MockLLMClient reads from a Test Fixtures Store to produce deterministic responses, enabling assertions on the pipeline's behavior. A fallback to a real LLM is available for development scenarios, but is never used in CI.</p>
 <pre class="mermaid"><code>flowchart LR
-    agent["Agent Pipeline (Container)"]
-    test["Test Harness (Container)"]
-    mock["Mock LLM Client (Container)"]
-    fixtures[("Test Fixtures (Data store)")]
-    real["Real LLM (External System)"]
+    client["Test Client (Container)"]
+    mock["MockLLMClient (Container)"]
+    pipeline["Agent Pipeline (Container)"]
+    config["Mock Configuration (Data store)"]
+    ci["CI/CD Runner (External System)"]
 
-    test --&gt;|1. Load fixtures| fixtures
-    test --&gt;|2. Execute| agent
-    agent --&gt;|3. Invoke| mock
-    mock --&gt;|4. Read fixtures| fixtures
-    mock --&gt;|5. Return deterministic response| agent
-    agent --&gt;|6. Fallback| real
-    test --&gt;|7. Assert result| mock
+    client --&gt;|1. Invoke pipeline| pipeline
+    pipeline --&gt;|2. Call LLM| mock
+    mock --&gt;|3. Load scripted responses| config
+    mock --&gt;|4. Return deterministic response| pipeline
+    pipeline --&gt;|5. Emit result| client
+    ci --&gt;|6. Trigger tests| client
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class agent,test,mock container
-    class fixtures store
-    class real external</code></pre>
+    class client,mock,pipeline container
+    class config store
+    class ci external</code></pre>
 <h2 id="components">Components</h2>
-<h3 id="mockllmclient">MockLLMClient</h3>
 <ul>
-<li><strong>Path:</strong> <code>src/cas_runner/llm/mock_client.py</code></li>
-<li><strong>Responsibility:</strong> Implements the same interface as the production LLM client but returns deterministic, configurable responses. Reads fixtures from the test data store to map inputs to expected outputs, supports synchronous and asynchronous execution, and can raise errors to simulate failure scenarios.</li>
-</ul>
-<h3 id="test-harness">Test Harness</h3>
-<ul>
-<li><strong>Path:</strong> <code>tests/</code></li>
-<li><strong>Responsibility:</strong> Orchestrates the test execution. Loads fixture data, instantiates the agent pipeline with the MockLLMClient, drives the pipeline, and asserts that the final state matches expected outcomes. Ensures isolation and repeatability across test runs.</li>
-</ul>
-<h3 id="agent-pipeline">Agent Pipeline</h3>
-<ul>
-<li><strong>Path:</strong> <code>src/cas_runner/</code></li>
-<li><strong>Responsibility:</strong> The system under test. Contains the agentic workflow that calls the LLM client for generation or reasoning. Relies on the LLM client interface to interact with the mock client during tests without code changes.</li>
-</ul>
-<h3 id="test-fixtures-store">Test Fixtures Store</h3>
-<ul>
-<li><strong>Path:</strong> <code>tests/fixtures/</code></li>
-<li><strong>Responsibility:</strong> Holds static and versioned JSON/YAML files that define deterministic request-response pairs, expected intermediate states, and mock error scenarios. Serves as the single source of truth for mock behavior.</li>
+<li><strong>MockLLMClient</strong> (path: <code>src/cas_runner/llm/mock_client.py</code>): Implements the LLM client interface with deterministic, scripted responses. It reads from a mock configuration store and returns pre-defined outputs, optionally simulating delays or errors.</li>
+<li><strong>Production LLM Client</strong> (path: <code>src/cas_runner/llm/client.py</code>): Provides live LLM integration for production and non-test environments. It adheres to the same interface, enabling drop-in replacement.</li>
+<li><strong>Agent Pipeline Orchestrator</strong> (path: <code>src/cas_runner/pipeline/</code>): Coordinates end-to-end execution of agentic workflows, including sequential or parallel steps, state transitions, and schema validation. It consumes either client based on runtime configuration.</li>
+<li><strong>Mock Configuration Store</strong> (path: <code>tests/fixtures/mock_responses.json</code>): Holds structured test scenarios, including response sequences, error payloads, and timing parameters. This store drives the MockLLMClient's behavior.</li>
+<li><strong>CI/CD Integration Layer</strong> (path: <code>.github/workflows/</code>): Automates test execution using the MockLLMClient, ensuring deterministic validation of the entire pipeline in isolation from external services.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<p>Python (primary language, given the existing codebase), pytest for test orchestration, YAML/JSON for fixture definitions, pydantic for schema validation of agent outputs. Alternatives considered and set aside: using real LLM API calls in CI (nondeterministic, slow, cost-prohibitive), using recorded response replays (brittle to API changes), and using a lightweight HTTP stub server (overkill for unit-level testing and introduces network complexity). The MockLLMClient avoids these by living in-process and implementing the exact LLM interface, making it trivially injectable and portable.</p>
+<p><strong>Recommended technologies:</strong>
+- Python 3.11+ for implementation and test frameworks (pytest, unittest).
+- JSON or YAML for mock response fixtures, leveraging schema validation (e.g., pydantic).
+- Environment variable <code>LLM_MOCK</code> (or similar) to toggle between mock and real clients.
+- Dependency injection for client swapping.</p>
+<p><strong>Alternatives considered and set aside:</strong>
+- Third-party HTTP mocking libraries (e.g., <code>responses</code>, <code>moto</code>): set aside because they over-couple tests to the HTTP layer and do not abstract the LLM interface cleanly.
+- Live LLM with retry logic: set aside due to cost, latency, and nondeterminism.
+- Service virtualization tools (e.g., Mountebank): set aside as they introduce heavyweight infrastructure unnecessary for this use case.</p>
 <h2 id="variants">Variants</h2>
-<ol>
-<li><strong>Strict deterministic mode:</strong> Every request must match a fixture; otherwise an error is raised, preventing accidental silent fallback.</li>
-<li><strong>Fallback mode:</strong> If no fixture matches, the client can be configured to call a real LLM or a secondary mock, useful for development.</li>
-<li><strong>Recording mode:</strong> In test environments, real LLM responses are recorded into new fixtures for later replay, helping to build the fixture store organically.</li>
-<li><strong>Async vs sync variants:</strong> Provide both async and sync interfaces to match the production client's execution model.</li>
-<li><strong>Error-injection variant:</strong> Fixtures can define exceptions (timeouts, malformed responses) to test resilience paths.</li>
-</ol>
+<ul>
+<li><strong>Synchronous vs. asynchronous</strong>: Support both sync and async interfaces to accommodate pipelines that use concurrent LLM calls.</li>
+<li><strong>Scripted vs. generative mocks</strong>: Scripted responses for deterministic tests; generative mocks (e.g., using templates or rule-based generation) for load testing or fuzzing.</li>
+<li><strong>Delay simulation</strong>: Configure mock responses to introduce artificial latency, testing timeout and retry behavior.</li>
+<li><strong>Error injection</strong>: Define sequences that return errors or malformed responses to test error handling and fallback mechanisms.</li>
+<li><strong>Schema enforcement</strong>: Strict mode validates every mock response against the expected schema; permissive mode allows partial responses for exploratory testing.</li>
+</ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability:</strong> Eliminates network and model variability; tests produce identical results every run.</li>
-<li><strong>Performance:</strong> Sub-millisecond response times enable thousands of tests per second; no latency from external calls.</li>
-<li><strong>Cost:</strong> Zero marginal cost per test run (no API usage).</li>
-<li><strong>Operability:</strong> Simple to integrate; clear failure messages when fixtures are missing; CI pipelines become faster and more stable.</li>
-<li><strong>Trade-offs:</strong> Tests may diverge from real LLM behavior over time, so periodic review and updates of fixtures are required to preserve realism.</li>
+<li><strong>Reliability</strong>: High reliability in test environments due to predictable responses, eliminating flaky network calls. However, it does not validate real-world LLM behavior; periodic integration tests with live models are necessary.</li>
+<li><strong>Performance &amp; Latency</strong>: Mock responses are near-instant, enabling fast feedback loops. Simulated latency can be used to test timeout behavior.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Zero cost for mock execution, saving significant LLM API expenses during development and CI. Negligible operational overhead.</li>
+<li><strong>Operability</strong>: Simple to deploy and maintain; requires periodic review of mock fixtures to ensure they remain aligned with evolving LLM APIs.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
-<ol>
-<li><strong>Over-reliance on mocks:</strong> Treating mock tests as sufficient for full system validation; solution: complement with a small set of integration tests against real LLM in staging.</li>
-<li><strong>Mock drift:</strong> When the mock's behavior no longer reflects the real LLM's responses; solution: schedule periodic replay/recording sessions and maintain a change log.</li>
-<li><strong>Excessive fixture coupling:</strong> Tests that depend on exact prompt strings become brittle; solution: use regex/pattern matching in the mock client to generalize.</li>
-<li><strong>Ignoring error scenarios:</strong> Only happy-path fixtures leads to blind spots in error handling; solution: include error-injection fixtures for all failure modes.</li>
-<li><strong>Using mocks for performance testing:</strong> Mock response times are not realistic; solution: use dedicated performance testing with real LLM.</li>
-</ol>
+<ul>
+<li><strong>Over-reliance on mocks</strong>: Teams may rely solely on mocks and miss issues that appear only with real LLMs. <strong>Remedy:</strong> Schedule regular integration tests with live models in staging environments.</li>
+<li><strong>Mock drift</strong>: Mock responses become outdated when the real API changes. <strong>Remedy:</strong> Automate schema checks that compare mock fixtures against live API response schemas.</li>
+<li><strong>Accidental use in production</strong>: Misconfiguration could route production traffic to mocks. <strong>Remedy:</strong> Use environment-specific configuration and fail-safe checks to prevent mock clients from being used outside test profiles.</li>
+<li><strong>Overcomplicating mock scenarios</strong>: Excessively complex mock configurations become hard to maintain. <strong>Remedy:</strong> Keep scenarios modular and well-documented, and reuse common fixtures.</li>
+<li><strong>Ignoring error scenarios</strong>: Neglecting to mock error responses leads to untested failure paths. <strong>Remedy:</strong> Include error injection as a mandatory part of test planning.</li>
+</ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<p>Start by introducing the MockLLMClient into an existing test suite, replacing any live LLM calls in unit and regression tests. Ensure the agent pipeline references the LLM client through an interface that allows easy injection. Gradually expand fixture coverage from happy paths to edge cases and error scenarios. Integrate with CI to enforce deterministic test runs on every commit. Governance ownership: domain_id = intelligence, initiative_id = agentic-pipeline-testing, owner = architecture-team@example.com. Migration path: first adopt for critical pipelines, then extend to all agent flows. Review fixtures quarterly to maintain alignment with production behavior.</p>
+<p><strong>Starting point:</strong> Identify the LLM client interface in your codebase and implement a mock implementation analogous to <code>MockLLMClient</code>. Use it in your existing test suite to replace live calls.</p>
+<p><strong>Migration path:</strong>
+1. Implement the mock client behind the same interface.
+2. Configure test environment to use the mock client via dependency injection or environment variable.
+3. Create initial mock fixtures for the most common happy-path scenarios.
+4. Expand coverage with error and edge-case scenarios.
+5. Integrate with CI/CD pipeline and enforce that all tests run with mocks.
+6. Periodically run a subset of tests against live LLM to validate compatibility.</p>
+<p><strong>Governance ownership:</strong>
+- <code>domain_id</code>: ideas-to-life-cas
+- <code>initiative_id</code>: cas-runner
+- Owner contact: architecture-team@example.com (placeholder)</p>
+<p>Stakeholders to involve: development teams building agent pipelines, QA engineers responsible for test automation, and platform engineers managing CI/CD.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><strong>Source file:</strong> <a href="../../../src/cas_runner/llm/mock_client.py">src/cas_runner/llm/mock_client.py</a></li>
-<li><strong>ADR-0012:</strong> Deterministic Testing Strategy - <a href="../../../decisions/adr-0012-deterministic-testing-strategy.md">decisions/adr-0012-deterministic-testing-strategy.md</a></li>
-<li><strong>Related global pattern:</strong> <a href="#">LLM Client Abstraction</a></li>
+<li>ADR-001: LLM Client Abstraction (<code>docs/adr/adr-001-llm-client-abstraction.md</code>)</li>
+<li>Source: <code>src/cas_runner/llm/mock_client.py</code></li>
+<li>Global Pattern: Test Double Strategy (<code>patterns/global/test-double-strategy.md</code>)</li>
 </ul>
 
 
