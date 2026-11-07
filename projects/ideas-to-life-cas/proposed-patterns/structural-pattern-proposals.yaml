@@ -7,29 +7,29 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
-      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
-      ComplianceMetrics, GovernanceException, GovernanceAction)
-    - src/cas_runner/steering/models.py (GitChangeType, RawGitDelta, PromptFact, SteeringRuntimeIndex,
-      CapabilityCategory, CapabilityRecordType, CapabilityRecord, CapabilitySet, CapabilityLineage,
-      ArchitecturalDelta)
-  description: Domain entities are defined as Pydantic models to enforce validation
-    and schema.
+    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
+      ComplianceFinding, ComplianceMetrics, GovernanceAction) - All models are Pydantic-based
+    - src/cas_runner/steering/models.py (CapabilityRecord, ArchitecturalDelta, SteeringRuntimeIndex)
+      - Steering models are Pydantic-based
+  description: Use Pydantic models to define domain entities with validation, type
+    safety, and serialization support, serving as the backbone for data consistency.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide structured, validated, and serializable domain objects.'
-  - 'Context: The system has multiple domain concepts: governance models and steering
-    models, defined in models.py files.'
-  - 'Force: Need for validation'
-  - 'Force: Serialization to/from JSON'
-  - 'Force: Type safety'
+  - 'Intent: To model domain entities and DTOs with minimal boilerplate while ensuring
+    validation and structured data flow.'
+  - 'Context: The system needs to represent governance findings, metrics, capabilities,
+    and other domain objects that are passed between modules and persisted.'
+  - 'Force: Need for data validation to catch errors early'
+  - 'Force: Requirement for type safety and IDE support'
+  - 'Force: Ease of serialization to JSON/YAML'
+  - 'Force: Need for schema evolution'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -40,23 +40,28 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-07'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry)
-  description: A registry of allowed state transitions enables controlled state changes.
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - TransitionRegistry centralizes state transition rules.
+  description: Encapsulates state transition logic in a dedicated registry that maps
+    allowed transitions, enabling centralized validation and auditing.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Manage governance action states and ensure only valid transitions occur.'
-  - 'Context: GovernanceActionEngine has a TransitionRegistry to track permissible
-    state changes.'
-  - 'Force: Need to prevent invalid transitions'
-  - 'Force: Traceable state changes'
-  - 'Force: Explicit state machine logic'
+  - 'Intent: To manage the lifecycle of governance actions in a controlled, predictable
+    manner without scattering transition logic across the codebase.'
+  - 'Context: Governance actions need to move through defined states (e.g., pending,
+    approved, rejected) with validation to prevent illegal transitions.'
+  - 'Force: Need for consistent state validation across different callers'
+  - 'Force: Desire to avoid tight coupling between state transitions and business
+    logic'
+  - 'Force: Requirement for extendability to add new states or transitions'
+  - 'Force: Need for auditability of transitions'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -3380,3 +3385,283 @@ pattern_proposals:
   - 'Force: Support testability and flexibility'
   evidence_strength: low
   confidence: low
+- pattern_id: llm-client-abstraction-interface
+  name: LLM Client Abstraction
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real client implementation
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
+      testing
+  description: Define an interface (abstract base class) for LLM clients with concrete
+    implementations (LiteLLMClient, MockLLMClient) to allow swapping providers or
+    mock usage for testing.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To decouple the application logic from the specific LLM provider, enabling
+    testability and provider flexibility.'
+  - 'Context: The system interacts with LLMs for various purposes; there is a need
+    to run tests without calling external APIs and to switch providers if needed.'
+  - 'Force: Avoid hard dependency on a single LLM provider'
+  - 'Force: Enable unit testing without API calls'
+  - 'Force: Ease of adding new providers'
+  - 'Force: Maintain consistent API for callers'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: compliance-engine-centralized-checker
+  name: Compliance Engine Centralized Checker
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Centralized
+      compliance engine
+  description: Encapsulate compliance checking logic in a dedicated engine that evaluates
+    metrics and produces findings, providing a single point of compliance evaluation.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To centralize compliance evaluation to ensure consistent and auditable
+    checks across the system.'
+  - 'Context: The system needs to enforce governance rules and track compliance health
+    over time.'
+  - 'Force: Avoid code duplication in compliance checks'
+  - 'Force: Need for consistent reporting and metrics'
+  - 'Force: Ability to extend with new checks'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: service-layer-pattern
+  name: Service Layer Pattern
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Service layer wraps governance actions
+  description: Introduce a service layer (e.g., GovernanceActionService) that orchestrates
+    domain operations and provides a cohesive API to callers, decoupling the presentation
+    from domain logic.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To provide a clear boundary for business operations, encapsulating domain
+    workflows and reducing dependencies on internal domain objects.'
+  - 'Context: The GovernanceActionService likely mediates between the CLI/runner and
+    the governance domain, executing actions with proper coordination.'
+  - 'Force: Need for clear separation between application and domain layers'
+  - 'Force: Simplify client code by exposing high-level operations'
+  - 'Force: Enable transaction management and audit logging'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: factory-method-bootstrap
+  name: Factory Method for Bootstrap
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace) - Central bootstrap
+      logic
+  description: Use a bootstrap function that creates and configures required components
+    (e.g., merging governance blocks, settings) to initialize the workspace.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To centralize initialization logic and allow customization of the setup
+    process.'
+  - 'Context: The system needs to set up a consistent workspace including governance
+    block merging and symlink creation when first run or on updates.'
+  - 'Force: Avoid scattered initialization code'
+  - 'Force: Need for idempotent and reproducible setup'
+  - 'Force: Potential for extension without modifying main flow'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-calculation-strategy
+  name: Health Calculation Strategy
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (calculate_health, get_health_reasons,
+      HealthStatus) - Health scoring functions
+  description: Encapsulate health scoring logic in dedicated functions (calculate_health,
+    get_health_reasons) allowing for easy extension and testing.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To compute a health indicator for the system from various metrics and
+    provide human-readable reasons.'
+  - 'Context: The dashboard needs to display system health based on governance metrics,
+    possibly including LLM or execution health.'
+  - 'Force: Need for consistent health scoring'
+  - 'Force: Ability to add new health factors'
+  - 'Force: Separation from UI concerns'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: workflow-validation-script
+  name: Workflow Validation Script
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_no_unpinned_installers, check_retired_workflow) - Automated validation
+      of workflow files
+  description: Provide standalone validation scripts (e.g., validate_workflows.py)
+    that verify CI/CD workflow configuration files for syntax and best-practice compliance.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To automate the detection of common CI/CD misconfigurations in a repository,
+    such as unpinned installers or unreachable dry runs.'
+  - 'Context: The repository includes multiple GitHub workflows that should follow
+    maintainability rules (e.g., no hardcoding, no unpinned actions). A dedicated
+    script is used in CI to enforce these.'
+  - 'Force: Prevent regressions in workflow hygiene'
+  - 'Force: Provide fast feedback in CI'
+  - 'Force: Enforce consistent standards without manual review'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: direction-inversion-via-interfaces
+  name: Dependency Inversion via Interfaces
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Concrete client, likely
+      implements an interface
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Alternate implementation
+  description: Invert dependencies by depending on abstractions (interfaces) rather
+    than concrete implementations, as exemplified by the LLM client abstraction.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To decouple high-level policy from low-level detail implementations,
+    enabling swapping and testing.'
+  - 'Context: The runner depends on LLM clients but should not know concrete provider
+    details.'
+  - 'Force: Enable test doubles'
+  - 'Force: Avoid modification when providers change'
+  - 'Force: Facilitate parallel development'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: module-boundary-encapsulation
+  name: Module Boundary Encapsulation
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py - Governance domain models
+    - src/cas_runner/steering/models.py - Steering domain models
+  description: Group related classes and functions into modules by responsibility
+    (governance, llm, steering, dashboard) to maintain clear boundaries and easier
+    navigation.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To organize code so that each package has a single, well-defined purpose,
+    facilitating maintenance and reducing cross-cutting changes.'
+  - 'Context: The src/cas_runner directory contains subpackages for each major concern
+    (governance, llm, steering, dashboard).'
+  - 'Force: Reduce coupling between unrelated concepts'
+  - 'Force: Improve readability and onboarding'
+  - 'Force: Enable independent testing and evolution'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: configuration-hardcoding-avoidance
+  name: Configuration Hardcoding Avoidance
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-07'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_zero_hardcoding)
+      - Enforces no hardcoding
+    - cas-knowledge/runtime/execution-profile.yaml - Configuration file used for runtime
+      settings
+  description: Avoid hardcoding environment-specific values (e.g., paths, version
+    numbers) in workflows and code by using configuration files and environment variables.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To improve portability and reduce maintenance burden by moving variable
+    settings out of source code.'
+  - 'Context: Validation script includes check_zero_hardcoding to enforce that no
+    hardcoded numbers or values appear in workflow files.'
+  - 'Force: Promote reuse across environments'
+  - 'Force: Simplify updates when dependencies change'
+  - 'Force: Reduce errors from stale hardcoded values'
+  evidence_strength: medium
+  confidence: medium
