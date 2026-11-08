@@ -2752,23 +2752,23 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real LLM client wrapping
-      LiteLLM.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock LLM client for deterministic
-      tests.
-  description: LLM calls are isolated behind a client interface with a mock variant,
-    enabling provider portability and deterministic testing of agent flows.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real client that wraps
+      the LiteLLM library.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client providing deterministic
+      responses for tests and development.
+  description: The system abstracts LLM calls behind a common client interface, with
+    real (LiteLLM) and mock implementations.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Allow agent flows to run against different LLM backends and in test environments
-    without changing orchestration logic.'
-  - 'Context: The cas_runner package defines LiteLLMClient for real calls and MockLLMClient
-    for tests, both used by the FlowRunner and other components.'
-  - 'Force: Need for provider flexibility vs. vendor lock-in'
-  - 'Force: Test determinism vs. realistic LLM behaviour'
-  - 'Force: Cost control vs. feature completeness'
+  - 'Intent: To decouple orchestration from specific LLM vendors, enabling testing,
+    cost control, and portability.'
+  - 'Context: The FlowRunner and individual steps require LLM access; using a client
+    abstraction allows the system to run with real or mock responses.'
+  - 'Force: Vendor lock-in risk'
+  - 'Force: Need for deterministic testing'
+  - 'Force: Cost variability across providers'
   evidence_strength: high
   confidence: high
 - pattern_id: centralized-flow-runner-pipeline
@@ -4022,35 +4022,37 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: agentic-merger
-  name: Agentic Output Merger
+  name: Agentic Merger of Governance Blocks
   pattern_classification: intelligence
-  pattern_maturity: established
+  pattern_maturity: emerging
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-07'
+    date: '2026-11-08'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Class responsible
-      for merging.
-  description: AgenticMerger combines agent-generated configuration blocks (e.g.,
-    governance rules) into a single coherent file.
-  pattern_type: implemented
+      for merging governance blocks.
+  description: The AgenticMerger combines governance blocks from multiple sources
+    (agents or processes) into a unified configuration, resolving overlaps according
+    to defined rules.
+  pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Allow multiple agents or automated processes to contribute to shared
-    configuration without overwriting each other.'
-  - 'Context: Used during bootstrap and possibly during runtime to integrate new governance
-    inputs.'
-  - 'Force: Collaborative authoring'
-  - 'Force: Avoiding conflicts'
-  - 'Force: Idempotency'
-  evidence_strength: high
-  confidence: high
+  - 'Intent: To consolidate contributions from multiple agents or sources into a single
+    governance configuration without conflicts.'
+  - 'Context: In a multi-agent setup, each agent may propose governance rules or updates.
+    The merger reconciles these into the authoritative governance block used by the
+    system.'
+  - 'Force: Multiple sources of truth'
+  - 'Force: Need for conflict resolution'
+  - 'Force: Maintaining traceability of merged contributions'
+  evidence_strength: low
+  confidence: low
 - pattern_id: governance-state-machine
   name: Governance State Machine
   pattern_classification: intelligence
@@ -7048,5 +7050,252 @@ pattern_proposals:
   - 'Force: Speed of evolution vs. stability'
   - 'Force: Evidence quality vs. availability'
   - 'Force: Human judgement vs. automation'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: contextual-pipeline-execution
+  name: Contextual Pipeline Execution
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Likely implements the main execution
+      loop, iterating over steps.
+    - src/cas_runner/steps/base.py (prepare_inputs) - Contract that steps use to read
+      from the shared context, as referenced in analysis.
+  description: A central FlowRunner executes steps in a fixed sequence, mutating a
+    shared context object that is passed to each step.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To structure multi-step LLM and rule-based processing in a deterministic,
+    observable sequence, while avoiding hard-coded inter-step dependencies.'
+  - 'Context: The FlowRunner class orchestrates the system; steps are designed to
+    consume and produce a common context, enabling data flow without explicit per-step
+    wiring.'
+  - 'Force: Need for determinism and auditability in agent workflows'
+  - 'Force: Balancing modularity with simple data flow'
+  - 'Force: Avoiding tight coupling between steps'
+  evidence_strength: high
+  confidence: high
+- pattern_id: governance-compliance-gate
+  name: Governance Compliance Gate
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Centralised
+      engine for compliance validation.
+  description: A ComplianceEngine validates actions against a rule set, blocking execution
+    if violations are found.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To prevent non-compliant or risky agent actions by enforcing policies
+    at runtime.'
+  - 'Context: The compliance engine is part of the governance layer, likely invoked
+    before actions are performed by the FlowRunner or GovernanceActionEngine.'
+  - 'Force: Need to balance agent autonomy with safety'
+  - 'Force: Ensuring consistent policy application'
+  - 'Force: Maintaining audit trails'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: governance-action-transitions
+  name: Governance Action Transitions
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Classes responsible for validating and executing state transitions.
+  description: Governance actions are managed through a registry of allowed transitions,
+    restricting how their state can change.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To ensure that governance actions only follow predefined, auditable transitions,
+    preventing invalid state changes.'
+  - 'Context: GovernanceActionEngine uses a TransitionRegistry to define which state
+    changes are permitted based on the current state and requested action.'
+  - 'Force: Need for deterministic state changes'
+  - 'Force: Preventing erroneous or malicious transitions'
+  - 'Force: Auditing all governance changes'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: skill-evaluation-harness
+  name: Skill Evaluation Harness
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/skills/models.py (EvalStatus, SkillAssertions, SkillEvalCase,
+      SkillEvalSuite, SkillEvalResult, SkillEvalReport) - Models define the structure
+      of evaluation suites and results.
+  description: Skills are evaluated using a structured harness with suites, cases,
+    assertions, and result reporting, enabling objective quality assessment.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To objectively measure agent skill performance and detect regressions.'
+  - 'Context: The system defines skills (e.g., in .agents/skills) and uses evaluation
+    models to run test cases against them, aggregating results.'
+  - 'Force: Need for repeatable evaluation'
+  - 'Force: Skills change over time'
+  - 'Force: Comparability across skills'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: workspace-bootstrap-provisioning
+  name: Workspace Bootstrap Provisioning
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, merge_claude_settings,
+      _create_symlink_or_copy, bootstrap, init_workspace) - Functions that set up
+      the environment.
+  description: A bootstrap process initialises the workspace, merges governance blocks,
+    and symlinks skills to ensure consistency.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To provision a consistent agent workspace with the correct governance
+    and skill references.'
+  - 'Context: The bootstrap function is likely called on startup or via CLI to prepare
+    the environment before execution.'
+  - 'Force: Multiple workspaces or projects'
+  - 'Force: Need to avoid duplication of skill files'
+  - 'Force: Consistent governance rules across the system'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-observability-feedback
+  name: Health Observability Feedback
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Implementation of health calculation and reason extraction.
+  description: The system calculates health status from governance metrics and uses
+    it as observable feedback.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To provide a quantitative view of system health that can guide human
+    operators or automated decisions.'
+  - 'Context: The health model likely aggregates governance health, compliance metrics,
+    and other indicators.'
+  - 'Force: Need for at-a-glance status'
+  - 'Force: Translating complex state into simple status'
+  - 'Force: Feeding health into remediation workflows'
+  evidence_strength: low
+  confidence: low
+- pattern_id: traceable-governance-metrics
+  name: Traceable Governance Metrics
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (TraceableMetric, GovernanceInventory, GovernanceHealth,
+      GovernanceThroughput, GovernanceRisks, ComplianceFinding, ComplianceMetrics)
+      - Comprehensive data models for governance observability.
+  description: Governance metrics and inventory are stored with traceable provenance,
+    enabling auditability and root-cause analysis.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To maintain a complete record of governance decisions and metrics for
+    auditing and debugging.'
+  - 'Context: The models define TraceableMetric and GovernanceInventory, likely used
+    across governance engines.'
+  - 'Force: Need for accountability in autonomous systems'
+  - 'Force: Compliance with external regulations'
+  - 'Force: Debugging complex multi-step executions'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: ci-artifact-validation
+  name: CI Artifact Validation
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers, check_no_unreachable_dry_run,
+      check_retired_workflow, check_trigger_remediations, check_composite_action_adoption,
+      main) - Set of validation checks for workflow YAML.
+  description: Static validation scripts enforce constraints on CI/CD configuration
+    files, catching anti-patterns like hardcoding and unpinned installers.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: To ensure CI/CD workflows generated by agents adhere to reliability and
+    security best practices.'
+  - 'Context: This script is part of a specification for simplifying CI/CD workflows
+    and likely runs as a CI gate.'
+  - 'Force: Agents may generate workflows with common mistakes'
+  - 'Force: Need for automated enforcement'
+  - 'Force: Avoiding manual review'
   evidence_strength: medium
   confidence: medium

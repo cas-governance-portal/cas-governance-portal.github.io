@@ -31,7 +31,7 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
-  name: Transition Registry State Machine
+  name: Transition Registry for State Machines
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
@@ -44,22 +44,23 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-  description: Governance actions are modeled as a state machine with a TransitionRegistry
-    that defines allowed transitions.
+      - Registry pattern embedded in state machine logic.
+  description: Utilize a registry to define allowed state transitions and actions
+    for governance workflows.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To enforce valid governance state changes and provide a clear map of
-    action flows.'
-  - 'Context: The GovernanceActionEngine manages actions that move between states
-    (e.g., pending, approved, rejected). The system needs to validate and track these
-    transitions.'
-  - 'Force: Need to prevent invalid state changes'
-  - 'Force: Need to track history and auditability'
-  - 'Force: Desire to separate transition definitions from engine logic'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Enable flexible evolution of governance actions without hardcoding transition
+    logic.'
+  - 'Context: GovernanceActionEngine likely orchestrates state transitions between
+    governance phases (e.g., from review to decision). TransitionRegistry holds the
+    mapping of current state and event to resulting action.'
+  - 'Force: Need to add new transition types without modifying core engine.'
+  - 'Force: Ensure only valid transitions are executed.'
+  - 'Force: Provide a declarative way to define workflow rules.'
+  evidence_strength: high
+  confidence: high
 - pattern_id: pure-functional-health-evaluation
   name: Pure Functional Health Evaluation
   pattern_classification: architectural
@@ -3271,28 +3272,29 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-08'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient)
-    - src/cas_runner/llm/mock_client.py (MockLLMClient)
-  description: Multiple LLM clients implement a common interface to allow swapping
-    between real and mock implementations.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real adapter using LiteLLM.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock adapter for testing.
+  description: Provide a common interface for LLM access, with concrete implementations
+    for different providers.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Isolate LLM integration behind an abstraction to support different providers
-    or test mocks.'
-  - 'Context: Code uses LLM for prompt-based operations but needs to switch between
-    real and mock clients.'
-  - 'Force: Need for testability'
-  - 'Force: Provider flexibility'
-  - 'Force: Consistent API'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Decouple application code from specific LLM providers, enabling swapping
+    and testing.'
+  - 'Context: The system uses LiteLLM for real calls and a mock client for testing.
+    Both must conform to the same interface so that the rest of the code can depend
+    on an abstraction.'
+  - 'Force: Need to support multiple LLM providers (e.g., OpenAI, Anthropic) via LiteLLM.'
+  - 'Force: Testing without incurring costs or external dependencies.'
+  - 'Force: Maintain flexibility to switch providers.'
+  evidence_strength: high
+  confidence: high
 - pattern_id: bootstrap-workspace-setup
   name: Bootstrap Workspace Setup
   pattern_classification: architectural
@@ -4635,3 +4637,212 @@ pattern_proposals:
   - 'Force: Governance rules are likely to change more frequently than core logic'
   evidence_strength: medium
   confidence: medium
+- pattern_id: pydantic-governance-domain-models
+  name: Pydantic Governance Domain Models
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
+      ComplianceFinding, GovernanceAction) - Central location for all governance-related
+      data structures.
+  description: Use Pydantic BaseModel classes to represent governance entities, ensuring
+    validation and serialization consistency.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a strongly typed, self-validating domain layer for governance
+    data.'
+  - 'Context: The governance module requires structured representation of inventories,
+    health statuses, compliance findings, and actions. Data flows from external sources
+    into these models for processing and persistence.'
+  - 'Force: Need for validation of incoming data from varied sources.'
+  - 'Force: Serialization to JSON or other formats for persistence and communication.'
+  - 'Force: Flexibility to evolve models as governance rules change.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: layered-module-boundaries
+  name: Layered Module Boundaries
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/cli.py (main) - CLI entry point.
+    - src/cas_runner/runner.py (FlowRunner) - Orchestration layer.
+    - src/cas_runner/governance/models.py (many model classes) - Domain layer.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Infrastructure adapter.
+  description: 'Organize code into clear layers: CLI, orchestration, domain models,
+    and infrastructure adapters.'
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Promote separation of concerns and maintainability.'
+  - 'Context: The repository structure groups related functionality: cli.py for entry,
+    runner.py for flow, governance/ for services, llm/ for adapters, skills/ for evaluation
+    models, dashboard/ for health reporting.'
+  - 'Force: Need to evolve components independently.'
+  - 'Force: Minimize dependencies across layers.'
+  - 'Force: Make testing easier by isolating each layer.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: configuration-merge-bootstrap
+  name: Configuration Merge Bootstrap
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, merge_claude_settings)
+      - Specific merge functions for configuration blocks.
+  description: Merge configuration blocks from multiple sources during workspace initialization.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable modular and composable configuration without overwriting user-specific
+    settings.'
+  - 'Context: The bootstrap process merges CAS governance blocks and Claude settings,
+    likely to allow user configs to overlay defaults.'
+  - 'Force: User configurations may need to be preserved.'
+  - 'Force: Default configurations should be applied.'
+  - 'Force: Merge must handle conflicts predictably.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: workspace-initialization-setup
+  name: Workspace Initialization via Symlinks and Copies
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (_create_symlink_or_copy) - Function handles either
+      symlink or copy.
+  description: Set up new workspaces by creating symlinks or copying templates.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a consistent starting point for new projects with minimal disk
+    usage.'
+  - 'Context: The bootstrap process likely initializes a workspace with predefined
+    directory structures and files, using symlinks to share common resources.'
+  - 'Force: Need to replicate standard files across projects.'
+  - 'Force: Avoid duplication of large shared content.'
+  - 'Force: Allow per-project customization.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: health-dashboard-metrics
+  name: Health Dashboard Metrics Calculation
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Core health calculation functions.
+  description: Compute health status from raw metrics and produce reasons for diagnosis.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a simple, testable way to assess system health.'
+  - 'Context: dashboard/health_model.py contains HealthStatus, calculate_health, and
+    get_health_reasons. The function likely takes metric inputs and returns a status
+    (e.g., healthy, degraded).'
+  - 'Force: Need consistent health evaluation across modules.'
+  - 'Force: Human-readable explanations.'
+  - 'Force: Deterministic computation.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: service-wrapper-facade
+  name: Service Wrapper Facade
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Service class that provides an API over governance actions.
+  description: Expose a simplified service interface over complex underlying engines.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple caller from intricate engine details.'
+  - 'Context: GovernanceActionService likely provides a clean API for actions, while
+    delegating to GovernanceActionEngine and possibly other components.'
+  - 'Force: Callers need a simple contract.'
+  - 'Force: Engine may have multiple dependencies.'
+  - 'Force: Facilitate testing by mocking service.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: evaluation-suite-models
+  name: Evaluation Suite Models
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-08'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/skills/models.py (SkillEvalCase, SkillEvalSuite, SkillEvalResult,
+      EvalStatus) - All evaluation-related models consolidated.
+  description: Define structured models for test cases, suites, and results to standardize
+    evaluation.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a reusable framework for defining and reporting skill evaluations.'
+  - 'Context: skills/models.py contains EvalStatus, SkillAssertions, SkillEvalCase,
+    SkillEvalSuite, SkillEvalResult, SkillEvalReport. These capture the essential
+    entities for evaluation workflows.'
+  - 'Force: Need consistent formatting of evaluation cases.'
+  - 'Force: Results need to be aggregated and reported.'
+  - 'Force: Allow new assertion types.'
+  evidence_strength: high
+  confidence: high
