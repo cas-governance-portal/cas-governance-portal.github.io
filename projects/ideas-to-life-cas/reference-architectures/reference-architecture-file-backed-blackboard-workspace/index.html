@@ -3312,78 +3312,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#bootstrap-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bootstrap Script
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#filesystem-workspace" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Filesystem Workspace
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#execution-profile" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Execution Profile
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#agent-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agent Steps
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ci-workflows" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CI Workflows
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#git-repository" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Git Repository
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3417,56 +3345,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Non-functional characteristics">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#reliability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reliability
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#performance-latency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance &amp; Latency
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cost-efficiency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost &amp; Efficiency
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#operability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operability
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3488,45 +3366,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Adoption guidance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#starting-points" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Starting points
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#migration-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Migration path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#governance-ownership" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Governance ownership
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3560,124 +3399,159 @@
 
 <h1 id="reference-architecture-file-backed-blackboard-workspace">Reference Architecture: File-Backed Blackboard Workspace</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
+<p>The File-Backed Blackboard Workspace pattern establishes a version-controlled filesystem hierarchy as a shared, persistent, and auditable knowledge store for multi-agent and multi-process systems. It enables independent agents, scripts, and CI/CD workflows to cooperate by reading and writing structured artifacts (templates, runtime context, governance rules) without introducing an external database or service dependency.</p>
 <h3 id="when-to-use-this">When to use this</h3>
-<p>The File-Backed Blackboard Workspace pattern is ideal for multi-agent or multi-process systems where shared, version-controlled state is required without external database dependencies. Use it when:
-- Multiple independent scripts, agents, or CI workflows need to share and persist state (e.g., execution context, templates, governance rules).
-- Strict auditability and traceability of state changes are mandatory, and the entire history must be reviewable via standard version control.
-- The system must remain deployable in minimal environments without infrastructure provisioning (e.g., local development, edge nodes).
-- State changes are relatively infrequent and do not require low-latency transactional semantics.
-- A human-in-the-loop review of state (e.g., code review of blackboard contents) is beneficial.</p>
+<ul>
+<li>When multiple independent processes or agents need to share state, configuration, or knowledge across invocations.</li>
+<li>When a complete audit trail of all writes and changes is mandatory (e.g., governance, compliance, or reproducibility reasons).</li>
+<li>When operations require the ability to rollback to a previous state or inspect historical revisions.</li>
+<li>When infrastructure simplicity is preferred and an external state store is considered overkill or operationally disruptive.</li>
+<li>When the system already uses Git or version control for its deliverables and the blackboard can naturally coexist with the repository.</li>
+<li>When the expected write throughput is moderate and the data volumes remain manageable (a few hundred to tens of thousands of small text files).</li>
+</ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
-<p>Avoid this pattern when:
-- High concurrency with frequent writes to shared state is required; the filesystem lacks fine-grained locking and will become a bottleneck.
-- The dataset is large (e.g., &gt;100MB) or includes binary blobs that are inefficient to version.
-- Low-latency (microsecond) access to state is critical; database in-memory stores outperform disk-backed files.
-- Strong consistency and atomicity guarantees are needed beyond simple file operations; distributed transactions are not supported.
-- State must be accessed across network boundaries or by multiple instances simultaneously; filesystem locks are not sufficient for distributed coordination.</p>
+<ul>
+<li>For high-throughput transactional workloads that require low-latency reads and writes (e.g., a real-time trading system).</li>
+<li>When complex relational queries or joins are frequent – files are not a substitute for a query engine.</li>
+<li>When the system must handle massive binary blobs (large images, multimedia) efficiently; Git and filesystems are not optimised for that.</li>
+<li>When concurrent writers need fine-grained locking or atomic multi-object transactions – file-level operations require explicit coordination.</li>
+<li>When the deployment environment does not provide a persistent filesystem or when the system runs on ephemeral compute with no shared volume.</li>
+<li>When you anticipate a high number of concurrent updates from many agents; Git commits become a bottleneck and race conditions become common.</li>
+</ul>
 <h2 id="overview">Overview</h2>
-<p>The architecture employs a version-controlled filesystem as a shared blackboard. A bootstrap script initializes the directory structure and default state. Agent steps and CI workflows read and write to this workspace, relying on git for versioning and audit trails. No external database is required.</p>
+<p>The pattern is centred around a Git repository that acts as the single source of truth for all collaborative state. A bootstrap script initialises the required directory structure and merges governance blocks, after which agent processes read and write files to the workspace. The filesystem is the medium that decouples agents, allowing them to run asynchronously and on different hosts as long as they can access the same repository (through a shared volume or a Git remote). The diagram below illustrates the component interaction.</p>
 <pre class="mermaid"><code>flowchart LR
-    boot["Bootstrap Script (Container)"]
-    fs[("Filesystem Workspace (Data store)")]
-    agent["Agent Steps (Container)"]
-    ci["CI Workflows (Container)"]
-    git["Git Repository (External System)"]
+    ws["Workspace (Container)"]
+    bootstrap["Bootstrap Script (Container)"]
+    agents["Agent Processes (Container)"]
+    repo[("Git Repository (Data store)")]
+    cicd["CI/CD Pipeline (External System)"]
 
-    boot --&gt;|init| fs
-    agent --&gt;|read/write| fs
-    ci --&gt;|read/write| fs
-    fs --&gt;|versioned| git
+    bootstrap --&gt;|1. Initializes| ws
+    ws --&gt;|2. Reads/Writes| repo
+    agents --&gt;|3. Cooperate via| repo
+    agents --&gt;|4. Consume| ws
+    cicd --&gt;|5. Triggers| bootstrap
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class boot,agent,ci container
-    class fs store
-    class git external</code></pre>
+    class ws,bootstrap,agents container
+    class repo store
+    class cicd external</code></pre>
 <h2 id="components">Components</h2>
-<h3 id="bootstrap-script">Bootstrap Script</h3>
-<ul>
-<li><strong>Path</strong>: <code>src/cas_runner/bootstrap.py</code></li>
-<li><strong>Responsibility</strong>: Initializes the workspace directory structure, creates initial YAML files, merges governance blocks, and seeds default runtime context. Invoked during setup and update.</li>
-</ul>
-<h3 id="filesystem-workspace">Filesystem Workspace</h3>
-<ul>
-<li><strong>Path</strong>: <code>cas-knowledge/</code></li>
-<li><strong>Responsibility</strong>: Acts as the shared blackboard: a structured hierarchy of YAML and markdown files storing execution profiles, templates, global rules, and agent memory. Serves as the single source of truth for runtime state.</li>
-</ul>
-<h3 id="execution-profile">Execution Profile</h3>
-<ul>
-<li><strong>Path</strong>: <code>cas-knowledge/runtime/execution-profile.yaml</code></li>
-<li><strong>Responsibility</strong>: Holds the runtime execution context (e.g., current step, variables, timestamps) that is read and updated by agent steps to maintain consistent flow.</li>
-</ul>
-<h3 id="agent-steps">Agent Steps</h3>
-<ul>
-<li><strong>Path</strong>: <code>src/cas_runner/steps/</code></li>
-<li><strong>Responsibility</strong>: Independent scripts that consume and modify the workspace. They rely on the blackboard to persist intermediate results and share context with other steps.</li>
-</ul>
-<h3 id="ci-workflows">CI Workflows</h3>
-<ul>
-<li><strong>Path</strong>: <code>.github/workflows/</code></li>
-<li><strong>Responsibility</strong>: Automated pipelines that trigger bootstrap, run agent steps, and commit workspace changes back to the git repository for versioning and traceability.</li>
-</ul>
-<h3 id="git-repository">Git Repository</h3>
-<ul>
-<li><strong>Path</strong>: <code>repository root</code></li>
-<li><strong>Responsibility</strong>: External version control system that tracks changes to the workspace. Provides history, audit trails, and collaborative review capabilities.</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Path (example)</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workspace Root</td>
+<td><code>workspace/</code></td>
+<td>The top‑level directory that contains all blackboard artifacts. It is the single shared source of truth for agents and processes. It includes subdirectories for templates, runtime context, and governance blocks.</td>
+</tr>
+<tr>
+<td>Bootstrap Script</td>
+<td><code>src/cas_runner/bootstrap.py</code></td>
+<td>Initializes the workspace hierarchy, merges governance blocks (e.g., policy definitions), and sets up baseline configuration. It is the only component allowed to create or modify the global structure during initial setup.</td>
+</tr>
+<tr>
+<td>Governance Blocks</td>
+<td><code>workspace/governance/*.yaml</code></td>
+<td>Versioned, human-readable definitions of rules, policies, and constraints that agents must respect. They are written once and referenced by all steps to ensure consistent behaviour.</td>
+</tr>
+<tr>
+<td>Runtime Context Files</td>
+<td><code>workspace/runtime/execution-profile.yaml</code></td>
+<td>Dynamic, machine‑readable files that capture the current execution state, step results, and intermediate data. Agents update these files after each step to enable chaining and stateful workflows.</td>
+</tr>
+<tr>
+<td>Agent Step Scripts</td>
+<td><code>src/agents/**/step.py</code></td>
+<td>Independent execution units that read from and write to the workspace. They are stateless in memory but rely on the filesystem as their durable state. The scripts are the primary consumers and producers of blackboard content.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="technology-choices">Technology choices</h2>
-<p>The implementation leverages Python 3.9+ for all scripts, with PyYAML for YAML parsing and serialization. The filesystem itself is the primary storage layer, using standard file I/O with atomic writes (write-to-temp-then-rename). Git serves as the versioning backend, providing commit history and branching. Alternative technologies considered and set aside:
-- <strong>Redis</strong> (in-memory store): offers low-latency access but introduces external infrastructure, lacks built-in versioning, and complicates offline operation.
-- <strong>PostgreSQL</strong> (relational DB): provides strong consistency and transactional guarantees but adds deployment complexity and cannot be diffed/reviewed easily in commits.
-- <strong>SQLite</strong>: simpler than PostgreSQL but still a binary file that is not human-readable and does not integrate naturally with git diff. The filesystem approach with YAML was chosen for simplicity, transparency, and alignment with existing governance practices.</p>
+<p><strong>Recommended:</strong>
+- <strong>Version Control:</strong> Git (any distribution) – provides versioning, branching, merging, and distributed sync with minimal tooling overhead.
+- <strong>File Formats:</strong> YAML for configuration and runtime context, Markdown for documentation and templates. These are human‑readable, diffable, and supported by all major languages.
+- <strong>Bootstrap Language:</strong> Python – because the existing <code>bootstrap.py</code> uses it, and the surrounding ecosystem (e.g., <code>pyyaml</code>, <code>click</code>) enables quick customisation.
+- <strong>Filesystem:</strong> POSIX‑compliant filesystem (local disk, NFS, or a mounted volume). Git repositories work well across these.</p>
+<p><strong>Alternatives considered and set aside:</strong>
+- <em>Redis / Memcached:</em> In‑memory key/value stores – provide low‑latency but require a separate service, have no inherent versioning, and are not suitable for audit trails.
+- <em>PostgreSQL:</em> Full‑featured relational DB – offers strong querying and locking, but adds infrastructure, schema maintenance, and operational complexity that is unjustified for document‑centric blackboards.
+- <em>Object storage (S3, GCS):</em> Good for binary blobs but poor for fine‑grained updates and auditability; also requires network I/O and credentials.
+- <em>NoSQL document store (MongoDB):</em> Flexible schema but still an external service with its own consistency model and no native Git integration.</p>
 <h2 id="variants">Variants</h2>
-<p>Several variations of this pattern exist in practice:
-- <strong>Single-writer vs. multi-writer</strong>: With single-writer (lock-step) mode, only one agent step runs at a time, eliminating write conflicts. Multi-writer mode requires advisory file locking (e.g., <code>fcntl</code> or <code>lockfile</code>) and careful merge strategies.
-- <strong>Strict vs. fallback</strong>: In strict mode, any missing file or key causes an error; in fallback mode, missing entries revert to defaults defined in bootstrap or a global template.
-- <strong>Stateful vs. stateless agents</strong>: Agents can either persist their full state in the workspace (stateful) or read global context and write only outputs (stateless). Stateless agents simplify concurrency but may duplicate writes.
-- <strong>Versioned vs. unversioned workspace</strong>: The workspace may be fully committed to git or only select files tracked (e.g., execution-profile committed, large artifacts gitignored).</p>
-<h2 id="non-functional-characteristics">Non-functional characteristics</h2>
-<h3 id="reliability">Reliability</h3>
-<p>The pattern ensures high reliability through filesystem atomic operations (write-temp-rename) and git snapshots. If a process crashes, the last committed state can be restored. However, partial writes to a file without atomicity can corrupt state; mitigations include using temporary files and locking mechanisms.</p>
-<h3 id="performance-latency">Performance &amp; Latency</h3>
-<p>Filesystem I/O is slower than in-memory databases and incurs overhead proportional to file size and frequency. For small YAML files (&lt;1MB) and low write rates (&lt;10Hz), performance is acceptable. Reads are cached by the OS, but concurrent writes may cause contention. Latency is typically in the millisecond range, which is sufficient for orchestration workflows.</p>
-<h3 id="cost-efficiency">Cost &amp; Efficiency</h3>
-<p>This pattern is extremely cost-efficient: no additional infrastructure, no database licenses, and minimal operational overhead. The only cost is increased disk usage and git repository growth. Efficiency is high for small-scale state, but storage bloat can occur if large artifacts are committed.</p>
-<h3 id="operability">Operability</h3>
-<p>Operability is straightforward: the workspace can be inspected directly via file explorers, diffed via git, and backed up using standard tools. Debugging is simpler because state is human-readable. However, administrators must enforce file naming conventions and prevent unauthorized writes. Concurrency issues require careful design of locks and write policies.</p>
-<h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
-<ul>
-<li><strong>Overloading the filesystem</strong>: Using the workspace for large binary data or high-frequency logs defeats its purpose. Mitigation: store only small text state; use object storage for blobs.</li>
-<li><strong>No atomic writes</strong>: Directly writing to the destination file can lead to corruption on crash. Always write to a temp file and rename.</li>
-<li><strong>Uncontrolled concurrent access</strong>: Multiple agents writing to the same file without coordination causes lost updates. Use file locks or serialize writes via a single-writer pattern.</li>
-<li><strong>Versioning everything</strong>: Committing every transient change bloats git history and slows operations. Define .gitignore rules for ephemeral outputs and only commit meaningful state.</li>
-<li><strong>Reliance on absolute paths</strong>: Hard-coded paths break portability. Use pathlib and relative paths anchored to the project root.</li>
-<li><strong>Ignoring permissions</strong>: Ensure the workspace is read-only to unauthorized agents; enforce access control at the process level.</li>
-<li><strong>Lack of bootstrap idempotency</strong>: If bootstrap is run multiple times, it must be idempotent to avoid duplicating entries or overwriting user changes. Implement checks for existing files.</li>
-</ul>
-<h2 id="adoption-guidance">Adoption guidance</h2>
-<h3 id="starting-points">Starting points</h3>
-<p>Begin by adopting the pattern in a single initiative or agent workflow. Use the existing <code>bootstrap.py</code> to initialize the workspace structure. Gradually migrate state that was previously hard-coded or stored in ad-hoc files into the standard directory layout.</p>
-<h3 id="migration-path">Migration path</h3>
 <ol>
-<li>Inventory current state storage in the project (e.g., JSON files, environment variables).</li>
-<li>Define a mapping to a YAML structure under <code>cas-knowledge/</code>.</li>
-<li>Modify scripts to read/write via a dedicated I/O module (e.g., <code>io.py</code>) that ensures atomic operations.</li>
-<li>Integrate the workspace into CI pipelines by committing changes after each run.</li>
-<li>Enforce governance rules (e.g., required metadata fields, naming conventions) via schema validation in bootstrap.</li>
+<li><strong>Single‑Repository Blackboard:</strong> All blackboard files live in one Git repository (the pattern’s default). Simple and portable, but can cause merge conflicts if many agents write simultaneously.</li>
+<li><strong>Submodule‑Based Blackboard:</strong> The blackboard is a separate Git repository that is included as a submodule. This isolates the blackboard from the main codebase and allows independent versioning and access control.</li>
+<li><strong>Loose vs. Strict Schema:</strong> The blackboard can impose a strict folder structure and file naming (easier to validate) or allow arbitrary files (more flexible but harder to enforce consistency). The pattern favours a moderate, schema‑light approach.</li>
+<li><strong>Synchronous vs. Asynchronous Write:</strong> Agents can write files synchronously (commit immediately) or asynchronously (stage and commit in batches). Asynchronous reduces commit frequency but complicates rollback and conflict resolution.</li>
+<li><strong>File‑Based Locking:</strong> To avoid concurrent modification issues, agents may acquire a lock file before writing. This adds coordination overhead but ensures atomicity when multiple writers are active.</li>
+<li><strong>Hybrid with Small Database:</strong> Some teams augment the file blackboard with a small database (e.g., SQLite) for indexed runtime context while keeping the canonical blackboard in Git. This is acceptable if the file tree remains the audit source.</li>
 </ol>
-<h3 id="governance-ownership">Governance ownership</h3>
-<ul>
-<li><strong>Domain</strong>: Intelligence &amp; Automation</li>
-<li><strong>Initiative</strong>: CAS Runner Modernization</li>
-<li><strong>Owner</strong>: Architecture Team (contact: arch@example.com)</li>
-<li><strong>Stewards</strong>: The pattern should be reviewed quarterly for scalability and alignment with emerging storage needs.</li>
-</ul>
+<h2 id="non-functional-characteristics">Non-functional characteristics</h2>
+<p><strong>Reliability:</strong>
+- Git history provides a complete recovery mechanism; any file can be restored to a previous version.
+- File corruption is unlikely if atomic writes (write temp + rename) are used; Git also hashes content and detects integrity issues.
+- The pattern supports graceful degradation: agents can continue reading stale files even if the workspace is temporarily inconsistent, as long as they validate content.</p>
+<p><strong>Performance &amp; Latency:</strong>
+- Reads are fast – typical filesystem lookups are milliseconds.
+- Writes are slower due to Git commit overhead, especially in large repositories. For a small number of files (&lt; 1000) commits are acceptable, but latency grows with repository size.
+- Concurrency is limited by Git’s merge complexity; heavy simultaneous writes can cause conflicts and require retries.
+- No external network calls, so latency is deterministic and largely bounded by disk I/O speed.</p>
+<p><strong>Cost &amp; Efficiency:</strong>
+- Zero infrastructure cost – no separate database service or dedicated storage buckets.
+- Low operational overhead – only a Git repository and a filesystem are needed.
+- Storage is cheap, but disk usage grows with every update (Git keeps full history). For long‑lived projects, periodic garbage collection or history squashing may be required.
+- Human effort to maintain structure and resolve conflicts is the primary “cost” in terms of team time.</p>
+<p><strong>Operability:</strong>
+- The blackboard is transparent – any developer can inspect it with standard tools (<code>git log</code>, <code>grep</code>, <code>less</code>).
+- Monitoring is simple: check file existence, modification times, and commit history.
+- No external service to scale, patch, or back up – backups are automatically provided by Git remotes.
+- Requires careful documentation and disciplined commit practices; otherwise, files can become inconsistent.</p>
+<h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
+<ol>
+<li><strong>Overstructuring and Schema Rigidity:</strong> Imposing a rigid, complex directory tree and mandatory metadata for every file creates overhead and discourages agile use. <em>Remedy:</em> Start with a minimal set of directories and only add structure when needed; keep schemas optional and tolerant.</li>
+<li><strong>Storing Large Binaries:</strong> Committing large binary files (e.g., videos, ML models) bloats the repository and makes every operation slow. <em>Remedy:</em> Use Git LFS or keep binaries outside the blackboard and store only pointers/URLs in files.</li>
+<li><strong>Lack of Atomic Writes:</strong> If agents write files directly, a crash mid‑write can corrupt state. <em>Remedy:</em> Always write to a temporary file and rename atomically; or use Git staging and commit as a single operation.</li>
+<li><strong>Uncontrolled Concurrent Writes:</strong> Multiple agents updating the same file without coordination leads to lost updates and merge conflicts. <em>Remedy:</em> Introduce file‑level locking, partition responsibility per agent (each owns a directory), or use a central coordinator.</li>
+<li><strong>Ignoring Governance Blocks:</strong> Agents that bypass policy definitions may violate rules. <em>Remedy:</em> Enforce validation at bootstrap and at each step; make governance blocks immutable after initial merge.</li>
+<li><strong>Using the Blackboard as a Log:</strong> Writing every transient event to the blackboard creates a monotonically growing file and pollutes the knowledge store. <em>Remedy:</em> Separate runtime context files from a dedicated log area, and periodically clean or rotate them.</li>
+<li><strong>Not Using Git Remotes:</strong> Keeping the blackboard only on a local disk defeats the purpose of auditability and distribution. <em>Remedy:</em> Always push to a remote repository and pull before starting new work.</li>
+</ol>
+<h2 id="adoption-guidance">Adoption guidance</h2>
+<p><strong>Starting points:</strong>
+- Begin by defining a minimal workspace layout (e.g., <code>templates/</code>, <code>governance/</code>, <code>runtime/</code>).
+- Reuse the existing <code>bootstrap.py</code> from <code>src/cas_runner</code> – extend it to merge any new governance blocks.
+- Identify the first agent that will persist state to the blackboard; convert it from an in‑memory or ad‑hoc JSON file to the structured workspace.</p>
+<p><strong>Migration path:</strong>
+- If you currently use a database (e.g., PostgreSQL) for state, export the data into YAML/JSON files in a new <code>runtime/</code> directory, then update the agents to read/write the files instead of issuing SQL queries.
+- Gradually shift more components (CI jobs, other scripts) to consume the same workspace files.
+- Use a feature flag to keep the old database alive until the new blackboard is fully validated in production.</p>
+<p><strong>Governance ownership:</strong>
+- Assign a “Workspace Steward” who owns the directory structure, governance block versioning, and conflict resolution policies.
+- The steward should be an architect or a senior engineer familiar with the full system.
+- Governance metadata should be documented in the <code>governance/</code> folder and linked to ADRs (architecture decision records) for traceability.
+- All changes to the workspace structure must go through a lightweight review process, similar to code changes.</p>
+<p><strong>Stakeholders to involve:</strong>
+- System architects (to approve structural changes)
+- DevOps/CI engineers (to ensure pipeline integration)
+- All agent developers (to align on read/write contracts)</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-002: File-Based State Management</li>
-<li>Global Pattern: Versioned Knowledge Base</li>
-<li>Source Files: <a href="../../../src/cas_runner/bootstrap.py">bootstrap.py</a>, <a href="../../../src/cas_runner/io.py">io.py</a>, <a href="../../../../runtime/execution-profile.yaml">execution-profile.yaml</a></li>
+<li><strong>ADRs:</strong> <code>workspace/governance/adr-001-file-backed-blackboard.md</code></li>
+<li><strong>Global patterns:</strong> <code>patterns/global/file-backed-blackboard-workspace.md</code></li>
+<li><strong>Source files:</strong></li>
+<li><code>src/cas_runner/bootstrap.py</code> (bootstrap implementation)</li>
+<li><code>cas-knowledge/runtime/execution-profile.yaml</code> (runtime context example)</li>
+<li><code>src/agents/**/step.py</code> (agent step scripts using the workspace)</li>
 </ul>
 
 
