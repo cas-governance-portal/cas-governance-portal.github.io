@@ -7,26 +7,26 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-10'
+    date: '2026-11-11'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceAction, ComplianceFinding, GovernanceInventory)
-    - src/cas_runner/skills/models.py (SkillEvalCase, SkillEvalSuite, SkillEvalResult)
-  description: Domain entities are defined as Pydantic models, providing validation,
-    serialization, and type safety.
+    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
+      ComplianceFinding, GovernanceAction)
+    - src/cas_runner/skills/models.py (SkillEvalSuite, SkillEvalResult)
+  description: Domain entities are represented using Pydantic models, providing structured
+    validation and type safety.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To represent complex governance and evaluation concepts with structured,
-    validated data objects.'
-  - 'Context: The system deals with governance inventory, actions, compliance findings,
-    and skill evaluation results, all requiring strict schemas for consistency.'
-  - 'Force: Need for data integrity across different subsystems.'
-  - 'Force: Desire for easy serialization to JSON/YAML for persistence.'
-  - 'Force: Flexibility to extend models with new fields.'
+  - 'Intent: To model complex domain objects with built-in validation and serialization
+    capabilities.'
+  - 'Context: The CAS system manages governance inventories, compliance findings,
+    and skill evaluations.'
+  - 'Force: Need for type safety and validation'
+  - 'Force: Serialization/deserialization for persistence and API use'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -37,27 +37,25 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-10'
+    date: '2026-11-11'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry)
-  description: Governance actions have a defined set of states and allowed transitions,
-    enforced via a transition registry.
+  description: State transitions are registered in a central registry, enabling dynamic
+    governance action routing.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To ensure that governance actions only move to valid next states, preventing
-    inconsistent workflows.'
-  - 'Context: Governance actions (e.g., approve, reject, escalate) follow a lifecycle
-    with constraints.'
-  - 'Force: State transitions must be validated to avoid invalid operations.'
-  - 'Force: New states/transitions should be added without modifying core logic.'
-  - 'Force: Transparency of allowed transitions is needed.'
-  evidence_strength: high
-  confidence: high
+  - 'Intent: Manage complex state changes in a declarative and traceable manner.'
+  - 'Context: Governance actions involve transitions between states, and the system
+    uses a registry to handle them.'
+  - 'Force: Need for explicit state change management'
+  - 'Force: Extensibility for new transitions without modifying core logic'
+  evidence_strength: medium
+  confidence: medium
 - pattern_id: pure-functional-health-evaluation
   name: Pure Functional Health Evaluation
   pattern_classification: architectural
@@ -3026,36 +3024,32 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: layered-architecture-cli-runner-services
-  name: Layered Architecture
+  name: Layered Architecture with CLI, Runner, and Services
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-11'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/cli.py (main)
     - src/cas_runner/runner.py (FlowRunner)
-    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine)
-    - src/cas_runner/governance/models.py
-  description: 'The codebase is organized into distinct layers: CLI entry, runner
-    orchestration, governance services, and data models.'
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+  description: 'The codebase is organized into distinct layers: CLI entry point, orchestration
+    runner, and domain services.'
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To separate concerns and allow independent development, testing, and
-    evolution of each layer.'
-  - 'Context: The application has clear responsibilities: argument parsing (CLI),
-    workflow flow (Runner), business logic (governance services), and data definitions
-    (models).'
-  - 'Force: Need for maintainability and readability'
-  - 'Force: Desire to mock dependencies in tests'
-  - 'Force: Support for adding new features without changing unrelated parts'
+  - 'Intent: Separate concerns to improve maintainability and testability.'
+  - 'Context: CAS is invoked from the CLI, which delegates to a FlowRunner that orchestrates
+    execution across governance and LLM services.'
+  - 'Force: Need for clear separation of concerns'
+  - 'Force: Testability of core logic without CLI dependencies'
   evidence_strength: high
   confidence: high
 - pattern_id: llm-provider-adapter
@@ -5163,5 +5157,202 @@ pattern_proposals:
   - 'Force: Preserve user-specific settings.'
   - 'Force: Handle JSON/YAML merging.'
   - 'Force: Provide deterministic results.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: llm-client-strategy-pattern
+  name: LLM Client Strategy Pattern
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient)
+    - src/cas_runner/llm/mock_client.py (MockLLMClient)
+  description: LLM interactions are abstracted behind a client interface, with concrete
+    implementations for different backends.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Allow swapping LLM providers without affecting the rest of the system.'
+  - 'Context: The runner needs to use LLMs for various tasks, but should not depend
+    on a specific provider.'
+  - 'Force: Provider variety (OpenAI, Anthropic, etc.)'
+  - 'Force: Testing with mock clients'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: policy-compliance-engine
+  name: Policy Compliance Engine
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine)
+    - src/cas_runner/governance/models.py (ComplianceFinding)
+  description: A dedicated engine evaluates governance rules and reports compliance
+    findings.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Centralize rule checking to ensure consistent enforcement.'
+  - 'Context: The system needs to validate that governance artifacts comply with policies.'
+  - 'Force: Multiple rules'
+  - 'Force: Need for consistent reporting of violations'
+  evidence_strength: high
+  confidence: high
+- pattern_id: bootstrap-init-workspace
+  name: Bootstrap Workspace Initialization
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, merge_cas_governance_block,
+      merge_claude_settings, _create_symlink_or_copy)
+  description: A bootstrap process initializes the workspace, merges configuration,
+    and sets up symlinks.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a repeatable setup process for new environments.'
+  - 'Context: Onboarding a new CAS instance requires creating structure and merging
+    files.'
+  - 'Force: Repeatability'
+  - 'Force: Handling existing files and configurations'
+  evidence_strength: high
+  confidence: high
+- pattern_id: template-driven-knowledge-artifacts
+  name: Template-Driven Knowledge Artifacts
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/architecture_decision_record_template.md
+    - cas-knowledge/templates/pattern_template.md
+    - cas-knowledge/templates/rule_template.md
+  description: Knowledge artifacts are generated from predefined templates, ensuring
+    consistency across documents.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Standardize the format of architectural records.'
+  - 'Context: CAS manages ADRs, patterns, rules, etc., which need a consistent structure.'
+  - 'Force: Need for consistency'
+  - 'Force: Ease of creation for contributors'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: filesystem-as-knowledge-store
+  name: Filesystem as Knowledge Store
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/decisions
+    - cas-knowledge/global/patterns
+    - cas-knowledge/global/rules
+  description: The system uses a filesystem directory structure as a persistent store
+    for knowledge artifacts.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable simple, git-friendly storage of structured knowledge.'
+  - 'Context: CAS knowledge is organized in directories under cas-knowledge/global/
+    (decisions, patterns, rules, etc.)'
+  - 'Force: Version control integration'
+  - 'Force: Simplicity'
+  - 'Force: Human readability'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-metrics-aggregation
+  name: Health Metrics Aggregation
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+  description: System health is computed by aggregating multiple metrics into an overall
+    status with reasons.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a concise yet informative health assessment.'
+  - 'Context: The dashboard needs to show health status of governance.'
+  - 'Force: Multiple signals'
+  - 'Force: Need for explanation of assessment'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: modular-monolith-package-organization
+  name: Modular Monolith Package Organization
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-11'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance
+    - src/cas_runner/llm
+    - src/cas_runner/skills
+    - src/cas_runner/dashboard
+  description: The codebase is organized into cohesive modules (governance, llm, skills)
+    within a single deployable package.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Balance cohesion and separation without microservices.'
+  - 'Context: CAS is a CLI tool; packaging all functionality in one package with clear
+    submodules.'
+  - 'Force: Maintainability'
+  - 'Force: Deployability'
   evidence_strength: medium
   confidence: medium
