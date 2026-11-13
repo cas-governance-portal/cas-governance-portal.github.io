@@ -7454,30 +7454,32 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-09'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Transition registry and engine that enforces allowed state changes.
+      - Registry of legal transitions plus executor
     - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - Service layer for executing governance actions.
-  description: A TransitionRegistry enumerates valid governance state transitions,
-    which GovernanceActionEngine executes to keep architecture state changes controlled.
+      - Service boundary for invoking governance actions
+    - src/cas_runner/governance/models.py (GovernanceAction, ResolutionResult) - Action
+      and resolution data contracts
+  description: Governance actions are executed through a registry of permitted state
+    transitions behind a service boundary.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Encode the set of allowed governance state changes so that agents cannot
-    arbitrarily alter architecture states.'
-  - 'Context: GovernanceActionEngine and TransitionRegistry live in governance/governance_action_engine.py
-    and are backed by GovernanceActionService.'
-  - 'Force: Flexibility of state changes vs. safety'
-  - 'Force: Comprehensiveness of the registry vs. maintenance effort'
-  - 'Force: Explicit control vs. agent autonomy'
-  evidence_strength: high
-  confidence: high
+  - 'Intent: Prevent unconstrained agent-initiated governance changes by requiring
+    actions to follow registered transitions.'
+  - 'Context: governance_action_engine.py defines TransitionRegistry and GovernanceActionEngine;
+    governance_action_service.py exposes GovernanceActionService; models.py defines
+    GovernanceAction and ResolutionResult.'
+  - 'Force: Autonomy of governance agents vs. safety of allowed transitions'
+  - 'Force: Extensibility vs. predictability'
+  evidence_strength: medium
+  confidence: medium
 - pattern_id: agentic-governance-merger
   name: Agentic Governance Merger
   pattern_classification: intelligence
@@ -8158,38 +8160,34 @@ pattern_proposals:
   evidence_strength: medium
   confidence: medium
 - pattern_id: skill-packaged-agent-capabilities
-  name: Skill-packaged agent capabilities
+  name: Skill-Packaged Agent Capabilities
   pattern_classification: intelligence
-  pattern_maturity: strategic_direction
+  pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-10'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - .agents/skills/cas-add-or-modify-feature/ - Feature-addition agent capability.
-    - .agents/skills/cas-refactor-module/ - Module refactoring agent capability.
-    - .agents/skills/cas-drawio-generator/ - Diagram generation agent capability.
-    - .agents/skills/cas-sync-archgov-reviews/ - Architecture-review synchronisation
-      capability.
-    - .github/workflows/cas-skill-evals.yml - Skill evaluation workflow validates
-      skill behaviour.
-  description: Recurring agent tasks are packaged as skill directories (e.g., add-or-modify-feature,
-    refactor-module, drawio-generator) so the flow runner or assistant can invoke
-    a known, repeatable capability.
-  pattern_type: emerging
+    - .agents/skills/ - Multiple discrete skill directories define agent capabilities
+    - .claude/skills/ - Same skill set exposed to the Claude runtime
+  description: Each agent capability is packaged as a self-contained skill directory
+    with its own instructions, allowing discrete, reusable units of agent behaviour.
+  pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Turn repeated agent operations into well-scoped, reusable capabilities.'
-  - 'Context: The repository contains many specialised agent skills that need to remain
-    discoverable and maintainable.'
-  - 'Force: Task complexity varies'
-  - 'Force: Reuse across projects is desirable'
-  - 'Force: Capabilities must be predictable'
+  - 'Intent: Avoid one monolithic agent prompt by partitioning agent behaviour into
+    named, versioned, invokable capabilities.'
+  - 'Context: Appears as a top-level set of cas-* skill directories (feature modification,
+    module refactor, knowledge-link refactor, archgov review sync, drawio generation,
+    agent-rule audit, hf-cli) mirrored into .claude/skills.'
+  - 'Force: Agent autonomy vs. bounded scope'
+  - 'Force: Reuse across projects vs. per-project specificity'
+  - 'Force: Discoverability vs. proliferation of skills'
   evidence_strength: high
   confidence: high
 - pattern_id: independent-verifier-agent
@@ -9760,5 +9758,409 @@ pattern_proposals:
   - 'Force: Agents edit automation files faster than reviewers can audit'
   - 'Force: Rules stated only in markdown are easy to miss'
   - 'Force: Checks must be specific enough to be actionable'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: sequential-flow-pipeline
+  name: Sequential Flow Pipeline with Shared Evolving Context
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Central orchestrator for multi-step
+      flow execution
+  description: A central FlowRunner executes an ordered pipeline of steps, threading
+    a shared context through each step.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide deterministic, inspectable multi-step execution instead of letting
+    a model freely decide the sequence.'
+  - 'Context: FlowRunner is the single orchestration entry point for agent flows in
+    cas_runner.'
+  - 'Force: Determinism vs. model-driven planning'
+  - 'Force: Debuggability vs. flexibility'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: provider-abstraction-with-mock-parity
+  name: Provider Abstraction with Mock Parity
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real provider-agnostic
+      client
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Deterministic mock used
+      in tests
+  description: All model access goes through a client abstraction with a real LiteLLM
+    implementation and a mock twin for deterministic testing.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple agent logic from any single LLM provider and enable offline/deterministic
+    test execution.'
+  - 'Context: The llm package defines LiteLLMClient (production) and MockLLMClient
+    (tests/CI) as interchangeable backends.'
+  - 'Force: Provider portability vs. provider-specific features'
+  - 'Force: Test determinism vs. realism'
+  evidence_strength: high
+  confidence: high
+- pattern_id: agentic-config-merger
+  name: Agentic Configuration Merger
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merges governance
+      content into agent configs
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, merge_claude_settings)
+      - Bootstrap-time merge helpers
+  description: A merger injects a managed governance block into agent runtime configuration
+    files so policies propagate consistently.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep agent runtime configs (CLAUDE.md, settings, etc.) aligned with CAS
+    governance without requiring manual edits.'
+  - 'Context: AgenticMerger plus bootstrap helpers merge_cas_governance_block and
+    merge_claude_settings perform idempotent merges during bootstrap.'
+  - 'Force: Managed policy vs. user-local customisation'
+  - 'Force: Idempotency vs. rich merging semantics'
+  evidence_strength: high
+  confidence: high
+- pattern_id: compliance-guardrail-engine
+  name: Compliance Guardrail Engine
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Compliance
+      evaluation component
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, ComplianceException)
+      - Typed compliance outputs
+  description: A dedicated compliance engine evaluates artefacts against rules and
+    emits typed findings and metrics.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide an automated, typed safety net that constrains and scores agent
+    behaviour against governance rules.'
+  - 'Context: ComplianceEngine produces ComplianceFinding/ComplianceMetrics consumed
+    by the dashboard and governance actions.'
+  - 'Force: Automated enforcement vs. false positives'
+  - 'Force: Coverage vs. evaluation cost'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: assertion-based-skill-evals
+  name: Assertion-Based Skill Evaluation Suites
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/skills/models.py (SkillEvalSuite, SkillEvalCase, SkillAssertions,
+      SkillEvalResult, SkillEvalReport) - Typed eval modelling
+    - .github/workflows/cas-skill-evals.yml - CI workflow executing skill evaluations
+  description: Skills ship with declarative eval cases and assertion suites that are
+    executed in CI to catch behavioural regressions.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make agent behaviour testable and regression-safe rather than relying
+    on ad-hoc manual review.'
+  - 'Context: skills/models.py defines EvalStatus, SkillAssertions, SkillEvalCase,
+    SkillEvalSuite, SkillEvalResult, SkillEvalReport; cas-skill-evals.yml runs these
+    suites.'
+  - 'Force: Eval fidelity vs. execution cost'
+  - 'Force: Assertion strictness vs. brittleness'
+  evidence_strength: high
+  confidence: high
+- pattern_id: verifier-subagent-delegation
+  name: Verifier Subagent Delegation
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .agents/subagents/verifier.md - Verifier role definition in generic agent layer
+    - .claude/agents/verifier.md - Verifier registered for the Claude runtime
+  description: A dedicated verifier subagent is defined separately from producer skills
+    so verification is an independent, delegated role.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate the agent that produces changes from the agent that verifies
+    them, reducing self-confirmation bias.'
+  - 'Context: Verifier is declared in both the generic agent layer (.agents/subagents)
+    and the Claude runtime (.claude/agents).'
+  - 'Force: Independence of review vs. added latency/cost'
+  - 'Force: Specialised verifier behaviour vs. duplication'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: knowledge-blackboard-memory
+  name: Knowledge Base as Shared Blackboard
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/global/ - Global knowledge areas for patterns, decisions, rules,
+      signals
+    - cas-knowledge/projects/ - Per-project context stores
+    - cas-knowledge/templates/pattern_template.md - Template enforcing artefact shape
+  description: A versioned cas-knowledge repository acts as a shared blackboard of
+    patterns, decisions, governance, and project context that agents read and write.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Give agents durable, shared context so decisions and learnings persist
+    and are reused across runs and projects.'
+  - 'Context: cas-knowledge splits global (decisions, governance, maps, models, narratives,
+    patterns, rules, signals), projects, runtime, and templates.'
+  - 'Force: Durable shared memory vs. context bloat'
+  - 'Force: Structured templates vs. free-form notes'
+  evidence_strength: high
+  confidence: high
+- pattern_id: steering-rule-projection
+  name: Steering Rule Projection into Runtime Context
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .github/workflows/cas-build-steering-projection.yml - Builds projected steering
+      artefacts
+    - cas-knowledge/runtime/rule-context.json - Projected machine-readable rule context
+    - cas-knowledge/runtime/execution-profile.yaml - Projected execution profile for
+      agent runs
+  description: Governance steering rules are projected from the knowledge base into
+    concrete runtime context files consumed by agents.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Turn curated governance steering into an explicit, machine-readable runtime
+    contract instead of relying on implicit agent memory.'
+  - 'Context: CI workflows build the steering projection and sync managed steering,
+    producing rule-context.json and execution-profile.yaml in cas-knowledge/runtime.'
+  - 'Force: Pre-computed constraints vs. contextual adaptivity'
+  - 'Force: Refresh cadence vs. rule freshness'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: evidence-derived-architecture-docs
+  name: Evidence-Derived Architecture Documentation
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/diagram_template.md - Template enforcing diagram artefact
+      structure
+    - .agents/skills/cas-drawio-generator/ - Skill producing diagrams from evidence
+    - .github/workflows/cas-continuous-architecture.yml - CI validating architecture
+      artefacts
+  description: Architecture documents and diagrams are produced by agent skills from
+    repository evidence using templates, and validated by CI.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent documentation drift by deriving artefacts from evidence rather
+    than unconstrained generation.'
+  - 'Context: Skills like cas-drawio-generator and cas-refactor-knowledge-links produce/repair
+    documentation; templates fix structure; continuous-architecture workflows validate.'
+  - 'Force: Automation vs. accuracy'
+  - 'Force: Structure (templates) vs. expressiveness'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: idempotent-workspace-bootstrap
+  name: Idempotent Workspace Bootstrap
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, _create_symlink_or_copy,
+      render_onboarding_checklist) - Workspace initialisation with merge and linking
+    - src/cas_runner/cli.py (main) - CLI entry point invoking bootstrap
+  description: A bootstrap routine initialises a workspace by merging governance config,
+    linking skills, and emitting an onboarding checklist, converging on repeat runs.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Make agent workspace setup repeatable and consistent across machines
+    and projects.'
+  - 'Context: bootstrap.py exposes bootstrap, init_workspace, render_onboarding_checklist
+    and _create_symlink_or_copy; cli.py drives it.'
+  - 'Force: Convenience vs. surprising filesystem changes'
+  - 'Force: Symlink portability vs. copy robustness'
+  evidence_strength: high
+  confidence: high
+- pattern_id: multi-runtime-agent-parity
+  name: Multi-Runtime Agent Parity
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - AGENTS.md - Runtime-agnostic agent guidance
+    - CLAUDE.md - Claude-specific projection of the same guidance
+    - GEMINI.md - Gemini-specific projection
+    - .claude/settings.json - Runtime configuration
+  description: The same agent guidance and governance is expressed across multiple
+    runtime entry points (AGENTS.md, CLAUDE.md, GEMINI.md) and their config directories.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep agent behaviour portable across different agent runtimes without
+    re-authoring policy per runtime.'
+  - 'Context: Top-level AGENTS.md/CLAUDE.md/GEMINI.md plus mirrored .agents/.claude
+    directories and settings.json encode the shared baseline.'
+  - 'Force: Portability vs. runtime-specific features'
+  - 'Force: Single source vs. duplicated files'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: derived-health-signal
+  name: Derived Governance Health Signal
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Deterministic health aggregation with explanations
+    - src/cas_runner/governance/models.py (TraceableMetric, GovernanceHealth, GovernanceThroughput,
+      GovernanceRisks) - Typed metric contracts feeding health
+  description: A deterministic health model aggregates governance inventory, throughput,
+    and risk metrics into a status with explanatory reasons.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Give humans a compact, explainable signal of agent-system health without
+    reading raw governance data.'
+  - 'Context: health_model.py defines HealthStatus, calculate_health, get_health_reasons;
+    governance/models.py supplies TraceableMetric, GovernanceInventory, GovernanceHealth,
+    GovernanceThroughput, GovernanceRisks.'
+  - 'Force: Summarisation vs. fidelity'
+  - 'Force: Determinism vs. nuance'
+  evidence_strength: high
+  confidence: high
+- pattern_id: human-gated-knowledge-promotion
+  name: Human-Gated Knowledge Promotion
+  pattern_classification: governance
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/promotion_decision.md - Explicit promotion decision
+      artefact
+    - cas-knowledge/templates/heuristic-to-pattern_template.md - Template for elevating
+      heuristics to patterns
+    - cas-knowledge/templates/architecture_decision_record_template.md - Decision
+      record format
+  description: Knowledge moves from heuristic/experiment to pattern/decision through
+    explicit promotion artefacts, keeping humans in the loop.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Stop unvalidated agent output from becoming authoritative knowledge by
+    requiring a recorded promotion decision.'
+  - 'Context: Templates for promotion_decision, heuristic-to-pattern, experiment,
+    architecture_decision_record and vision define the lifecycle artefacts agents
+    must produce.'
+  - 'Force: Velocity of learning vs. trust in knowledge'
+  - 'Force: Automation vs. accountability'
   evidence_strength: medium
   confidence: medium
