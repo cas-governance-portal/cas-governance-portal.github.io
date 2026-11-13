@@ -2,10 +2,9 @@
   name: CAS Build Steering Projection
   type: workflow
   description: GitHub Actions workflow defined in .github/workflows/cas-build-steering-projection.yml
-    generating steering projection artifacts on build completion.
   trigger:
     type: event
-    event: push, workflow_run, workflow_dispatch
+    event: workflow_run, workflow_dispatch
     source: GitHub Actions
     evidence_id: ev-wf-cas-build-steering-projection
   entrypoint:
@@ -37,49 +36,41 @@
     - ev-wf-cas-build-steering-projection
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:3:set-up-python
-    name: Set up Python
+  - id: step:3:setup-cas-environment
+    name: Setup CAS Environment
     sequence: 3
     depends_on:
     - step:2:prepare-workspace
-    implementation: actions/setup-python@v5
+    implementation: ./.github/actions/setup-cas-env
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
-  - id: step:4:set-up-uv
-    name: Set up uv
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:clean-projection-directory
+    name: Clean projection directory
     sequence: 4
     depends_on:
-    - step:3:set-up-python
-    implementation: astral-sh/setup-uv@v3
-    evidence_ids:
-    - ev-wf-cas-build-steering-projection
-    confidence: high
-  - id: step:5:clean-projection-directory
-    name: Clean projection directory
-    sequence: 5
-    depends_on:
-    - step:4:set-up-uv
+    - step:3:setup-cas-environment
     implementation: rm -f cas-knowledge/governance/steering/projections/*.md
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:6:run-steering-projection
+  - id: step:5:run-steering-projection
     name: Run steering projection
-    sequence: 6
+    sequence: 5
     depends_on:
-    - step:5:clean-projection-directory
-    implementation: uv run cas run steering-projection-flow --project ideas-to-life-cas
+    - step:4:clean-projection-directory
+    implementation: uv run cas run steering-projection-flow
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:capture-projection-id
+  - id: step:6:capture-projection-id
     name: Capture projection ID
-    sequence: 7
+    sequence: 6
     depends_on:
-    - step:6:run-steering-projection
+    - step:5:run-steering-projection
     implementation: 'PROJ_ID=$(ls -t cas-knowledge/governance/steering/projections/*.md
       | head -n 1 | xargs basename -s .md)
 
@@ -90,20 +81,20 @@
     - ev-wf-cas-build-steering-projection
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:upload-projection-bundle
+  - id: step:7:upload-projection-bundle
     name: Upload projection bundle
-    sequence: 8
+    sequence: 7
     depends_on:
-    - step:7:capture-projection-id
+    - step:6:capture-projection-id
     implementation: actions/upload-artifact@v4
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
-  - id: step:9:job-summary
+  - id: step:8:job-summary
     name: Job summary
-    sequence: 9
+    sequence: 8
     depends_on:
-    - step:8:upload-projection-bundle
+    - step:7:upload-projection-bundle
     implementation: "{\n  echo \"Steering projection artifact uploaded.\"\n  echo\
       \ \"\"\n  echo \"Proposal-only mode: no steering files were modified.\"\n} >>\
       \ \"$GITHUB_STEP_SUMMARY\"\n"
@@ -124,7 +115,6 @@
   name: CAS Build Validation
   type: workflow
   description: GitHub Actions workflow defined in .github/workflows/cas-build-validation.yml
-    verifying contracts and running test suites.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -145,53 +135,21 @@
     confidence: high
     control_roles:
     - Prevent
-  - id: step:2:checkout-knowledge-layer
-    name: Checkout Knowledge Layer
+  - id: step:2:setup-cas-environment
+    name: Setup CAS Environment
     sequence: 2
     depends_on:
     - step:1:checkout
-    implementation: actions/checkout@v4
+    implementation: ./.github/actions/setup-cas-env
     evidence_ids:
     - ev-wf-cas-build-validation
     confidence: high
-    control_roles:
-    - Prevent
-  - id: step:3:set-up-python
-    name: Set up Python
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:prepare-validation-output
+    name: Prepare validation output
     sequence: 3
     depends_on:
-    - step:2:checkout-knowledge-layer
-    implementation: actions/setup-python@v5
-    evidence_ids:
-    - ev-wf-cas-build-validation
-    confidence: high
-  - id: step:4:set-up-uv
-    name: Set up uv
-    sequence: 4
-    depends_on:
-    - step:3:set-up-python
-    implementation: astral-sh/setup-uv@v3
-    evidence_ids:
-    - ev-wf-cas-build-validation
-    confidence: high
-  - id: step:5:install-dependencies
-    name: Install dependencies
-    sequence: 5
-    depends_on:
-    - step:4:set-up-uv
-    implementation: 'uv sync
-
-      '
-    evidence_ids:
-    - ev-wf-cas-build-validation
-    confidence: high
-    control_roles:
-    - Correct
-  - id: step:6:prepare-validation-output
-    name: Prepare validation output
-    sequence: 6
-    depends_on:
-    - step:5:install-dependencies
+    - step:2:setup-cas-environment
     implementation: 'mkdir -p cas-knowledge/governance/build/validation
 
       '
@@ -201,12 +159,54 @@
     control_roles:
     - Generate
     invokes_flow_id: flow:cli:cas:main
+  - id: step:4:run-deterministic-architecture
+    name: Run Deterministic Architecture Linter
+    sequence: 4
+    depends_on:
+    - step:3:prepare-validation-output
+    implementation: 'uv run cas governance lint --target-dir .
+
+      '
+    evidence_ids:
+    - ev-wf-cas-build-validation
+    confidence: high
+    control_roles:
+    - Detect
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:run-statistical-control-bands-
+    name: Run Statistical Control Bands Gate
+    sequence: 5
+    depends_on:
+    - step:4:run-deterministic-architecture
+    implementation: 'uv run cas governance check-bands --target-dir .
+
+      '
+    evidence_ids:
+    - ev-wf-cas-build-validation
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:run-3-pass-sdd-tdd-diff-verifi
+    name: Run 3-Pass SDD/TDD & Diff Verification Gate
+    sequence: 6
+    depends_on:
+    - step:5:run-statistical-control-bands-
+    implementation: 'uv run cas governance verify-diff --target-dir .
+
+      '
+    evidence_ids:
+    - ev-wf-cas-build-validation
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
   - id: step:7:run-governance-validator
     name: Run Governance Validator
     sequence: 7
     depends_on:
-    - step:6:prepare-validation-output
-    implementation: 'uv run cas run governance-validator --project ideas-to-life-cas
+    - step:6:run-3-pass-sdd-tdd-diff-verifi
+    implementation: 'uv run cas run governance-validator
 
       '
     evidence_ids:
@@ -218,11 +218,11 @@
     sequence: 8
     depends_on:
     - step:7:run-governance-validator
-    implementation: 'set -uo pipefail
+    implementation: 'set -euo pipefail
 
       mkdir -p cas-knowledge/governance/build/validation
 
-      uv run pytest tests/cas_runner tests/cas_runner/orchestration | tee cas-knowledge/governance/build/validation/pytest.log
+      uv run pytest | tee cas-knowledge/governance/build/validation/pytest.log
 
       '
     evidence_ids:
@@ -261,9 +261,8 @@
     confidence: high
   component_ids: []
   control_roles:
-  - Correct
-  - Detect
   - Generate
+  - Detect
   - Prevent
   artefacts: []
   implementation:
@@ -275,8 +274,7 @@
 - id: flow:workflow:github:cas-continuous-architecture-loop
   name: CAS Continuous Architecture Loop
   type: workflow
-  description: Continuous architecture loop triggered on pull requests to analyze
-    architecture deltas and evaluate rules.
+  description: GitHub Actions workflow defined in .github/workflows/cas-continuous-architecture.yml
   trigger:
     type: event
     event: pull_request
@@ -287,124 +285,99 @@
     command: github workflow CAS Continuous Architecture Loop
     evidence_id: ev-wf-cas-continuous-architecture
   steps:
-  - id: step:1:checkout-repository
-    name: Checkout repository
+  - id: step:1:check-pr-title-body-and-head-c
+    name: Check PR title, body, and head commit message
     sequence: 1
     depends_on: []
-    implementation: actions/checkout@v4
+    implementation: actions/github-script@v7
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
     control_roles:
     - Prevent
-  - id: step:2:checkout-knowledge-layer
-    name: Checkout Knowledge Layer
+  - id: step:2:checkout-repository
+    name: Checkout repository
     sequence: 2
     depends_on:
-    - step:1:checkout-repository
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/checkout@v4
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
     control_roles:
     - Prevent
-  - id: step:3:set-up-python
-    name: Set up Python
+  - id: step:3:setup-cas-environment
+    name: Setup CAS Environment
     sequence: 3
     depends_on:
-    - step:2:checkout-knowledge-layer
-    implementation: actions/setup-python@v5
+    - step:1:check-pr-title-body-and-head-c
+    implementation: ./.github/actions/setup-cas-env
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
-  - id: step:4:install-uv
-    name: Install uv
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:run-continuous-architecture-lo
+    name: Run Continuous Architecture Loop
     sequence: 4
     depends_on:
-    - step:3:set-up-python
-    implementation: 'curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      '
+    - step:1:check-pr-title-body-and-head-c
+    implementation: "uv run cas run continuous-architecture-loop \\\n  --override\
+      \ '{\"governance_fail_on_error\": false}'\n"
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
-  - id: step:5:install-dependencies
-    name: Install dependencies
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:evaluate-statistical-control-b
+    name: Evaluate Statistical Control Bands (Stage 6 -> Stage 1)
     sequence: 5
     depends_on:
-    - step:4:install-uv
-    implementation: 'uv sync
+    - step:1:check-pr-title-body-and-head-c
+    implementation: 'uv run cas governance check-bands --target-dir . --advisory
 
       '
-    evidence_ids:
-    - ev-wf-cas-continuous-architecture
-    confidence: high
-    control_roles:
-    - Correct
-  - id: step:6:run-continuous-architecture-lo
-    name: Run Continuous Architecture Loop
-    sequence: 6
-    depends_on:
-    - step:5:install-dependencies
-    implementation: "# Check if dry-run mode is enabled\nif [[ \"$*\" == *\"--dry-run\"\
-      * ]]; then\n  echo \"DRY-RUN MODE: Skipping artefact persistence and portal\
-      \ triggering\"\n  uv run cas run continuous-architecture-loop \\\n    --project\
-      \ ideas-to-life-cas \\\n    --dry-run \\\n    --override '{\"governance_fail_on_error\"\
-      : false}'\nelse\n  uv run cas run continuous-architecture-loop \\\n    --project\
-      \ ideas-to-life-cas \\\n    --override '{\"governance_fail_on_error\": false}'\n\
-      fi\n"
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
     control_roles:
     - Prevent
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:run-pattern-lifecycle-flow
+  - id: step:6:run-pattern-lifecycle-flow
     name: Run Pattern Lifecycle Flow
-    sequence: 7
+    sequence: 6
     depends_on:
-    - step:6:run-continuous-architecture-lo
+    - step:1:check-pr-title-body-and-head-c
     implementation: "# Execute end-to-end pattern discovery, classification, promotion\
       \ recommendations, and reference architecture staging\nuv run cas run pattern-lifecycle-flow\
-      \ \\\n  --project ideas-to-life-cas \\\n  --override '{\"governance_fail_on_error\"\
-      : false}'\n"
+      \ \\\n  --override '{\"governance_fail_on_error\": false}'\n"
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:commit-and-push-changes
+  - id: step:7:commit-and-push-changes
     name: Commit and Push changes
+    sequence: 7
+    depends_on:
+    - step:1:check-pr-title-body-and-head-c
+    implementation: "git config --global user.name \"CAS Bot\"\ngit config --global\
+      \ user.email \"cas-bot@users.noreply.github.com\"\ngit add .\nif ! git diff\
+      \ --quiet || ! git diff --staged --quiet; then\n  git commit -m \"chore(cas):\
+      \ automated architecture synthesis\"\n  git pull --rebase origin main\n  git\
+      \ push\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:upload-artifacts
+    name: Upload Artifacts
     sequence: 8
     depends_on:
-    - step:7:run-pattern-lifecycle-flow
-    implementation: 'git config --global user.name "CAS Bot"
-
-      git config --global user.email "cas-bot@users.noreply.github.com"
-
-      git add .
-
-      git diff --quiet && git diff --staged --quiet || (git commit -m "chore(cas):
-      automated architecture synthesis" && git push)
-
-      '
-    evidence_ids:
-    - ev-wf-cas-continuous-architecture
-    confidence: high
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:9:upload-artifacts
-    name: Upload Artifacts
-    sequence: 9
-    depends_on:
-    - step:8:commit-and-push-changes
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/upload-artifact@v4
     evidence_ids:
     - ev-wf-cas-continuous-architecture
     confidence: high
   component_ids: []
   control_roles:
-  - Correct
   - Prevent
   artefacts: []
   implementation:
@@ -416,11 +389,10 @@
 - id: flow:workflow:github:cas-managed-steering-sync
   name: CAS Managed Steering Sync
   type: workflow
-  description: Synchronizes managed steering sections into repository documentation
-    via pull requests.
+  description: GitHub Actions workflow defined in .github/workflows/cas-managed-steering-sync.yml
   trigger:
     type: event
-    event: push, pull_request, workflow_dispatch
+    event: pull_request, workflow_dispatch
     source: GitHub Actions
     evidence_id: ev-wf-cas-managed-steering-sync
   entrypoint:
@@ -428,21 +400,32 @@
     command: github workflow CAS Managed Steering Sync
     evidence_id: ev-wf-cas-managed-steering-sync
   steps:
-  - id: step:1:actions-checkout-v4
-    name: actions/checkout@v4
+  - id: step:1:check-pr-title-body-and-head-c
+    name: Check PR title, body, and head commit message
     sequence: 1
     depends_on: []
+    implementation: actions/github-script@v7
+    evidence_ids:
+    - ev-wf-cas-managed-steering-sync
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:actions-checkout-v4
+    name: actions/checkout@v4
+    sequence: 2
+    depends_on:
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/checkout@v4
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
     - Prevent
-  - id: step:2:check-if-commit-contains-only-
+  - id: step:3:check-if-commit-contains-only-
     name: Check if commit contains only steering changes
-    sequence: 2
+    sequence: 3
     depends_on:
-    - step:1:actions-checkout-v4
+    - step:1:check-pr-title-body-and-head-c
     implementation: "CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD)\n\
       echo \"Files changed in latest commit:\"\necho \"$CHANGED_FILES\"\n\nif [ -z\
       \ \"$CHANGED_FILES\" ]; then\n  echo \"No files changed in HEAD.\"\n  echo \"\
@@ -459,41 +442,22 @@
     control_roles:
     - Detect
     - Prevent
-  - id: step:3:set-up-python
-    name: Set up Python
-    sequence: 3
-    depends_on:
-    - step:2:check-if-commit-contains-only-
-    implementation: actions/setup-python@v5
-    evidence_ids:
-    - ev-wf-cas-managed-steering-sync
-    confidence: high
-  - id: step:4:install-uv
-    name: Install uv
+  - id: step:4:setup-cas-environment
+    name: Setup CAS Environment
     sequence: 4
     depends_on:
-    - step:3:set-up-python
-    implementation: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - step:1:check-pr-title-body-and-head-c
+    implementation: ./.github/actions/setup-cas-env
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
-  - id: step:5:install-dependencies
-    name: Install dependencies
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:run-steering-projection
+    name: Run Steering Projection
     sequence: 5
     depends_on:
-    - step:4:install-uv
-    implementation: uv sync
-    evidence_ids:
-    - ev-wf-cas-managed-steering-sync
-    confidence: high
-    control_roles:
-    - Correct
-  - id: step:6:run-steering-projection
-    name: Run Steering Projection
-    sequence: 6
-    depends_on:
-    - step:5:install-dependencies
-    implementation: 'uv run cas run steering-projection-flow --project ideas-to-life-cas
+    - step:1:check-pr-title-body-and-head-c
+    implementation: 'uv run cas run steering-projection-flow
 
       PROJ_ID=$(ls -t cas-knowledge/governance/steering/projections/*.md | head -n
       1 | xargs basename -s .md)
@@ -505,31 +469,33 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:upload-projection
+  - id: step:6:upload-projection
     name: Upload Projection
-    sequence: 7
+    sequence: 6
     depends_on:
-    - step:6:run-steering-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/upload-artifact@v4
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
-  - id: step:8:actions-checkout-v4
+  - id: step:7:actions-checkout-v4
     name: actions/checkout@v4
-    sequence: 8
+    sequence: 7
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/checkout@v4
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
     - Prevent
-  - id: step:9:prepare-workspace
+  - id: step:8:prepare-workspace
     name: Prepare Workspace
-    sequence: 9
+    sequence: 8
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: 'rm -rf "${{ github.workspace }}/cas-knowledge"
 
       mkdir -p "${{ github.workspace }}/cas-knowledge"
@@ -539,49 +505,33 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:10:download-projection
+  - id: step:9:download-projection
     name: Download Projection
-    sequence: 10
+    sequence: 9
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: actions/download-artifact@v4
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
-  - id: step:11:set-up-python
-    name: Set up Python
+  - id: step:10:setup-cas-environment
+    name: Setup CAS Environment
+    sequence: 10
+    depends_on:
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
+    implementation: ./.github/actions/setup-cas-env
+    evidence_ids:
+    - ev-wf-cas-managed-steering-sync
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:11:create-sync-branch
+    name: Create Sync Branch
     sequence: 11
     depends_on:
-    - step:7:upload-projection
-    implementation: actions/setup-python@v5
-    evidence_ids:
-    - ev-wf-cas-managed-steering-sync
-    confidence: high
-  - id: step:12:install-uv
-    name: Install uv
-    sequence: 12
-    depends_on:
-    - step:7:upload-projection
-    implementation: curl -LsSf https://astral.sh/uv/install.sh | sh
-    evidence_ids:
-    - ev-wf-cas-managed-steering-sync
-    confidence: high
-  - id: step:13:install-dependencies
-    name: Install dependencies
-    sequence: 13
-    depends_on:
-    - step:7:upload-projection
-    implementation: uv sync
-    evidence_ids:
-    - ev-wf-cas-managed-steering-sync
-    confidence: high
-    control_roles:
-    - Correct
-  - id: step:14:create-sync-branch
-    name: Create Sync Branch
-    sequence: 14
-    depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: 'SYNC_BRANCH="steering-sync/${{ github.head_ref }}"
 
       git checkout -b "$SYNC_BRANCH"
@@ -591,14 +541,15 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Correct
     - Generate
     - Prevent
-  - id: step:15:inspect-projection
+    - Correct
+  - id: step:12:inspect-projection
     name: Inspect Projection
-    sequence: 15
+    sequence: 12
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: "PROJECTION_PATH=\"cas-knowledge/governance/steering/projections/${{\
       \ needs.projection.outputs.projection_id }}.md\"\n\nif [ ! -f \"$PROJECTION_PATH\"\
       \ ]; then\n  echo \"Projection not found: $PROJECTION_PATH\"\n  exit 1\nfi\n\
@@ -613,11 +564,12 @@
     control_roles:
     - Correct
     invokes_flow_id: flow:cli:cas:main
-  - id: step:16:apply-managed-sections
+  - id: step:13:apply-managed-sections
     name: Apply Managed Sections
-    sequence: 16
+    sequence: 13
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: 'uv run cas steering apply --projection ${{ needs.projection.outputs.projection_id
       }} --managed-sections-only
 
@@ -631,49 +583,53 @@
     - Correct
     - Detect
     invokes_flow_id: flow:cli:cas:main
-  - id: step:17:commit-changes
+  - id: step:14:commit-changes
     name: Commit Changes
-    sequence: 17
+    sequence: 14
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: "git config user.name \"github-actions[bot]\"\ngit config user.email\
       \ \"github-actions[bot]@users.noreply.github.com\"\nif git diff --quiet README.md\
       \ AGENTS.md GEMINI.md CLAUDE.md; then\n  echo \"changed=false\" >> $GITHUB_OUTPUT\n\
       else\n  git add README.md AGENTS.md GEMINI.md CLAUDE.md\n  git commit -m \"\
       chore(steering): sync managed sections from projection ${{ needs.projection.outputs.projection_id\
-      \ }}\"\n  git push origin \"steering-sync/${{ github.head_ref }}\" --force\n\
-      \  echo \"changed=true\" >> $GITHUB_OUTPUT\nfi\n"
+      \ }} [skip-cas-loop]\"\n  git push origin \"steering-sync/${{ github.head_ref\
+      \ }}\" --force\n  echo \"changed=true\" >> $GITHUB_OUTPUT\nfi\n"
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
     - Correct
-  - id: step:18:create-or-update-pull-request
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:15:create-or-update-pull-request
     name: Create or Update Pull Request
-    sequence: 18
+    sequence: 15
     depends_on:
-    - step:7:upload-projection
+    - step:6:upload-projection
+    - step:1:check-pr-title-body-and-head-c
     implementation: "PR_TITLE=\"chore(steering): sync managed sections [${{ github.head_ref\
-      \ }}]\"\nPR_BODY=\"This PR synchronizes managed steering sections from projection\
-      \ ${{ needs.projection.outputs.projection_id }}.\\n\\nSource Branch: ${{ github.head_ref\
-      \ }}\"\n\nEXISTING_PR=$(gh pr list --head \"steering-sync/${{ github.head_ref\
-      \ }}\" --base \"${{ github.head_ref }}\" --json number --jq '.[0].number')\n\
-      \nif [ -z \"$EXISTING_PR\" ]; then\n  gh pr create --title \"$PR_TITLE\" --body\
-      \ \"$PR_BODY\" --head \"steering-sync/${{ github.head_ref }}\" --base \"${{\
-      \ github.head_ref }}\"\nelse\n  gh pr edit \"$EXISTING_PR\" --title \"$PR_TITLE\"\
-      \ --body \"$PR_BODY\"\nfi\n"
+      \ }}] [skip-cas-loop]\"\nPR_BODY=\"This PR synchronizes managed steering sections\
+      \ from projection ${{ needs.projection.outputs.projection_id }}.\\n\\nSource\
+      \ Branch: ${{ github.head_ref }}\"\n\nEXISTING_PR=$(gh pr list --head \"steering-sync/${{\
+      \ github.head_ref }}\" --base \"${{ github.head_ref }}\" --json number --jq\
+      \ '.[0].number')\n\nif [ -z \"$EXISTING_PR\" ]; then\n  gh pr create --title\
+      \ \"$PR_TITLE\" --body \"$PR_BODY\" --head \"steering-sync/${{ github.head_ref\
+      \ }}\" --base \"${{ github.head_ref }}\"\nelse\n  gh pr edit \"$EXISTING_PR\"\
+      \ --title \"$PR_TITLE\" --body \"$PR_BODY\"\nfi\n"
     evidence_ids:
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Correct
     - Generate
+    - Correct
+    invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Correct
-  - Detect
   - Generate
+  - Detect
   - Prevent
+  - Correct
   artefacts: []
   implementation:
   - .github/workflows/cas-managed-steering-sync.yml
@@ -684,8 +640,7 @@
 - id: flow:workflow:github:cas-governance-portal-publish
   name: CAS Governance Portal Publish
   type: workflow
-  description: Preprocesses governance artifacts and builds/deploys the MkDocs documentation
-    portal.
+  description: GitHub Actions workflow defined in .github/workflows/cas-portal-publish.yml
   trigger:
     type: event
     event: push, workflow_dispatch, repository_dispatch
@@ -716,51 +671,32 @@
     - ev-wf-cas-portal-publish
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:3:checkout-knowledge-layer
-    name: Checkout Knowledge Layer
+  - id: step:3:setup-cas-environment
+    name: Setup CAS Environment
     sequence: 3
     depends_on:
     - step:2:clean-knowledge-environment
-    implementation: actions/checkout@v4
+    implementation: ./.github/actions/setup-cas-env
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-    control_roles:
-    - Prevent
-  - id: step:4:set-up-python
-    name: Set up Python
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:install-dependencies-mkdocs-pl
+    name: Install Dependencies & MkDocs Plugins
     sequence: 4
     depends_on:
-    - step:3:checkout-knowledge-layer
-    implementation: actions/setup-python@v5
-    evidence_ids:
-    - ev-wf-cas-portal-publish
-    confidence: high
-  - id: step:5:install-uv
-    name: Install uv
-    sequence: 5
-    depends_on:
-    - step:4:set-up-python
-    implementation: curl -LsSf https://astral.sh/uv/install.sh | sh
-    evidence_ids:
-    - ev-wf-cas-portal-publish
-    confidence: high
-  - id: step:6:install-dependencies-mkdocs-pl
-    name: Install Dependencies & MkDocs Plugins
-    sequence: 6
-    depends_on:
-    - step:5:install-uv
+    - step:3:setup-cas-environment
     implementation: "uv pip install --system \\\n  . \\\n  mkdocs-material \\\n  mkdocs-roamlinks-plugin\
       \ \\\n  mkdocs-ezlinks-plugin \\\n  mkdocs-drawio \\\n  pymdown-extensions \\\
       \n  mkdocs-glightbox\n"
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-  - id: step:7:pre-process-portal-content
+  - id: step:5:pre-process-portal-content
     name: Pre-process Portal Content
-    sequence: 7
+    sequence: 5
     depends_on:
-    - step:6:install-dependencies-mkdocs-pl
+    - step:4:install-dependencies-mkdocs-pl
     implementation: 'export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 
       python3 src/cas_runner/portal_preprocessor.py
@@ -770,11 +706,11 @@
     - ev-wf-cas-portal-publish
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:build-portal
+  - id: step:6:build-portal
     name: Build Portal
-    sequence: 8
+    sequence: 6
     depends_on:
-    - step:7:pre-process-portal-content
+    - step:5:pre-process-portal-content
     implementation: 'cd portal
 
       mkdocs build
@@ -785,21 +721,26 @@
     confidence: high
     control_roles:
     - Generate
-  - id: step:9:add-cname-for-pages
+  - id: step:7:add-cname-for-pages
     name: Add CNAME for Pages
-    sequence: 9
+    sequence: 7
     depends_on:
-    - step:8:build-portal
-    implementation: echo "cas.ideas-to-life.ai" > ./portal/site/CNAME
+    - step:6:build-portal
+    implementation: "CNAME_VAL=\"${{ vars.CAS_PORTAL_CNAME }}\"\nif [ -z \"$CNAME_VAL\"\
+      \ ] && [ -f \"cas-knowledge/projects/${CAS_PROJECT}/config.yaml\" ]; then\n\
+      \  CNAME_VAL=$(grep 'cname:' \"cas-knowledge/projects/${CAS_PROJECT}/config.yaml\"\
+      \ | awk '{print $2}' || true)\nfi\nif [ -n \"$CNAME_VAL\" ]; then\n  echo \"\
+      $CNAME_VAL\" > ./portal/site/CNAME\n  echo \"CNAME set to: $CNAME_VAL\"\nelse\n\
+      \  echo \"No custom CNAME configured; skipping CNAME generation.\"\nfi\n"
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:10:configure-git-for-external-rep
+  - id: step:8:configure-git-for-external-rep
     name: Configure git for external repository
-    sequence: 10
+    sequence: 8
     depends_on:
-    - step:9:add-cname-for-pages
+    - step:7:add-cname-for-pages
     implementation: 'git config --global user.name "github-actions[bot]"
 
       git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -808,11 +749,11 @@
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-  - id: step:11:deploy-to-github-pages
+  - id: step:9:deploy-to-github-pages
     name: Deploy to GitHub Pages
-    sequence: 11
+    sequence: 9
     depends_on:
-    - step:10:configure-git-for-external-rep
+    - step:8:configure-git-for-external-rep
     implementation: peaceiris/actions-gh-pages@v4
     evidence_ids:
     - ev-wf-cas-portal-publish
@@ -828,19 +769,19 @@
   - ev-wf-cas-portal-publish
   confidence: high
   status: discovered
-- id: flow:workflow:github:cas-governance-validation
-  name: CAS Governance Validation
+- id: flow:workflow:github:cas-skill-evaluations
+  name: CAS Skill Evaluations
   type: workflow
-  description: Validation workflow enforcing governance rules and metrics across branches.
+  description: GitHub Actions workflow defined in .github/workflows/cas-skill-evals.yml
   trigger:
     type: event
-    event: push, pull_request, workflow_dispatch
+    event: push, pull_request, workflow_dispatch, schedule
     source: GitHub Actions
-    evidence_id: ev-wf-governance-validation
+    evidence_id: ev-wf-cas-skill-evals
   entrypoint:
-    path: .github/workflows/governance-validation.yml
-    command: github workflow CAS Governance Validation
-    evidence_id: ev-wf-governance-validation
+    path: .github/workflows/cas-skill-evals.yml
+    command: github workflow CAS Skill Evaluations
+    evidence_id: ev-wf-cas-skill-evals
   steps:
   - id: step:1:checkout-repository
     name: Checkout repository
@@ -848,7 +789,85 @@
     depends_on: []
     implementation: actions/checkout@v4
     evidence_ids:
-    - ev-wf-governance-validation
+    - ev-wf-cas-skill-evals
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:install-uv
+    name: Install uv
+    sequence: 2
+    depends_on:
+    - step:1:checkout-repository
+    implementation: astral-sh/setup-uv@v5
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+  - id: step:3:set-up-python-3.13
+    name: Set up Python 3.13
+    sequence: 3
+    depends_on:
+    - step:2:install-uv
+    implementation: uv python install 3.13
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+  - id: step:4:install-project-dependencies
+    name: Install project dependencies
+    sequence: 4
+    depends_on:
+    - step:3:set-up-python-3.13
+    implementation: uv sync --frozen
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+    control_roles:
+    - Correct
+  - id: step:5:run-deterministic-skill-evalua
+    name: Run Deterministic Skill Evaluations
+    sequence: 5
+    depends_on:
+    - step:4:install-project-dependencies
+    implementation: "ARGS=\"\"\nif [ -n \"${{ github.event.inputs.skill }}\" ]; then\n\
+      \  ARGS=\"$ARGS --skill ${{ github.event.inputs.skill }}\"\nfi\nif [ -n \"${{\
+      \ github.event.inputs.provider }}\" ]; then\n  ARGS=\"$ARGS --provider ${{ github.event.inputs.provider\
+      \ }}\"\nfi\necho \"[CAS][INFO] Running: uv run cas skills eval $ARGS\"\nuv run\
+      \ cas skills eval $ARGS\n"
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Correct
+  - Prevent
+  artefacts: []
+  implementation:
+  - .github/workflows/cas-skill-evals.yml
+  evidence_ids:
+  - ev-wf-cas-skill-evals
+  confidence: high
+  status: discovered
+- id: flow:workflow:github:publish-cas-public-distribution
+  name: Publish CAS Public Distribution
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/publish-distribution.yml
+  trigger:
+    type: event
+    event: push, workflow_dispatch
+    source: GitHub Actions
+    evidence_id: ev-wf-publish-distribution
+  entrypoint:
+    path: .github/workflows/publish-distribution.yml
+    command: github workflow Publish CAS Public Distribution
+    evidence_id: ev-wf-publish-distribution
+  steps:
+  - id: step:1:checkout-engine-repository
+    name: Checkout Engine Repository
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-publish-distribution
     confidence: high
     control_roles:
     - Prevent
@@ -856,73 +875,130 @@
     name: Set up Python
     sequence: 2
     depends_on:
-    - step:1:checkout-repository
+    - step:1:checkout-engine-repository
     implementation: actions/setup-python@v5
     evidence_ids:
-    - ev-wf-governance-validation
+    - ev-wf-publish-distribution
     confidence: high
-  - id: step:3:install-uv
-    name: Install uv
+  - id: step:3:set-up-uv
+    name: Set up uv
     sequence: 3
     depends_on:
     - step:2:set-up-python
-    implementation: 'curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      '
+    implementation: astral-sh/setup-uv@v5
     evidence_ids:
-    - ev-wf-governance-validation
+    - ev-wf-publish-distribution
     confidence: high
-  - id: step:4:install-dependencies
-    name: Install dependencies
+  - id: step:4:build-distributable-wheel-pack
+    name: Build Distributable Wheel Package
     sequence: 4
     depends_on:
-    - step:3:install-uv
-    implementation: 'uv sync
+    - step:3:set-up-uv
+    implementation: 'uv build --wheel --out-dir dist/
+
+      ls -la dist/
+
+      test -n "$(find dist -maxdepth 1 -name ''cas_runner-*.whl'' -print -quit)"
 
       '
     evidence_ids:
-    - ev-wf-governance-validation
+    - ev-wf-publish-distribution
+    confidence: high
+    control_roles:
+    - Generate
+    - Detect
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:check-public-distribution-toke
+    name: Check Public Distribution Token
+    sequence: 5
+    depends_on:
+    - step:4:build-distributable-wheel-pack
+    implementation: "if [ -z \"$DIST_TOKEN\" ]; then\n  echo \"[CAS][WARN] No distribution\
+      \ token configured (CAS_DIST_TOKEN / CAS_PORTAL_TOKEN / CAS_KNOWLEDGE_BRAIN).\
+      \ Skipping remote push to ideas-to-life/setup-cas.\"\n  echo \"has_token=false\"\
+      \ >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"has_token=true\" >> \"$GITHUB_OUTPUT\"\
+      \nfi\n"
+    evidence_ids:
+    - ev-wf-publish-distribution
+    confidence: high
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:checkout-public-distribution-r
+    name: Checkout Public Distribution Repository (ideas-to-life/setup-cas)
+    sequence: 6
+    depends_on:
+    - step:5:check-public-distribution-toke
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-publish-distribution
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:7:sync-composite-action-standalo
+    name: Sync Composite Action & Standalone Installer Script
+    sequence: 7
+    depends_on:
+    - step:6:checkout-public-distribution-r
+    implementation: "cp .github/actions/setup-cas/action.yml setup-cas-dist/action.yml\n\
+      cp src/cas_runner/templates/onboarding/substrate/scripts/install-cas.sh setup-cas-dist/install-cas.sh\n\
+      chmod +x setup-cas-dist/install-cas.sh\n\nmkdir -p setup-cas-dist/dist\nrm -f\
+      \ setup-cas-dist/dist/*.whl\ncp dist/cas_runner-*.whl setup-cas-dist/dist/\n\
+      WHEEL_BASENAME=\"$(basename $(ls dist/cas_runner-*.whl | head -n 1))\"\necho\
+      \ \"$WHEEL_BASENAME\" > setup-cas-dist/LATEST_WHEEL\n\ncd setup-cas-dist\ngit\
+      \ config user.name \"CAS Distribution Bot\"\ngit config user.email \"cas-bot@users.noreply.github.com\"\
+      \ngit add -A action.yml install-cas.sh LATEST_WHEEL dist/\nif ! git diff --staged\
+      \ --quiet; then\n  git commit -m \"chore(dist): sync setup-cas action, installer,\
+      \ LATEST_WHEEL, and wheel from ideas-to-life-cas@${GITHUB_SHA::7}\"\n  git pull\
+      \ --rebase --autostash origin main\n  git push origin main\nelse\n  echo \"\
+      [CAS][INFO] Public distribution repository is already up to date.\"\nfi\n"
+    evidence_ids:
+    - ev-wf-publish-distribution
     confidence: high
     control_roles:
     - Correct
-  - id: step:5:run-governance-validator
-    name: Run Governance Validator
-    sequence: 5
-    depends_on:
-    - step:4:install-dependencies
-    implementation: 'uv run cas run governance-validator --project ideas-to-life-cas
-
-      '
-    evidence_ids:
-    - ev-wf-governance-validation
-    confidence: high
+    - Detect
     invokes_flow_id: flow:cli:cas:main
-  - id: step:6:upload-governance-health-repor
-    name: Upload Governance Health Report
-    sequence: 6
+  - id: step:8:publish-release-wheel-assets-t
+    name: Publish Release Wheel Assets to ideas-to-life/setup-cas
+    sequence: 8
     depends_on:
-    - step:5:run-governance-validator
-    implementation: actions/upload-artifact@v4
+    - step:7:sync-composite-action-standalo
+    implementation: "RELEASE_TAG=\"${{ github.event.inputs.release_tag || 'latest'\
+      \ }}\"\nif [[ \"${GITHUB_REF}\" == refs/tags/v* ]]; then\n  RELEASE_TAG=\"${GITHUB_REF#refs/tags/}\"\
+      \nfi\n\nWHEEL_FILE=\"$(ls dist/cas_runner-*.whl | head -n 1)\"\n\nif gh release\
+      \ view \"$RELEASE_TAG\" --repo ideas-to-life/setup-cas >/dev/null 2>&1; then\n\
+      \  gh release upload \"$RELEASE_TAG\" \"$WHEEL_FILE\" setup-cas-dist/LATEST_WHEEL\
+      \ src/cas_runner/templates/onboarding/substrate/scripts/install-cas.sh --repo\
+      \ ideas-to-life/setup-cas --clobber\nelse\n  gh release create \"$RELEASE_TAG\"\
+      \ \"$WHEEL_FILE\" setup-cas-dist/LATEST_WHEEL src/cas_runner/templates/onboarding/substrate/scripts/install-cas.sh\
+      \ \\\n    --repo ideas-to-life/setup-cas \\\n    --title \"CAS CLI Distribution\
+      \ ($RELEASE_TAG)\" \\\n    --notes \"Automated CAS CLI wheel and standalone\
+      \ installer distribution built from commit ${GITHUB_SHA::7}.\"\nfi\n"
     evidence_ids:
-    - ev-wf-governance-validation
+    - ev-wf-publish-distribution
     confidence: high
+    control_roles:
+    - Generate
+    - Detect
+    invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Correct
+  - Generate
+  - Detect
   - Prevent
+  - Correct
   artefacts: []
   implementation:
-  - .github/workflows/governance-validation.yml
+  - .github/workflows/publish-distribution.yml
   evidence_ids:
-  - ev-wf-governance-validation
+  - ev-wf-publish-distribution
   confidence: high
   status: discovered
 - id: flow:cli:cas:main
   name: cas
   type: cli
-  description: Console script 'cas' pointing to cas_runner.cli:main CLI entrypoint.
+  description: Console script 'cas' pointing to cas_runner.cli:main
   trigger:
     type: cli_command
     event: cas
@@ -1061,8 +1137,7 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:orchestration-flow
   name: orchestration-flow
   type: declared_flow
-  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS executing rules
-    loader, AEM, alignment, and intent generator.
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
   trigger:
     type: unknown
     event: unspecified
@@ -1349,57 +1424,9 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:5:rules-context-loader
-    name: rules-context-loader
-    sequence: 5
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:6:conversation-to-aw
-    name: conversation-to-aw
-    sequence: 6
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:conversation-to-aw
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:7:architecture-work-to-evolution-map
-    name: architecture-work-to-evolution-map
-    sequence: 7
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:architecture-work-to-evolution-map
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:8:alignment-engine
-    name: alignment-engine
-    sequence: 8
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:alignment-engine
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:9:architecture-intent-generator
-    name: architecture-intent-generator
-    sequence: 9
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:architecture-intent-generator
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
   - Correct
-  - Prevent
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1860,8 +1887,7 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:continuous-architecture-loop
   name: continuous-architecture-loop
   type: declared_flow
-  description: Continuous loop declared in steps/registry.py chaining AEM, alignment,
-    intent, and governance validator.
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
   trigger:
     type: unknown
     event: unspecified
@@ -1884,41 +1910,61 @@
     control_roles:
     - Prevent
     invokes_flow_id: flow:cli:cas:main
-  - id: step:2:architecture-work-to-evolution-map
-    name: architecture-work-to-evolution-map
+  - id: step:2:conversation-to-aw
+    name: conversation-to-aw
     sequence: 2
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:conversation-to-aw
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:architecture-work-to-evolution-map
+    name: architecture-work-to-evolution-map
+    sequence: 3
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:architecture-work-to-evolution-map
     evidence_ids:
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:3:alignment-engine
+  - id: step:4:alignment-engine
     name: alignment-engine
-    sequence: 3
+    sequence: 4
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:alignment-engine
     evidence_ids:
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:4:architecture-intent-generator
+  - id: step:5:architecture-intent-generator
     name: architecture-intent-generator
-    sequence: 4
+    sequence: 5
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:architecture-intent-generator
     evidence_ids:
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:5:governance-validator
+  - id: step:6:governance-validator
     name: governance-validator
-    sequence: 5
+    sequence: 6
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:governance-validator
     evidence_ids:
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:control-bands-check
+    name: control-bands-check
+    sequence: 7
+    depends_on: []
+    implementation: src/cas_runner/steps/registry.py:control-bands-check
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-registry.py-flows
+    confidence: high
+    control_roles:
+    - Prevent
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
@@ -2176,8 +2222,7 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:pattern-lifecycle-flow
   name: pattern-lifecycle-flow
   type: declared_flow
-  description: Comprehensive flow governing discovery, cataloging, classifying, recommending,
-    and generating reference architectures.
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
   trigger:
     type: unknown
     event: unspecified
@@ -2271,6 +2316,39 @@
   - src/cas_runner/steps/registry.py
   evidence_ids:
   - ev-reg-src-cas_runner-steps-registry.py-flows
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-steps-approved_adr_to_pattern.py:adrs
+  name: adrs
+  type: declared_flow
+  description: Flow declared in src/cas_runner/steps/approved_adr_to_pattern.py:single_input
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-steps-approved_adr_to_pattern.py-single_input
+  entrypoint:
+    path: src/cas_runner/steps/approved_adr_to_pattern.py
+    symbol: single_input
+    command: adrs
+    evidence_id: ev-reg-src-cas_runner-steps-approved_adr_to_pattern.py-single_input
+  steps:
+  - id: step:1:adr
+    name: adr
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_runner/steps/approved_adr_to_pattern.py:adr
+    evidence_ids:
+    - ev-reg-src-cas_runner-steps-approved_adr_to_pattern.py-single_input
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/steps/approved_adr_to_pattern.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-steps-approved_adr_to_pattern.py-single_input
   confidence: high
   status: discovered
 - id: flow:declared_flow:src-cas_runner-steps-architecture_work_assessment.py:strengths
@@ -2402,6 +2480,30 @@
     path: src/cas_runner/governance/governance_action_service.py
     symbol: stats
     command: chained_patterns
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/governance/governance_action_service.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-governance-governance_action_service.py:errors
+  name: errors
+  type: declared_flow
+  description: Flow declared in src/cas_runner/governance/governance_action_service.py:stats
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
+  entrypoint:
+    path: src/cas_runner/governance/governance_action_service.py
+    symbol: stats
+    command: errors
     evidence_id: ev-reg-src-cas_runner-governance-governance_action_service.py-stats
   steps: []
   component_ids: []
@@ -2666,5 +2768,1102 @@
   - src/cas_runner/steps/forensic/view_pack.py
   evidence_ids:
   - ev-reg-src-cas_runner-steps-forensic-view_pack.py-ctrl_by_type
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-audit-agent-rules:execution-workflow
+  name: Cas Audit Agent Rules Workflow
+  type: governance
+  description: Audit, deduplicate, and optimize agent instruction and rules files
+    (AGENTS.md, GEMINI.md, .agents/rules/*.md) for token economy, discoverability,
+    progressive disclosure, and governance invariants. Use when asked to review agent
+    rules, optimize AGENTS.md, eliminate duplicate agent instructions, or enforce
+    repository rule hygiene.
+  trigger:
+    type: cli_command
+    event: skill:cas-audit-agent-rules
+    source: skill
+    evidence_id: ev-skill-cas-audit-agent-rules
+  entrypoint:
+    path: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    symbol: cas-audit-agent-rules
+    evidence_id: ev-skill-cas-audit-agent-rules
+  steps:
+  - id: step:1:single-source-of-truth-dedupli
+    name: Single Source of Truth & Deduplication
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:token-budget-size-compliance
+    name: Token Budget & Size Compliance
+    sequence: 2
+    depends_on:
+    - step:1:single-source-of-truth-dedupli
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:progressive-disclosure-rules-v
+    name: Progressive Disclosure (Rules vs. Skills)
+    sequence: 3
+    depends_on:
+    - step:2:token-budget-size-compliance
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:discoverability-filtering
+    name: Discoverability Filtering
+    sequence: 4
+    depends_on:
+    - step:3:progressive-disclosure-rules-v
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:ephemeral-hygiene
+    name: Ephemeral Hygiene
+    sequence: 5
+    depends_on:
+    - step:4:discoverability-filtering
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:check-existing-rule-files
+    name: 'Check existing rule files:'
+    sequence: 6
+    depends_on:
+    - step:5:ephemeral-hygiene
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:measure-file-sizes-and-check-f
+    name: Measure file sizes and check for symlinks.
+    sequence: 7
+    depends_on:
+    - step:6:check-existing-rule-files
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:update-agents.md-with-streamli
+    name: Update `AGENTS.md` with streamlined, high-signal invariants and boundaries.
+    sequence: 8
+    depends_on:
+    - step:7:measure-file-sizes-and-check-f
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:9:establish-the-symlink
+    name: 'Establish the symlink:'
+    sequence: 9
+    depends_on:
+    - step:8:update-agents.md-with-streamli
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:10:ensure-all-mandatory-governanc
+    name: Ensure all mandatory governance invariants are preserved (e.g., critical
+      SDD/TDD enforcement banner, 4-tier transitive lineage, ADR schema invariants,
+      two-phase commit sequence).
+    sequence: 10
+    depends_on:
+    - step:9:establish-the-symlink
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:11:verify-the-symlink-and-file-si
+    name: 'Verify the symlink and file sizes:'
+    sequence: 11
+    depends_on:
+    - step:10:ensure-all-mandatory-governanc
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:12:verify-git-status
+    name: 'Verify git status:'
+    sequence: 12
+    depends_on:
+    - step:11:verify-the-symlink-and-file-si
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:13:run-governance-validation-if-a
+    name: 'Run governance validation if applicable:'
+    sequence: 13
+    depends_on:
+    - step:12:verify-git-status
+    implementation: src/cas_skills/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Detect
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-audit-agent-rules/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-audit-agent-rules
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-refactor-knowledge-links:execution-workflow
+  name: Cas Refactor Knowledge Links Workflow
+  type: governance
+  description: Refactor CAS knowledge artefacts into an explicit navigable relationship
+    graph without changing their semantic content. Use when asked to connect, link,
+    trace, graph, or improve relationships between Architecture Work, Architecture
+    Evolution Maps, Architecture Intent Documents, alignment reports, ADRs, patterns,
+    or other CAS knowledge files, especially under knowledge/projects or knowledge/global.
+    Always invoke before adding frontmatter relationship metadata or Obsidian-style
+    markdown links to CAS knowledge artefacts.
+  trigger:
+    type: cli_command
+    event: skill:cas-refactor-knowledge-links
+    source: skill
+    evidence_id: ev-skill-cas-refactor-knowledge-links
+  entrypoint:
+    path: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    symbol: cas-refactor-knowledge-links
+    evidence_id: ev-skill-cas-refactor-knowledge-links
+  steps:
+  - id: step:1:preserve-existing-artefact-mea
+    name: Preserve existing artefact meaning and body content.
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:keep-the-search-edit-scope-to-
+    name: Keep the search/edit scope to the user's target path.
+    sequence: 2
+    depends_on:
+    - step:1:preserve-existing-artefact-mea
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:reuse-existing-artefact-identi
+    name: Reuse existing artefact identifiers, filenames, and frontmatter fields.
+    sequence: 3
+    depends_on:
+    - step:2:keep-the-search-edit-scope-to-
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:add-only-relationships-that-ca
+    name: Add only relationships that can be justified from current files.
+    sequence: 4
+    depends_on:
+    - step:3:reuse-existing-artefact-identi
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:prefer-the-smallest-additive-c
+    name: Prefer the smallest additive change that makes traceability explicit.
+    sequence: 5
+    depends_on:
+    - step:4:add-only-relationships-that-ca
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:discover-artefacts
+    name: Discover Artefacts
+    sequence: 6
+    depends_on:
+    - step:5:prefer-the-smallest-additive-c
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:infer-relationships
+    name: Infer Relationships
+    sequence: 7
+    depends_on:
+    - step:6:discover-artefacts
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:update-frontmatter
+    name: Update Frontmatter
+    sequence: 8
+    depends_on:
+    - step:7:infer-relationships
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:9:update-markdown-body
+    name: Update Markdown Body
+    sequence: 9
+    depends_on:
+    - step:8:update-frontmatter
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:10:validate
+    name: Validate
+    sequence: 10
+    depends_on:
+    - step:9:update-markdown-body
+    implementation: src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Detect
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-refactor-knowledge-links/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-refactor-knowledge-links
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-add-or-modify-feature:execution-workflow
+  name: Cas Add Or Modify Feature Workflow
+  type: governance
+  description: MANDATORY skill for any feature request or structural modification.
+    Use when adding features, extending functionality, modifying existing behaviour,
+    or introducing integrations. This skill MUST be invoked before making any code
+    changes to ensure architectural alignment, pattern reuse, and governance compliance.
+  trigger:
+    type: cli_command
+    event: skill:cas-add-or-modify-feature
+    source: skill
+    evidence_id: ev-skill-cas-add-or-modify-feature
+  entrypoint:
+    path: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    symbol: cas-add-or-modify-feature
+    evidence_id: ev-skill-cas-add-or-modify-feature
+  steps:
+  - id: step:1:understand-the-request-verify-
+    name: Understand the Request & Verify Intent
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:load-context
+    name: Load Context
+    sequence: 2
+    depends_on:
+    - step:1:understand-the-request-verify-
+    implementation: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:validate-against-rules-pattern
+    name: Validate Against Rules & Pattern Guardrails
+    sequence: 3
+    depends_on:
+    - step:2:load-context
+    implementation: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:design-route-implementation-pl
+    name: Design & Route Implementation Plan
+    sequence: 4
+    depends_on:
+    - step:3:validate-against-rules-pattern
+    implementation: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:produce-output
+    name: Produce Output
+    sequence: 5
+    depends_on:
+    - step:4:design-route-implementation-pl
+    implementation: src/cas_skills/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Detect
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-add-or-modify-feature/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-add-or-modify-feature
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-refactor-module:execution-workflow
+  name: Cas Refactor Module Workflow
+  type: governance
+  description: MANDATORY skill for refactoring an existing module from a specific
+    target path using repository architecture rules and pattern catalogue guidance
+    while preserving observable behaviour. Use when asked to refactor, restructure,
+    decouple, simplify, decompose, or remove hardcoding/coupling in existing code
+    while preserving observable behaviour.
+  trigger:
+    type: cli_command
+    event: skill:cas-refactor-module
+    source: skill
+    evidence_id: ev-skill-cas-refactor-module
+  entrypoint:
+    path: src/cas_skills/cas-refactor-module/SKILL.md
+    symbol: cas-refactor-module
+    evidence_id: ev-skill-cas-refactor-module
+  steps:
+  - id: step:1:preserve-observable-behaviour.
+    name: Preserve observable behaviour.
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:follow-.cas-rules-architecture
+    name: Follow `.cas/rules/architecture_rules.md`.
+    sequence: 2
+    depends_on:
+    - step:1:preserve-observable-behaviour.
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:respect-the-requested-constrai
+    name: Respect the requested constraints when they do not conflict with 1 or 2.
+    sequence: 3
+    depends_on:
+    - step:2:follow-.cas-rules-architecture
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:reuse-existing-patterns-from-.
+    name: Reuse existing patterns from `.cas/patterns/patterns-catalogue.yaml` and
+      enforce their `invariants` and `anti_patterns`.
+    sequence: 4
+    depends_on:
+    - step:3:respect-the-requested-constrai
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:prefer-the-smallest-structural
+    name: Prefer the smallest structural change that satisfies the request.
+    sequence: 5
+    depends_on:
+    - step:4:reuse-existing-patterns-from-.
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:understand-current-state
+    name: Understand Current State
+    sequence: 6
+    depends_on:
+    - step:5:prefer-the-smallest-structural
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:identify-refactoring-opportuni
+    name: Identify Refactoring Opportunities
+    sequence: 7
+    depends_on:
+    - step:6:understand-current-state
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:validate-against-rules-pattern
+    name: Validate Against Rules & Pattern Guardrails
+    sequence: 8
+    depends_on:
+    - step:7:identify-refactoring-opportuni
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:9:design-refactoring
+    name: Design Refactoring
+    sequence: 9
+    depends_on:
+    - step:8:validate-against-rules-pattern
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:10:produce-output
+    name: Produce Output
+    sequence: 10
+    depends_on:
+    - step:9:design-refactoring
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:11:populate-the-output-fields
+    name: Populate the Output Fields
+    sequence: 11
+    depends_on:
+    - step:10:produce-output
+    implementation: src/cas_skills/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Detect
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-refactor-module/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-refactor-module
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-sync-archgov-reviews:execution-workflow
+  name: Cas Sync Archgov Reviews Workflow
+  type: governance
+  description: Synchronize external ArchGov review decisions for reference architectures
+    and ADRs into local Git state, detect approvals, and trigger downstream lifecycle
+    steps (ADR generation, pattern institutionalization) on-demand or via scheduled
+    background checks.
+  trigger:
+    type: cli_command
+    event: skill:cas-sync-archgov-reviews
+    source: skill
+    evidence_id: ev-skill-cas-sync-archgov-reviews
+  entrypoint:
+    path: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    symbol: cas-sync-archgov-reviews
+    evidence_id: ev-skill-cas-sync-archgov-reviews
+  steps:
+  - id: step:1:outbound-push-automatically-ba
+    name: '**Outbound Push**: Automatically batch-publish local unpublished candidate
+      Reference Architectures and ADRs so architects can review and ratify them directly
+      within the ArchGov web portal.'
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:inbound-pull-synchronize-remot
+    name: '**Inbound Pull**: Synchronize remote review decisions from ArchGov back
+      into Git state, reconciling `knowledge/projects/<project>/governance/archgov-sync.yaml`,
+      updating artifact frontmatter, logging immutable audit records, and unblocking
+      downstream ADR generation and pattern institutionalization.'
+    sequence: 2
+    depends_on:
+    - step:1:outbound-push-automatically-ba
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Detect
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:two-way-synchronization-push-t
+    name: '**Two-Way Synchronization (Push then Pull)**:'
+    sequence: 3
+    depends_on:
+    - step:2:inbound-pull-synchronize-remot
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:simulation-dry-run-mode
+    name: '**Simulation & Dry-Run Mode**:'
+    sequence: 4
+    depends_on:
+    - step:3:two-way-synchronization-push-t
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:inspect-artifact-status
+    name: '**Inspect Artifact Status**:'
+    sequence: 5
+    depends_on:
+    - step:4:simulation-dry-run-mode
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:6:background-scheduling
+    name: '**Background Scheduling**:'
+    sequence: 6
+    depends_on:
+    - step:5:inspect-artifact-status
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:7:step-1---project-context-scope
+    name: '**Step 1 - Project Context & Scope Resolution**:'
+    sequence: 7
+    depends_on:
+    - step:6:background-scheduling
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:step-2---phase-1-outbound-batc
+    name: '**Step 2 - Phase 1: Outbound Batch Publication (Push)**:'
+    sequence: 8
+    depends_on:
+    - step:7:step-1---project-context-scope
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:9:step-3---phase-2-inbound-revie
+    name: '**Step 3 - Phase 2: Inbound Review Synchronization (Pull)**:'
+    sequence: 9
+    depends_on:
+    - step:8:step-2---phase-1-outbound-batc
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:10:step-4---evaluate-diffs-scan-a
+    name: '**Step 4 - Evaluate Diffs & Scan Artifact State**:'
+    sequence: 10
+    depends_on:
+    - step:9:step-3---phase-2-inbound-revie
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:11:step-5---downstream-verificati
+    name: '**Step 5 - Downstream Verification**:'
+    sequence: 11
+    depends_on:
+    - step:10:step-4---evaluate-diffs-scan-a
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:12:step-6---report-to-architect-4
+    name: '**Step 6 - Report to Architect (4-Quadrant Governance Dashboard)**:'
+    sequence: 12
+    depends_on:
+    - step:11:step-5---downstream-verificati
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:13:outbound-dispatches-push-newly
+    name: '**Outbound Dispatches (Push)**: Newly published or staged candidate drafts,
+      including assigned `archgov_artifact_id` and review cycle IDs.'
+    sequence: 13
+    depends_on:
+    - step:12:step-6---report-to-architect-4
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:14:in-flight-remote-reviews-archg
+    name: '**In-Flight Remote Reviews (ArchGov)**: Active reviews currently under
+      consideration, detailing local status, remote status, forum (Design Authority
+      vs ARB), and assigned reviewer.'
+    sequence: 14
+    depends_on:
+    - step:13:outbound-dispatches-push-newly
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:15:ratified-governance-decisions-
+    name: '**Ratified Governance Decisions & Downstream Chaining**: Approved reference
+      architectures and accepted ADRs, verifying downstream ADR or global pattern
+      generation.'
+    sequence: 15
+    depends_on:
+    - step:14:in-flight-remote-reviews-archg
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:16:local-offline-governance-artif
+    name: '**Local / Offline Governance Artifacts**: Artefacts not published to ArchGov,
+      detailing local decision status and recommended next actions.'
+    sequence: 16
+    depends_on:
+    - step:15:ratified-governance-decisions-
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:17:step-7---governance-validation
+    name: '**Step 7 - Governance Validation & Knowledge Sync Gate**:'
+    sequence: 17
+    depends_on:
+    - step:16:local-offline-governance-artif
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:18:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge add <modified-paths>`'
+    sequence: 18
+    depends_on:
+    - step:17:step-7---governance-validation
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:19:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge commit -m "<type>(scope): <description>"`'
+    sequence: 19
+    depends_on:
+    - step:18:git--c-users-avfranco-cas-know
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:20:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge push origin main`'
+    sequence: 20
+    depends_on:
+    - step:19:git--c-users-avfranco-cas-know
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:21:git-add-modified-paths
+    name: '`git add <modified-paths>`'
+    sequence: 21
+    depends_on:
+    - step:20:git--c-users-avfranco-cas-know
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:22:git-commit--m-type-scope-descr
+    name: '`git commit -m "<type>(scope): <description>"`'
+    sequence: 22
+    depends_on:
+    - step:21:git-add-modified-paths
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:23:git-push-origin-branch
+    name: '`git push origin <branch>`'
+    sequence: 23
+    depends_on:
+    - step:22:git-commit--m-type-scope-descr
+    implementation: src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Correct
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Correct
+  - Detect
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-sync-archgov-reviews/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-sync-archgov-reviews
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-drawio-generator:execution-workflow
+  name: Cas Drawio Generator Workflow
+  type: governance
+  description: Generates C4-style draw.io compatible XML diagrams (.drawio.xml) for
+    system architecture, containers, components, and runtime flows. Use when the user
+    needs to visualize architectural structures or flows based on codebase analysis
+    or requirements.
+  trigger:
+    type: cli_command
+    event: skill:cas-drawio-generator
+    source: skill
+    evidence_id: ev-skill-cas-drawio-generator
+  entrypoint:
+    path: src/cas_skills/cas-drawio-generator/SKILL.md
+    symbol: cas-drawio-generator
+    evidence_id: ev-skill-cas-drawio-generator
+  steps:
+  - id: step:1:analyze-context-identify-the-s
+    name: '**Analyze Context**: Identify the system boundaries, actors, containers,
+      or components to be visualized.'
+    sequence: 1
+    depends_on: []
+    implementation: src/cas_skills/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:2:select-template-choose-the-app
+    name: '**Select Template**: Choose the appropriate C4 level or custom flow.'
+    sequence: 2
+    depends_on:
+    - step:1:analyze-context-identify-the-s
+    implementation: src/cas_skills/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:3:plan-layout-map-elements-to-a-
+    name: '**Plan Layout**: Map elements to a 10px grid. Use standard box sizes:'
+    sequence: 3
+    depends_on:
+    - step:2:select-template-choose-the-app
+    implementation: src/cas_skills/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:4:generate-xml-construct-the-mxf
+    name: '**Generate XML**: Construct the `<mxfile>` using the specifications in
+      [drawio-specs.md](references/drawio-specs.md).'
+    sequence: 4
+    depends_on:
+    - step:3:plan-layout-map-elements-to-a-
+    implementation: src/cas_skills/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Generate
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:5:save-verify-save-as-.drawio.xm
+    name: '**Save & Verify**: Save as `.drawio.xml` and run through the verification
+      checklist in the reference file.'
+    sequence: 5
+    depends_on:
+    - step:4:generate-xml-construct-the-mxf
+    implementation: src/cas_skills/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    invokes_flow_id: flow:cli:cas:main
+  component_ids: []
+  control_roles:
+  - Generate
+  - Prevent
+  artefacts: []
+  implementation:
+  - src/cas_skills/cas-drawio-generator/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-drawio-generator
   confidence: high
   status: discovered
