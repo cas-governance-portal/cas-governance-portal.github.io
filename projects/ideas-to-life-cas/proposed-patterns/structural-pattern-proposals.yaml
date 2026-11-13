@@ -7,26 +7,30 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-11'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
+    - src/cas_runner/skills/models.py (SkillEvalReport, SkillEvalCase) - Pydantic
+      models for skill evaluation entities.
     - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
-      ComplianceFinding, GovernanceAction)
-    - src/cas_runner/skills/models.py (SkillEvalSuite, SkillEvalResult)
-  description: Domain entities are represented using Pydantic models, providing structured
-    validation and type safety.
+      ComplianceFinding) - Models for governance and compliance data.
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health) -
+      Health status model with calculation logic.
+  description: All domain entities (skills, governance, health) are defined as Pydantic
+    models, providing validation, serialization, and a consistent schema across layers.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To model complex domain objects with built-in validation and serialization
-    capabilities.'
-  - 'Context: The CAS system manages governance inventories, compliance findings,
-    and skill evaluations.'
-  - 'Force: Need for type safety and validation'
-  - 'Force: Serialization/deserialization for persistence and API use'
+  - 'Intent: Centralize domain data structures and leverage Pydantic''s validation
+    and type safety for consistent input-output contracts.'
+  - 'Context: The system deals with structured data like skill evaluations, governance
+    inventories, and health metrics that must be validated and passed between services.'
+  - 'Force: Need for data validation across boundaries'
+  - 'Force: Serialization to/from JSON for persistence and API interactions'
+  - 'Force: Maintainability and clarity of domain entities'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -37,25 +41,28 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-11'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry)
-  description: State transitions are registered in a central registry, enabling dynamic
-    governance action routing.
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Registry and engine for handling transitions.
+  description: Governance states and allowed transitions are managed in a TransitionRegistry,
+    which drives the GovernanceActionEngine as a state machine.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Manage complex state changes in a declarative and traceable manner.'
-  - 'Context: Governance actions involve transitions between states, and the system
-    uses a registry to handle them.'
-  - 'Force: Need for explicit state change management'
-  - 'Force: Extensibility for new transitions without modifying core logic'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Control state transitions in a structured, declarative way, preventing
+    invalid state changes and enabling auditability.'
+  - 'Context: Governance actions involve moving between states (e.g., draft, in-review,
+    approved). The engine must enforce transition rules.'
+  - 'Force: Need for explicit rules on state changes'
+  - 'Force: Avoid scattered if-else logic'
+  - 'Force: Extensibility to add new states/transitions'
+  evidence_strength: high
+  confidence: high
 - pattern_id: pure-functional-health-evaluation
   name: Pure Functional Health Evaluation
   pattern_classification: architectural
@@ -481,23 +488,28 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-06'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-  description: A service class provides a unified API for complex business operations.
+      - Facade for governance actions.
+    - src/cas_runner/runner.py (FlowRunner) - Runner uses services to execute flows.
+  description: A service layer (e.g., GovernanceActionService) exposes high-level
+    operations that encapsulate complex workflows, hiding underlying engines and repositories.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Encapsulate business logic behind a single service to decouple callers
-    from implementation details.'
-  - 'Context: GovernanceActionService exposes governance action operations.'
-  - 'Force: Multiple operations on domain model'
-  - 'Force: Need for transactional consistency'
-  - 'Force: Separation of concerns'
+  - 'Intent: Provide a simplified interface for clients and isolate business logic
+    from infrastructure concerns.'
+  - 'Context: The governance action workflow involves multiple engines (action engine,
+    compliance engine) and data manipulation. Directly exposing these would create
+    tight coupling.'
+  - 'Force: Simplify client interaction'
+  - 'Force: Encapsulate orchestration logic'
+  - 'Force: Decouple CLI from internal engines'
   evidence_strength: medium
   confidence: medium
 - pattern_id: swappable-provider-adapter
@@ -2459,35 +2471,36 @@ pattern_proposals:
   evidence_strength: medium
   confidence: medium
 - pattern_id: llm-client-adapter-strategy
-  name: LLM Client Adapter Strategy
+  name: LLM Client Adapter/Strategy
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-07'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production client using
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real implementation using
       LiteLLM.
     - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
-      testing.
-  description: LLM interaction is abstracted behind a common interface, implemented
-    by LiteLLMClient and MockLLMClient.
+      tests.
+  description: Multiple LLM clients (LiteLLM, Mock) implement a common interface,
+    allowing the system to switch providers or use mocks without altering dependent
+    code.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To decouple the application from specific LLM providers, allowing easy
-    swapping for testing or alternative backends.'
-  - 'Context: The runner needs to make LLM calls but must support development/testing
-    without external dependencies.'
-  - 'Force: Cannot rely on external API during unit tests.'
-  - 'Force: Multiple LLM providers may be needed (OpenAI, local, etc.).'
-  - 'Force: Abstraction should not hide essential functionalities.'
+  - 'Intent: Decouple LLM invocation from specific provider implementations and enable
+    easy testing and provider replacement.'
+  - 'Context: The system needs to call LLM services (via Litellm) and also support
+    a mock client for development and validation without external calls.'
+  - 'Force: Need to support multiple LLM providers'
+  - 'Force: Testing without external network calls'
+  - 'Force: Abstraction to avoid vendor lock-in'
   evidence_strength: high
   confidence: high
 - pattern_id: governance-action-service-layer
@@ -3777,27 +3790,28 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-07'
+    date: '2026-11-13'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/bootstrap.py (bootstrap, merge_cas_governance_block, merge_claude_settings,
-      _create_symlink_or_copy) - Initialization logic for workspace.
-  description: A bootstrap module initializes the workspace by merging governance
-    blocks and creating symlinks.
+    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, _create_symlink_or_copy)
+      - Core bootstrap functions.
+  description: A dedicated bootstrap module initializes the workspace, merges configuration
+    blocks (e.g., CLAUDE settings), and sets up symlinks or copies.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: To set up the environment and ensure consistent configuration across
-    the repository.'
-  - 'Context: src/cas_runner/bootstrap.py provides functions to merge governance blocks,
-    merge Claude settings, and create symlinks.'
-  - 'Force: Need to ensure consistent configuration across different environments.'
-  - 'Force: Desire to automate workspace setup.'
-  evidence_strength: high
-  confidence: high
+  - 'Intent: Centralize setup tasks to ensure a consistent project environment and
+    configuration across teams.'
+  - 'Context: The tool needs to be bootstrapped in CI or local environments, requiring
+    merging of governance blocks from various files and creating symlinks.'
+  - 'Force: Repeatable setup for new users/CI'
+  - 'Force: Automate configuration merging'
+  - 'Force: Handle cross-platform file linking'
+  evidence_strength: medium
+  confidence: medium
 - pattern_id: repository-pattern-for-knowledge
   name: Repository Pattern for Knowledge
   pattern_classification: architectural
@@ -5354,5 +5368,95 @@ pattern_proposals:
     submodules.'
   - 'Force: Maintainability'
   - 'Force: Deployability'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: health-metric-value-object
+  name: Health Metric Value Object
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health status model and calculation.
+  description: Health status is modeled as a value object with computing functions
+    (calculate_health) and reason generation, centralizing health logic.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Encapsulate health computation and representation to provide consistent
+    metric outputs.'
+  - 'Context: The dashboard needs to compute system health based on various inputs
+    and present reasons for the status.'
+  - 'Force: Consistent health score calculation'
+  - 'Force: Decouple computation from presentation'
+  - 'Force: Reusability'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: compliance-engine-validation
+  name: Compliance Engine Validation
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Engine for
+      compliance checks.
+  description: A dedicated ComplianceEngine encapsulates validation rules and findings
+    generation, enforcing governance compliance.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate compliance checks from other business logic and create a reusable
+    validation service.'
+  - 'Context: The system must validate governance artifacts against rules and produce
+    findings (warnings, errors).'
+  - 'Force: Need for modular checks'
+  - 'Force: Consistent finding reporting'
+  - 'Force: Ease of adding new rules'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: agentic-config-merger
+  name: Agentic Config Merger
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Merges agentic
+      configuration blocks.
+  description: AgenticMerger merges governance blocks from multiple config files (e.g.,
+    AGENTS.md, CLAUDE.md) using a systematic merging algorithm.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Combine conflicting configuration sections without manual intervention,
+    ensuring consistency.'
+  - 'Context: The system needs to merge configuration blocks from various agent specification
+    files that may overlap.'
+  - 'Force: Consistent merge behavior'
+  - 'Force: Handle conflicting content'
+  - 'Force: Automation'
   evidence_strength: medium
   confidence: medium

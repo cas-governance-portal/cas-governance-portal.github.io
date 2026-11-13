@@ -3312,78 +3312,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#flowrunner" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        FlowRunner
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#shared-context" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shared Context
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#diff-extraction-stage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Diff Extraction Stage
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#steering-projection-stage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Steering Projection Stage
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#governance-evaluation-stage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Governance Evaluation Stage
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3471,100 +3399,120 @@
 
 <h1 id="reference-architecture-sequential-pipeline-flow-runner">Reference Architecture: Sequential Pipeline Flow Runner</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
+<p>The Sequential Pipeline Flow Runner pattern provides a deterministic, orchestrated execution backbone for multi-stage agentic workflows where the output of each stage becomes the input for the next. It establishes a predictable lifecycle for operations such as knowledge ingestion, steering generation, and compliance evaluation, ensuring strict ordering and reliable context handoff.</p>
 <h3 id="when-to-use-this">When to use this</h3>
-<p>Use the Sequential Pipeline Flow Runner when you need to coordinate a defined set of multi-stage agentic analysis and generation tasks where the output of each stage is required as input for the next. This pattern is ideal for workflows with predictable step ordering and strong dependencies, such as knowledge ingestion, diff extraction, steering generation, and governance compliance checks. It provides a consistent execution lifecycle, reliable context handoff, and observability across all stages.</p>
+<ul>
+<li>When workflow steps have strict dependencies and must execute in a fixed order (e.g., diff extraction → steering projection → governance check).</li>
+<li>When auditability and deterministic execution are more important than maximum parallelism or dynamic branching.</li>
+<li>When you need a single, central control mechanism to track progress, handle errors, and provide observability across the pipeline.</li>
+<li>When building systems that require consistent, reproducible execution across different runs or environments.</li>
+</ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
-<p>Do not use this pattern when steps are independent and can run in parallel, or when the execution order must be dynamically determined based on real-time conditions. For workflows that require complex branching, event-driven orchestration, or need to scale horizontally per stage, a more flexible workflow engine (e.g., temporal, airflow) or a message-driven architecture is preferable. Also avoid this pattern if you need to support long-running interactive steps or human-in-the-loop decisions that interrupt the deterministic flow.</p>
+<ul>
+<li>When steps are independent and could be executed in parallel to reduce latency or improve throughput.</li>
+<li>When the workflow must adapt dynamically to runtime conditions, requiring flexible branching or conditional execution.</li>
+<li>When the number of steps is small and a simple script or direct method calls would suffice without the added complexity of a runner abstraction.</li>
+<li>When the system demands high scalability and the central runner becomes a bottleneck; consider event-driven or choreographed designs instead.</li>
+</ul>
 <h2 id="overview">Overview</h2>
-<p>This pattern provides a structured way to execute a sequence of agentic stages that produce and consume a shared execution context. The FlowRunner is the central coordinator, responsible for instantiating the context, invoking stages in a fixed order, and ensuring data continuity. Each stage is a self-contained unit of work that reads from the context, performs its task (possibly interacting with external systems), and updates the context with its results. The pattern enforces a linear flow, making the pipeline predictable, testable, and easy to reason about.</p>
+<p>The below diagram illustrates the container-level architecture of the Sequential Pipeline Flow Runner pattern. The CLI triggers the FlowRunner, which coordinates three sequential stages (Diff Extraction, Steering Generation, Governance Check) using a shared Execution Context to pass data between them.</p>
 <pre class="mermaid"><code>flowchart LR
     cli["CLI (Container)"]
     runner["FlowRunner (Container)"]
-    ctx["Shared Context (Container)"]
-    stage1["Diff Extraction Stage (Container)"]
-    stage2["Steering Projection Stage (Container)"]
-    stage3["Governance Evaluation Stage (Container)"]
-    store1[("State Store (Data store)")]
-    ext1["External Code Repo (External System)"]
-    ext2["Governance Service (External System)"]
+    ctx[("Execution Context (Data store)")]
+    diff["Diff Extraction (Container)"]
+    steer["Steering Generation (Container)"]
+    govern["Governance Check (Container)"]
 
-    cli --&gt;|1. Initiate| runner
-    runner --&gt;|2. Create| ctx
-    runner --&gt;|3. Execute stage| stage1
-    stage1 --&gt;|4. Read diff| ext1
-    stage1 --&gt;|5. Update context| ctx
-    runner --&gt;|6. Execute stage| stage2
-    stage2 --&gt;|7. Read context| ctx
-    stage2 --&gt;|8. Update context| ctx
-    runner --&gt;|9. Execute stage| stage3
-    stage3 --&gt;|10. Write result| store1
-    stage3 --&gt;|11. Validate| ext2
+    cli --&gt;|1. Invoke| runner
+    runner --&gt;|2. Load| ctx
+    runner --&gt;|3. Execute| diff
+    diff --&gt;|4. Write| ctx
+    runner --&gt;|5. Execute| steer
+    steer --&gt;|6. Write| ctx
+    runner --&gt;|7. Execute| govern
+    govern --&gt;|8. Write| ctx
+    runner --&gt;|9. Return result| cli
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
-    classDef external fill:#666666,stroke:#333333,color:#fff
-    class cli,runner,ctx,stage1,stage2,stage3 container
-    class store1 store
-    class ext1,ext2 external</code></pre>
+    class cli,runner,diff,steer,govern container
+    class ctx store</code></pre>
+<p>The FlowRunner orchestrates the execution by reading from and writing to the shared context after each stage. The CLI provides the entry point and returns the final result to the user.</p>
 <h2 id="components">Components</h2>
-<h3 id="flowrunner">FlowRunner</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/runner.py</code>
-<strong>Responsibility:</strong> Core orchestrator that defines the sequence of stages, manages the shared execution context, and invokes each stage in order. It owns the execution lifecycle and ensures correct handoff of data between stages.</p>
-<h3 id="cli">CLI</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/cli.py</code>
-<strong>Responsibility:</strong> Command-line entry point that accepts user input, configuration, and flags, then instantiates and executes the FlowRunner with the appropriate parameters.</p>
-<h3 id="shared-context">Shared Context</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/context.py</code>
-<strong>Responsibility:</strong> A mutable container holding all intermediate state, results, and metadata produced and consumed by stages. It is passed to every stage and ensures consistency across the pipeline.</p>
-<h3 id="diff-extraction-stage">Diff Extraction Stage</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/stages/diff_extractor.py</code>
-<strong>Responsibility:</strong> Queries the external code repository to extract a diff or change set, validates its structure, and populates the shared context with relevant information.</p>
-<h3 id="steering-projection-stage">Steering Projection Stage</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/stages/steering_generator.py</code>
-<strong>Responsibility:</strong> Reads the diff from shared context, generates a steering or guidance projection using agentic models, and updates the context with the projected outcome.</p>
-<h3 id="governance-evaluation-stage">Governance Evaluation Stage</h3>
-<p><strong>Path:</strong> <code>src/cas_runner/stages/governance_checker.py</code>
-<strong>Responsibility:</strong> Evaluates the generated steering against governance policies, calls an external governance service if needed, and writes the final results to the state store.</p>
+<p>The following components constitute the pattern:</p>
+<ul>
+<li><strong>FlowRunner</strong> (<code>src/cas_runner/runner.py</code>): Core orchestrator that iterates through a list of stages, invokes them in order, and manages the shared context. It handles errors, logging, and optionally retries.</li>
+<li><strong>CLI</strong> (<code>src/cas_runner/cli.py</code>): Command-line interface that accepts user arguments, creates the initial context, invokes the FlowRunner, and displays the outcome.</li>
+<li><strong>Diff Extraction</strong> (<code>src/cas_runner/stages/diff_extractor.py</code>): The first stage; extracts changes from the input source (e.g., Git diff) and stores them in the context.</li>
+<li><strong>Steering Generation</strong> (<code>src/cas_runner/stages/steering_generator.py</code>): Uses the diff data to generate steering options or recommendations, writing results back to the context.</li>
+<li><strong>Governance Check</strong> (<code>src/cas_runner/stages/governance_checker.py</code>): Final stage; validates the steering output against governance policies and marks the run as compliant or not.</li>
+<li><strong>Execution Context</strong> (<code>src/cas_runner/context.py</code>): A data container (dictionary or JSON store) that holds all intermediate artifacts and metadata. It provides a consistent interface for stages to read/write data.</li>
+</ul>
 <h2 id="technology-choices">Technology choices</h2>
-<p>Primary language: Python 3.11+ (matches existing codebase). CLI: Typer or Click for robust argument parsing. Configuration: Pydantic for typed settings and context validation. State persistence: JSON lines or SQLite for simple, durable local state. Execution: Plain synchronous Python; no external workflow engine to keep overhead low. Alternatives considered: Apache Airflow (too heavy for single-process execution), Celery (unnecessary distributed complexity), event-driven microservices (overkill for deterministic sequential tasks).</p>
+<p>The pattern is implemented in Python, leveraging its simplicity and broad ecosystem. Specific choices:</p>
+<ul>
+<li><strong>Language</strong>: Python 3.9+ for modern typing and dataclasses.</li>
+<li><strong>CLI Framework</strong>: <code>argparse</code> (standard) or <code>Typer</code> (for a more ergonomic CLI). <code>Typer</code> is recommended for better UX and automatic help generation.</li>
+<li><strong>Context Store</strong>: In-memory dict for simplicity; can be extended to use <code>json</code> files or a lightweight DB (e.g., SQLite) for persistence.</li>
+<li><strong>Logging</strong>: Standard <code>logging</code> module to ensure structured, queryable logs.</li>
+<li><strong>Testing</strong>: <code>pytest</code> for unit and integration tests, allowing stage mocking.</li>
+</ul>
+<p>Alternatives considered and set aside:
+- <strong>Apache Airflow / Prefect</strong>: Heavyweight, require external services, and introduce network latency; unsuitable for single-machine execution.
+- <strong>Celery with message queues</strong>: Overkill for a simple sequential flow; adds complexity and potential ordering issues.
+- <strong>Event-driven microservices</strong>: Not needed unless stages are independently deployable and elastic scaling is required; contradicts the strict sequential dependency.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Synchronous vs. asynchronous:</strong> The base pattern runs sequentially in a single thread. For I/O-bound stages, an async variant using asyncio can be used, but the stage order remains strictly sequential.</li>
-<li><strong>Retry and fallback modes:</strong> Each stage can be wrapped with retry logic (e.g., exponential backoff) and a fallback handler to skip or substitute results if a stage fails.</li>
-<li><strong>Configurable stage chain:</strong> The sequence of stages can be defined via a configuration file (e.g., YAML) instead of hardcoded, enabling reuse across different workflows.</li>
-<li><strong>Checkpointing:</strong> A variant persists the shared context after each stage to allow resumption from a failed stage, increasing robustness for long-running pipelines.</li>
+<li><strong>Synchronous vs Asynchronous</strong>: The default is synchronous. An asynchronous variant could be built using <code>asyncio</code> to overlap I/O-bound stages, but careful locking is needed to maintain order.</li>
+<li><strong>Strict vs Fallback</strong>: In strict mode, any failure aborts. Fallback mode could allow skipping non-critical stages but should log and flag governance gaps.</li>
+<li><strong>Persistence</strong>: The context may be persisted to disk after each stage to support recovery and audit. This is invaluable for compliance-heavy workflows.</li>
+<li><strong>Dynamic Stage Registration</strong>: Instead of a hardcoded list, stages can be discovered via a plugin interface (e.g., entry points) to allow third-party extensions.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
-<p><strong>Reliability:</strong> The deterministic ordering and explicit context handoff minimize hidden dependencies and make failures reproducible. Error handling is centralized in the FlowRunner, allowing consistent recovery strategies.</p>
-<p><strong>Performance &amp; Latency:</strong> Sequential execution inherently adds latency proportional to the number of stages. For typical multi-stage analysis (e.g., diff extraction, generation, compliance), total latency is acceptable (seconds to minutes). Overhead of context serialization is minimal if kept in-memory.</p>
-<p><strong>Cost &amp; Efficiency:</strong> Low operational cost because there is no need for additional infrastructure or distributed systems. The pattern runs in a single process, using minimal resources. Compute is only used when stages are active.</p>
-<p><strong>Operability:</strong> Excellent observability because each stage can log its inputs/outputs. The FlowRunner can expose structured logs and metrics (e.g., stage duration, context size). Simple to trace and debug due to linear execution.</p>
+<ul>
+<li><strong>Reliability</strong>: High — the deterministic order and centralized error handling make failures predictable. Retry logic can be added per stage. The shared context prevents partial state corruption.</li>
+<li><strong>Performance &amp; Latency</strong>: Total latency equals the sum of all stage durations plus minimal overhead. For latency-sensitive applications, parallelize independent stages or consider a streaming model, but this violates the fixed-order requirement. The context in-memory access is fast; persistence adds I/O.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Low operational cost — no additional infrastructure. Compute cost is linearly proportional to the number of stages and their individual resource footprints. Ideal for serverless if stages are independent, but then ordering requires external orchestration.</li>
+<li><strong>Operability</strong>: Excellent — logs from each stage can be correlated with a run ID. The runner can expose metrics (e.g., stage duration, success/failure) to a monitoring system. Deployment is a single container or script; easy to debug by replaying with the same context.</li>
+</ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>God object runner:</strong> Trying to embed all business logic in the FlowRunner rather than delegating to stages. <em>Remedy:</em> Keep FlowRunner generic and delegate all domain-specific processing to stage implementations.</li>
-<li><strong>Implicit shared state:</strong> Using global mutable state instead of passing the shared context explicitly. <em>Remedy:</em> Always pass the context as a parameter to each stage and never use global variables.</li>
-<li><strong>Skipping validation between stages:</strong> Assuming the output of one stage is always well-formed for the next. <em>Remedy:</em> Validate the shared context after each stage (e.g., with Pydantic) and fail fast.</li>
-<li><strong>Hard‑coded stages:</strong> Embedding stage list in code, making it difficult to reconfigure. <em>Remedy:</em> Use a configuration‑driven stage registry.</li>
-<li><strong>Mixing concerns:</strong> Letting stages access external systems directly instead of through interfaces. <em>Remedy:</em> Define a clear stage contract and wrap external calls with adapters.</li>
+<li><strong>Over-centralization</strong>: Avoid making FlowRunner the only way to execute tasks. This can lead to a monolith and a single point of failure. Mitigation: allow stages to be invoked individually for debugging or ad-hoc use.</li>
+<li><strong>Duplicated orchestration</strong>: Teams may create similar runners for different pipelines. Mitigation: extract a common runner library and register stages via configuration.</li>
+<li><strong>Hardcoded stage order</strong>: Changing the order requires code modification. Mitigation: move pipeline definitions to declarative YAML/JSON files that the runner reads.</li>
+<li><strong>Ignoring errors</strong>: Catching and swallowing exceptions can produce incorrect results without indication. Mitigation: propagate errors upward; offer a dry-run mode to preview failures.</li>
+<li><strong>Context bloat</strong>: Storing large datasets in memory can cause performance issues. Mitigation: keep only essential fields in context, and store large artifacts externally with references.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<p>Start by refactoring an existing monolithic script that already performs sequential steps into this pattern. Identify the natural stages and define a shared context interface. Use the existing FlowRunner and CLI as a skeleton. Add new stages incrementally, ensuring each stage is unit‑tested and validates context. For migration, begin with a simple two‑stage pipeline and expand. Ownership: The pattern should be owned by the platform architecture group (domain_id: platform, initiative_id: agentic-core). Primary contact: architecture-team@example.com. Governance linkage: Align with ADR-001 (Agent Execution Pipeline).</p>
+<p>To adopt this pattern:</p>
+<ol>
+<li><strong>Identify your workflow steps</strong>: Break down processes into a linear sequence with clear dependencies.</li>
+<li><strong>Start small</strong>: Implement a minimal runner that executes a list of functions and passes a dict. Use it for a new feature or a refactor of an existing script.</li>
+<li><strong>Define stage interfaces</strong>: Each stage should accept a context and return a status/result. This makes swapping or adding stages straightforward.</li>
+<li><strong>Gradually migrate</strong>: Convert existing ad-hoc sequences into stage functions, wrapping them with appropriate error handling and logging.</li>
+<li><strong>Configure and extend</strong>: Create a pipeline configuration file to specify the order and parameters, allowing non-developers to adjust the flow.</li>
+<li><strong>Establish governance</strong>: Assign an owner within the domain (as per <code>domain_id</code> and <code>initiative_id</code>). The owner ensures the pattern is followed, reviews stage designs, and maintains the runner core.</li>
+<li><strong>Educate the team</strong>: Document the pattern in the architecture wiki and conduct a workshop to demonstrate how to add a new stage.</li>
+</ol>
+<p>Migration path: Start with a new, non-critical pipeline. Then incrementally refactor existing flows to use the runner. The pattern is designed to be low-risk and reversible — you can always revert to direct function calls if needed.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../docs/adr/adr-001.md">ADR-001: Agent Execution Pipeline Design</a></li>
-<li><a href="../../../src/cas_runner/runner.py">FlowRunner Source</a></li>
-<li><a href="../../../src/cas_runner/cli.py">CLI Source</a></li>
-<li><a href="../../../src/cas_runner/stages/base.py">Stage Contract Interface</a></li>
+<li><strong>ADRs</strong>: Linked to <a href="../../../adrs/ADR-014">ADR-014: Use a Central Flow Runner for Multi-Step Agent Tasks</a>.</li>
+<li><strong>Global Patterns</strong>: This pattern complements the <a href="../../../patterns/event-sourcing">Event Sourcing</a> pattern when persisting stage outputs; relates to <a href="../../../patterns/layered-architecture">Layered Architecture</a> for separation of concerns.</li>
+<li><strong>Source Files</strong>:</li>
+<li><code>src/cas_runner/runner.py</code></li>
+<li><code>src/cas_runner/cli.py</code></li>
+<li><code>src/cas_runner/stages/</code> (diff_extractor.py, steering_generator.py, governance_checker.py)</li>
+<li><code>src/cas_runner/context.py</code></li>
 </ul>
+<p>For more details, see the <a href="../../../patterns/sequential-pipeline-flow-runner">pattern catalogue entry</a> and the <a href="../../../decisions/promote-sequential-pipeline-flow-runner">promotion rationale</a>.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
