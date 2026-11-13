@@ -1,33 +1,658 @@
 {
   "catalogue_metadata": {
     "repo_name": "ideas-to-life-cas",
-    "repo_version_or_commit": null,
+    "repo_version_or_commit": "0.1.1",
     "focus": "general-structural-architecture",
-    "generated_at": "2026-11-13T16:04:43.540807",
-    "scope_notes": "Automated extraction",
+    "generated_at": "2026-11-13T18:17:56.226212",
+    "scope_notes": "Extraction based on the provided manifest, directory tree, and key symbols. Full source content was not available for deep static analysis.",
     "analysis_limits": [
-      "Reasoning response missing required catalogue metadata"
+      "No full source code traversal was possible; evidence is limited to file paths, symbols, and manifest metadata.",
+      "Agentic AI orchestration patterns were intentionally excluded from this catalogue.",
+      "Some patterns are inferred from class names, module layout, and CLI/runner structure rather than verified inline implementations."
     ],
     "default_domain": [
-      "Architecture"
+      "software architecture tooling",
+      "continuous architecture governance",
+      "developer workflow automation"
     ],
     "default_sources": [
-      "Source Code"
+      "./src/cas_runner",
+      "./cas-knowledge/templates",
+      "./specs"
     ]
   },
   "system_map": {
-    "overview": "No structural architecture patterns extracted.",
-    "components": [],
-    "layers": [],
-    "orchestration": {
-      "style": "unknown",
-      "description": "N/A"
-    },
-    "tools_and_integrations": [],
-    "state_and_memory": []
+    "overview": "CAS Runner is a Python CLI that bootstraps a governance-aware workspace, executes a flow through pluggable services, and produces knowledge artifacts. The structural architecture separates the CLI/application layer from governance domain models and infrastructure clients via service classes and typed Pydantic models.",
+    "layers": [
+      {
+        "name": "Presentation",
+        "purpose": "Command-line entrypoint and user-facing dashboard health reporting.",
+        "paths": [
+          "src/cas_runner/cli.py",
+          "src/cas_runner/dashboard/health_model.py"
+        ]
+      },
+      {
+        "name": "Application",
+        "purpose": "Orchestrate flows, state transitions, compliance checks, and workspace setup.",
+        "paths": [
+          "src/cas_runner/runner.py",
+          "src/cas_runner/governance/governance_action_engine.py",
+          "src/cas_runner/governance/governance_action_service.py",
+          "src/cas_runner/governance/compliance_engine.py",
+          "src/cas_runner/governance/agentic_merger.py"
+        ]
+      },
+      {
+        "name": "Domain",
+        "purpose": "Typed domain models for governance records, compliance findings, skill evaluations, and health metrics.",
+        "paths": [
+          "src/cas_runner/governance/models.py",
+          "src/cas_runner/skills/models.py",
+          "src/cas_runner/dashboard/health_model.py"
+        ]
+      },
+      {
+        "name": "Infrastructure",
+        "purpose": "External adapters, file system bootstrap operations, and generic LLM client abstractions.",
+        "paths": [
+          "src/cas_runner/bootstrap.py",
+          "src/cas_runner/llm/litellm_client.py",
+          "src/cas_runner/llm/mock_client.py"
+        ]
+      }
+    ],
+    "containers": [
+      {
+        "name": "CLI",
+        "type": "executable",
+        "path": "src/cas_runner/cli.py",
+        "purpose": "Parse commands and delegate to runner or bootstrap routines."
+      },
+      {
+        "name": "FlowRunner",
+        "type": "service",
+        "path": "src/cas_runner/runner.py",
+        "purpose": "Executes the main flow, coordinating services and clients."
+      },
+      {
+        "name": "GovernanceActionService",
+        "type": "service",
+        "path": "src/cas_runner/governance/governance_action_service.py",
+        "purpose": "Provides a service facade for governance actions."
+      },
+      {
+        "name": "GovernanceActionEngine",
+        "type": "engine",
+        "path": "src/cas_runner/governance/governance_action_engine.py",
+        "purpose": "Evaluates and executes governance state transitions using a transition registry."
+      },
+      {
+        "name": "ComplianceEngine",
+        "type": "engine",
+        "path": "src/cas_runner/governance/compliance_engine.py",
+        "purpose": "Evaluates repository or workspace compliance and produces findings."
+      },
+      {
+        "name": "LiteLLMClient",
+        "type": "adapter",
+        "path": "src/cas_runner/llm/litellm_client.py",
+        "purpose": "Production adapter for LLM access via LiteLLM."
+      },
+      {
+        "name": "MockLLMClient",
+        "type": "adapter",
+        "path": "src/cas_runner/llm/mock_client.py",
+        "purpose": "Deterministic test/dry-run adapter for LLM access."
+      },
+      {
+        "name": "Bootstrap",
+        "type": "initializer",
+        "path": "src/cas_runner/bootstrap.py",
+        "purpose": "Initializes workspaces, merges governance blocks, and installs skills/config files."
+      }
+    ],
+    "key_components": [
+      "Pydantic domain models in governance/models.py and skills/models.py",
+      "FlowRunner orchestration service",
+      "GovernanceActionEngine and TransitionRegistry",
+      "ComplianceEngine",
+      "Workspace bootstrap merge/link utilities",
+      "Mock and LiteLLM client adapters"
+    ],
+    "dependencies": [
+      "cli.py depends on FlowRunner and bootstrap routines",
+      "FlowRunner depends on governance services and LLM client abstractions",
+      "GovernanceActionService depends on GovernanceActionEngine and TransitionRegistry",
+      "ComplianceEngine depends on domain models for compliance findings",
+      "Domain models are framework-free Pydantic schemas used across service boundaries",
+      "Bootstrap depends on file system operations and YAML/JSON merging"
+    ]
   },
-  "patterns": [],
-  "anti_patterns": [],
-  "cross_cutting_concerns": [],
-  "open_questions": []
+  "patterns": [
+    {
+      "id": "pydantic-domain-entity-modeling",
+      "name": "Pydantic Domain Entity Modeling",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "domain",
+        "complexity": "medium",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Domain concepts are represented as Pydantic models with explicit fields, enums, and nested structures, enabling validation and serialization across service boundaries.",
+      "intent": "Establish a strongly typed domain model for governance records, compliance findings, skill evaluations, and health metrics.",
+      "context": "CAS needs to persist and exchange multiple kinds of structured knowledge artifacts while keeping a shared domain vocabulary across the CLI, runner, and services.",
+      "forces": [
+        "Multiple domain object kinds require consistent validation.",
+        "Data moves between files, services, and possibly external processes.",
+        "Ad hoc dictionaries become unmaintainable as schemas evolve."
+      ],
+      "solution": "Define dedicated Pydantic models for each domain aggregate and value object, using enums for statuses and nested models for metrics and results.",
+      "implementation_signals": [
+        "models.py files contain multiple Pydantic BaseModel subclasses.",
+        "Status and result types are modeled as enums or typed literals.",
+        "Service methods accept and return model instances rather than raw dicts."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/models.py",
+          "symbols": [
+            "GovernanceInventory",
+            "GovernanceHealth",
+            "GovernanceThroughput",
+            "GovernanceRisks",
+            "ComplianceFinding",
+            "ComplianceMetrics",
+            "GovernanceAction"
+          ],
+          "note": "Governance domain is modeled as a set of typed Pydantic records."
+        },
+        {
+          "path": "src/cas_runner/skills/models.py",
+          "symbols": [
+            "SkillEvalCase",
+            "SkillEvalSuite",
+            "SkillEvalResult",
+            "SkillEvalReport"
+          ],
+          "note": "Skill evaluation domain uses structured models for suites and reports."
+        },
+        {
+          "path": "src/cas_runner/dashboard/health_model.py",
+          "symbols": [
+            "HealthStatus",
+            "calculate_health",
+            "get_health_reasons"
+          ],
+          "note": "Health status is represented as a typed domain model with pure calculation functions."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Consistent validation and serialization across components.",
+          "Explicit contracts for service boundaries.",
+          "Easier testing and maintenance of domain logic."
+        ],
+        "costs": [
+          "Boilerplate when adding new models or fields.",
+          "Schema changes can ripple through services and persisted artifacts."
+        ],
+        "failure_modes": [
+          "Over-coupling to schema details if models are used as universal DTOs.",
+          "Large model files can become hard to navigate."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "llm-client-adapter-strategy",
+      "name": "LLM Client Adapter Strategy",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "The FlowRunner depends on an LLM client abstraction with interchangeable production and mock implementations.",
+      "intent": "Decouple orchestration from concrete LLM vendors and support deterministic testing and offline execution.",
+      "context": "Commands need model access but should not hardcode a vendor-specific client, enabling both live and mock execution.",
+      "forces": [
+        "LLM providers can change or require different configuration.",
+        "Automated tests need deterministic outputs.",
+        "Users may run in environments without network access."
+      ],
+      "solution": "Define a common client interface or protocol, implement LiteLLMClient for production, and MockLLMClient for deterministic scenarios.",
+      "implementation_signals": [
+        "Multiple client classes in an llm/ package with similar method shapes.",
+        "Runner or services accept the client as a dependency rather than instantiating a vendor-specific class directly.",
+        "A mock client is used for dry-run or test paths."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/llm/litellm_client.py",
+          "symbols": [
+            "LiteLLMClient"
+          ],
+          "note": "Production adapter wraps the LiteLLM package."
+        },
+        {
+          "path": "src/cas_runner/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ],
+          "note": "Mock adapter supports deterministic behavior without an external service."
+        },
+        {
+          "path": "src/cas_runner/runner.py",
+          "symbols": [
+            "FlowRunner"
+          ],
+          "note": "FlowRunner consumes the client abstraction during flow execution."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Vendor logic is isolated from application flow.",
+          "Tests can run without external LLM APIs.",
+          "New providers can be added by implementing the same interface."
+        ],
+        "costs": [
+          "Adds a thin indirection layer.",
+          "Vendor-specific features may be underrepresented in the shared interface."
+        ],
+        "failure_modes": [
+          "Interface becomes a leaky abstraction if vendor-specific options are threaded through.",
+          "Mismatches between mock and real behavior can hide issues."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "transition-registry-state-machine",
+      "name": "Transition Registry State Machine",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "medium",
+        "coupling": "medium",
+        "extensibility": "medium"
+      },
+      "summary": "Governance actions are modeled as state transitions registered in a dedicated registry, and executed by a central engine.",
+      "intent": "Centralize and enforce allowed state changes instead of scattering transition logic across services.",
+      "context": "Governance records can move through lifecycle states, and the validity of an action depends on the current state.",
+      "forces": [
+        "State logic can become complex and hard to audit.",
+        "New transitions should be added without modifying core action logic.",
+        "Invalid transitions must be rejected consistently."
+      ],
+      "solution": "Use a TransitionRegistry to map allowed source states and actions, and delegate execution to a GovernanceActionEngine.",
+      "implementation_signals": [
+        "A class named TransitionRegistry exists alongside the engine.",
+        "GovernanceActionService delegates to the engine rather than implementing state checks inline.",
+        "The engine is used by services as the single entrypoint for actions."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/governance_action_engine.py",
+          "symbols": [
+            "TransitionRegistry",
+            "GovernanceActionEngine"
+          ],
+          "note": "State transitions and engine execution are explicitly modeled."
+        },
+        {
+          "path": "src/cas_runner/governance/governance_action_service.py",
+          "symbols": [
+            "GovernanceActionService"
+          ],
+          "note": "Service layer uses the engine, keeping transition logic in the engine/registry."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Transition rules are explicit and auditable.",
+          "Adding new state transitions is localized.",
+          "Invalid transitions can be reported consistently."
+        ],
+        "costs": [
+          "Requires a mental model of the registry/engine indirection.",
+          "May be overkill for very simple state logic."
+        ],
+        "failure_modes": [
+          "Missing registry entries can cause runtime errors for valid-looking actions.",
+          "Registry can become large and need periodic maintenance."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "compliance-engine-rule-evaluation",
+      "name": "Compliance Engine Rule Evaluation",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
+        "complexity": "medium",
+        "coupling": "medium",
+        "extensibility": "medium"
+      },
+      "summary": "A dedicated compliance engine evaluates governance rules and produces typed findings and metrics.",
+      "intent": "Separate compliance checking from domain operations and standardize the output of compliance assessments.",
+      "context": "The system needs to assess workspaces or repositories against governance rules and report violations in a consistent format.",
+      "forces": [
+        "Rule checks can grow independently from core flow logic.",
+        "Findings must be comparable across different governance dimensions.",
+        "The engine needs to be testable without running the whole CLI."
+      ],
+      "solution": "Encapsulate rule evaluation in a ComplianceEngine that returns ComplianceFinding and ComplianceMetrics models.",
+      "implementation_signals": [
+        "A class named ComplianceEngine exists in the governance package.",
+        "Compliance findings and metrics are typed models.",
+        "The engine is referenced as a discrete component in the service layer."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/governance/compliance_engine.py",
+          "symbols": [
+            "ComplianceEngine"
+          ],
+          "note": "Engine encapsulates rule evaluation and finding generation."
+        },
+        {
+          "path": "src/cas_runner/governance/models.py",
+          "symbols": [
+            "ComplianceFinding",
+            "ComplianceMetrics"
+          ],
+          "note": "Typed models represent the output of compliance checks."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Consistent reporting of violations.",
+          "Rule logic is isolated and easier to test.",
+          "Metrics can be aggregated from typed results."
+        ],
+        "costs": [
+          "The engine may become large as rule complexity grows.",
+          "Requires careful modeling to handle all finding types."
+        ],
+        "failure_modes": [
+          "Engine can become a god-class if rules are not further modularized.",
+          "Findings can become over-structured for simple rule checks."
+        ]
+      },
+      "confidence": "medium"
+    },
+    {
+      "id": "pure-function-health-metric",
+      "name": "Pure Function Health Metric",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "domain",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "medium"
+      },
+      "summary": "Dashboard health is computed by pure functions that map observations to a HealthStatus with explanatory reasons.",
+      "intent": "Keep health logic deterministic, side-effect free, and easy to unit test.",
+      "context": "The dashboard needs to display an aggregate health state for governance or skill areas without coupling to rendering or IO.",
+      "forces": [
+        "Health calculations should be reproducible and explainable.",
+        "Rendering should not be blocked by complex domain logic.",
+        "Reasons for a health status are needed for user trust and debugging."
+      ],
+      "solution": "Implement calculate_health and get_health_reasons as pure functions over typed inputs, returning a HealthStatus value.",
+      "implementation_signals": [
+        "A health_model.py module contains only domain functions and types.",
+        "Health status is an enum or typed value.",
+        "The dashboard imports these functions rather than embedding logic in UI code."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/dashboard/health_model.py",
+          "symbols": [
+            "HealthStatus",
+            "calculate_health",
+            "get_health_reasons"
+          ],
+          "note": "Health computation is separated from dashboard rendering and IO."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Deterministic and testable health logic.",
+          "Clear separation between domain calculation and presentation.",
+          "Reasons can be shown directly to users."
+        ],
+        "costs": [
+          "Health logic may need additional context as the dashboard evolves.",
+          "Pure functions can oversimplify complex health signals."
+        ],
+        "failure_modes": [
+          "Missing context can lead to misleading health statuses.",
+          "Health reason generation may duplicate logic if not maintained centrally."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "workspace-bootstrap-merge-copy",
+      "name": "Workspace Bootstrap Merge or Copy",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "medium",
+        "coupling": "medium",
+        "extensibility": "medium"
+      },
+      "summary": "Workspace initialization merges governance blocks into configuration files and copies or symlinks skill assets without destructive overwrites.",
+      "intent": "Create a reproducible, versionable workspace setup while preserving user customizations.",
+      "context": "A new or existing project needs CAS governance files, Claude settings, and skill assets installed without clobbering local configuration.",
+      "forces": [
+        "Users may have existing configuration that should not be overwritten.",
+        "Skill files need to be linked or copied for discoverability.",
+        "Setup should be repeatable across machines and CI environments."
+      ],
+      "solution": "Use merge_cas_governance_block and merge_claude_settings for configuration merging, and _create_symlink_or_copy for skill installation.",
+      "implementation_signals": [
+        "Bootstrap module contains functions named with merge or link semantics.",
+        "An init_workspace or bootstrap entrypoint coordinates the setup steps.",
+        "File system operations are explicit and handle both copy and symlink modes."
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/bootstrap.py",
+          "symbols": [
+            "merge_cas_governance_block",
+            "merge_claude_settings",
+            "_create_symlink_or_copy",
+            "bootstrap",
+            "init_workspace"
+          ],
+          "note": "Workspace setup is decomposed into merge/copy steps and a top-level initializer."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Preserves existing user configurations.",
+          "Setup is idempotent and safer to run repeatedly.",
+          "Symlinks keep skill sources centralized while exposing them in workspaces."
+        ],
+        "costs": [
+          "Merge logic adds complexity.",
+          "Symlink behavior can differ across platforms and file systems."
+        ],
+        "failure_modes": [
+          "Partial merges can lead to malformed config files if not transactional.",
+          "Symlink creation may require permissions or fail on Windows without developer mode."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "workflow-validation-gate",
+      "name": "Workflow Validation Gate",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "medium"
+      },
+      "summary": "A standalone validation script enforces CI/CD workflow hygiene through named check functions before changes are accepted.",
+      "intent": "Keep GitHub Actions workflow definitions consistent, reproducible, and free of known configuration anti-patterns.",
+      "context": "The repository contains multiple workflow files, and maintainers need automated guardrails to prevent drift.",
+      "forces": [
+        "Several workflows can evolve independently.",
+        "Common mistakes like hardcoding or unpinned installers are easy to introduce.",
+        "Reviewers need clear, automated signals rather than manual workflow inspection."
+      ],
+      "solution": "Create a validate_workflows.py script with discrete check_* functions for YAML syntax, pinned installers, hardcoding, unreachable dry runs, and retired workflow cleanup.",
+      "implementation_signals": [
+        "A validation script lives under specs/ or similar spec directory.",
+        "Checks are named with a check_ prefix and each addresses one concern.",
+        "A main() function aggregates and runs all checks."
+      ],
+      "evidence": [
+        {
+          "path": "specs/090-simplify-cicd-workflows/validate_workflows.py",
+          "symbols": [
+            "check_yaml_syntax",
+            "check_zero_hardcoding",
+            "check_no_unpinned_installers",
+            "check_no_unreachable_dry_run",
+            "check_retired_workflow",
+            "check_trigger_remediations",
+            "check_composite_action_adoption",
+            "main"
+          ],
+          "note": "Validation is decomposed into a main gate with named check functions for each workflow concern."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Early detection of workflow anti-patterns.",
+          "Policy is encoded in reusable, testable functions.",
+          "Reviewers can focus on substantive changes rather than all workflow details."
+        ],
+        "costs": [
+          "Additional script must be maintained as workflow expectations change.",
+          "Checks may become too strict or stale if not updated with workflow style evolution."
+        ],
+        "failure_modes": [
+          "False positives can block unrelated changes.",
+          "If new workflow anti-patterns appear, the gate must be extended."
+        ]
+      },
+      "confidence": "high"
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "hardcoded-config-values-in-cicd",
+      "name": "Hardcoded CI/CD Configuration Values",
+      "symptoms": [
+        "Workflow files contain literal environment names, artifact paths, or step identifiers that should be parameters.",
+        "A validation check named check_zero_hardcoding exists in the repository's workflow validation script."
+      ],
+      "impact": [
+        "Reduces portability across branches, environments, and forks.",
+        "Makes workflow maintenance error-prone when copying steps between jobs."
+      ],
+      "suggested_remediation": [
+        "Extract hardcoded values into repository variables, environment variables, or typed workflow inputs."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "unpinned-installer-versions",
+      "name": "Unpinned Installer Versions",
+      "symptoms": [
+        "Installer actions or setup scripts do not specify exact versions, allowing floating updates.",
+        "A validation check named check_no_unpinned_installers exists in the workflow validation script."
+      ],
+      "impact": [
+        "Builds can become non-reproducible when a new installer version changes behavior.",
+        "Intermittent CI failures may be difficult to trace to an unpinned dependency."
+      ],
+      "suggested_remediation": [
+        "Pin installer and action versions to a specific commit/tag or use a lockfile mechanism."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "unreachable-dry-run-branch",
+      "name": "Unreachable Dry Run Branch",
+      "symptoms": [
+        "Dry-run logic exists behind conditions that are never true in the workflow.",
+        "A validation check named check_no_unreachable_dry_run exists in the workflow validation script."
+      ],
+      "impact": [
+        "Dead code paths mislead operators into thinking dry-run mode is available when it is not.",
+        "Maintainers may waste time debugging an impossible branch."
+      ],
+      "suggested_remediation": [
+        "Remove unreachable branches or update the conditions so the dry-run path is achievable and tested."
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "retired-workflow-left-in-place",
+      "name": "Retired Workflow Left in Place",
+      "symptoms": [
+        "Workflow files remain in the repository after they have been replaced or decommissioned.",
+        "A validation check named check_retired_workflow exists in the workflow validation script."
+      ],
+      "impact": [
+        "Creates confusion about which workflows are active.",
+        "Can result in wasted CI runs or accidental re-enablement."
+      ],
+      "suggested_remediation": [
+        "Delete retired workflows and update references to the replacement workflow."
+      ],
+      "confidence": "high"
+    }
+  ],
+  "cross_cutting_concerns": [
+    {
+      "concern": "Typed validation across model boundaries",
+      "description": "Pydantic models are used consistently in governance, skills, and health domains to validate data at service boundaries."
+    },
+    {
+      "concern": "Deterministic testing and mockability",
+      "description": "MockLLMClient and pure health functions support deterministic verification of flows that otherwise depend on external LLM APIs."
+    },
+    {
+      "concern": "File system and configuration safety",
+      "description": "Bootstrap operations merge configuration and use copy-vs-symlink strategies to avoid destructive overwrites during workspace initialization."
+    },
+    {
+      "concern": "CI/CD workflow consistency",
+      "description": "A dedicated validation script enforces workflow-level constraints such as no hardcoded values, pinned installers, and no retired workflow files."
+    },
+    {
+      "concern": "Telemetry and observability",
+      "description": "OpenTelemetry dependencies are declared in the project manifest, indicating a cross-cutting concern for tracing and metrics in executed flows."
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "Does GovernanceActionEngine rely on a formal state machine library or a hand-rolled registry?",
+      "context": "The symbols TransitionRegistry and GovernanceActionEngine suggest a custom registry, but implementation details were not visible."
+    },
+    {
+      "question": "What is the exact interface shared by LiteLLMClient and MockLLMClient?",
+      "context": "Both client classes appear to support the same role, but method signatures and protocol definitions were not extractable from the provided key symbols."
+    },
+    {
+      "question": "Are governance models persisted through a dedicated repository layer or directly by services?",
+      "context": "Typed models exist, but the persistence path from in-memory models to artifacts on disk was not clearly visible in the key files."
+    },
+    {
+      "question": "Do skill evaluation models consume the same LLM client adapter abstraction or a separate evaluation-specific client?",
+      "context": "skills/models.py defines evaluation data structures, but it is unclear how those models are paired with the llm client strategy."
+    }
+  ]
 }

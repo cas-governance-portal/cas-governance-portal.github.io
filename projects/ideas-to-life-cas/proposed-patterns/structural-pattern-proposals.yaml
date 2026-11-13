@@ -12,24 +12,31 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (ComplianceFinding, GovernanceInventory,
-      GovernanceThroughput) - Multiple Pydantic models for governance domain.
-    - src/cas_runner/skills/models.py (SkillEvalResult, SkillEvalReport) - Pydantic
-      models for skill evaluations.
-  description: Uses Pydantic models to define domain entities with validation and
-    serialization.
+    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
+      GovernanceThroughput, GovernanceRisks, ComplianceFinding, ComplianceMetrics,
+      GovernanceAction) - Governance domain is modeled as a set of typed Pydantic
+      records.
+    - src/cas_runner/skills/models.py (SkillEvalCase, SkillEvalSuite, SkillEvalResult,
+      SkillEvalReport) - Skill evaluation domain uses structured models for suites
+      and reports.
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health status is represented as a typed domain model with pure calculation
+      functions.
+  description: Domain concepts are represented as Pydantic models with explicit fields,
+    enums, and nested structures, enabling validation and serialization across service
+    boundaries.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide a robust, schema-driven representation of domain objects (governance,
-    skills) that ensures type safety and validation.'
-  - 'Context: The system needs to manage complex domain objects such as governance
-    inventories, compliance findings, and skill evaluation results, often loaded from
-    or persisted to YAML/JSON.'
-  - 'Force: We need structured data validation to prevent malformed configurations.'
-  - 'Force: Pydantic reduces boilerplate for serialization and deserialization.'
-  - 'Force: Domain models should be extendable without breaking existing behavior.'
+  - 'Intent: Establish a strongly typed domain model for governance records, compliance
+    findings, skill evaluations, and health metrics.'
+  - 'Context: CAS needs to persist and exchange multiple kinds of structured knowledge
+    artifacts while keeping a shared domain vocabulary across the CLI, runner, and
+    services.'
+  - 'Force: Multiple domain object kinds require consistent validation.'
+  - 'Force: Data moves between files, services, and possibly external processes.'
+  - 'Force: Ad hoc dictionaries become unmaintainable as schemas evolve.'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
@@ -46,20 +53,22 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - The transition registry is a first-class construct in the governance action
-      engine module.
-  description: GovernanceActionEngine uses a TransitionRegistry to define valid state
-    transitions instead of scattering conditional logic.
+      - State transitions and engine execution are explicitly modeled.
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Service layer uses the engine, keeping transition logic in the engine/registry.
+  description: Governance actions are modeled as state transitions registered in a
+    dedicated registry, and executed by a central engine.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Make governance action state changes explicit, auditable, and extensible.'
-  - 'Context: Governance actions can transition through a set of states; the engine
-    must know which transitions are legal before applying an action.'
-  - 'Force: Avoid ''if/else'' sprawl'
-  - 'Force: Need a central list of allowed transitions'
-  - 'Force: Make new actions easy to add without changing core engine logic'
+  - 'Intent: Centralize and enforce allowed state changes instead of scattering transition
+    logic across services.'
+  - 'Context: Governance records can move through lifecycle states, and the validity
+    of an action depends on the current state.'
+  - 'Force: State logic can become complex and hard to audit.'
+  - 'Force: New transitions should be added without modifying core action logic.'
+  - 'Force: Invalid transitions must be rejected consistently.'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -2470,7 +2479,7 @@ pattern_proposals:
   evidence_strength: medium
   confidence: medium
 - pattern_id: llm-client-adapter-strategy
-  name: LLM Client Adapter/Strategy
+  name: LLM Client Adapter Strategy
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
@@ -2482,24 +2491,25 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real implementation using
-      LiteLLM.
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock implementation for
-      tests.
-  description: Multiple LLM clients (LiteLLM, Mock) implement a common interface,
-    allowing the system to switch providers or use mocks without altering dependent
-    code.
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production adapter wraps
+      the LiteLLM package.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock adapter supports deterministic
+      behavior without an external service.
+    - src/cas_runner/runner.py (FlowRunner) - FlowRunner consumes the client abstraction
+      during flow execution.
+  description: The FlowRunner depends on an LLM client abstraction with interchangeable
+    production and mock implementations.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Decouple LLM invocation from specific provider implementations and enable
-    easy testing and provider replacement.'
-  - 'Context: The system needs to call LLM services (via Litellm) and also support
-    a mock client for development and validation without external calls.'
-  - 'Force: Need to support multiple LLM providers'
-  - 'Force: Testing without external network calls'
-  - 'Force: Abstraction to avoid vendor lock-in'
+  - 'Intent: Decouple orchestration from concrete LLM vendors and support deterministic
+    testing and offline execution.'
+  - 'Context: Commands need model access but should not hardcode a vendor-specific
+    client, enabling both live and mock execution.'
+  - 'Force: LLM providers can change or require different configuration.'
+  - 'Force: Automated tests need deterministic outputs.'
+  - 'Force: Users may run in environments without network access.'
   evidence_strength: high
   confidence: high
 - pattern_id: governance-action-service-layer
@@ -5863,3 +5873,128 @@ pattern_proposals:
   - 'Force: Calculation should be easily testable.'
   evidence_strength: medium
   confidence: medium
+- pattern_id: compliance-engine-rule-evaluation
+  name: Compliance Engine Rule Evaluation
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Engine encapsulates
+      rule evaluation and finding generation.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
+      Typed models represent the output of compliance checks.
+  description: A dedicated compliance engine evaluates governance rules and produces
+    typed findings and metrics.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate compliance checking from domain operations and standardize the
+    output of compliance assessments.'
+  - 'Context: The system needs to assess workspaces or repositories against governance
+    rules and report violations in a consistent format.'
+  - 'Force: Rule checks can grow independently from core flow logic.'
+  - 'Force: Findings must be comparable across different governance dimensions.'
+  - 'Force: The engine needs to be testable without running the whole CLI.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: pure-function-health-metric
+  name: Pure Function Health Metric
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Health computation is separated from dashboard rendering and IO.
+  description: Dashboard health is computed by pure functions that map observations
+    to a HealthStatus with explanatory reasons.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep health logic deterministic, side-effect free, and easy to unit test.'
+  - 'Context: The dashboard needs to display an aggregate health state for governance
+    or skill areas without coupling to rendering or IO.'
+  - 'Force: Health calculations should be reproducible and explainable.'
+  - 'Force: Rendering should not be blocked by complex domain logic.'
+  - 'Force: Reasons for a health status are needed for user trust and debugging.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: workspace-bootstrap-merge-copy
+  name: Workspace Bootstrap Merge or Copy
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, merge_claude_settings,
+      _create_symlink_or_copy, bootstrap, init_workspace) - Workspace setup is decomposed
+      into merge/copy steps and a top-level initializer.
+  description: Workspace initialization merges governance blocks into configuration
+    files and copies or symlinks skill assets without destructive overwrites.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Create a reproducible, versionable workspace setup while preserving user
+    customizations.'
+  - 'Context: A new or existing project needs CAS governance files, Claude settings,
+    and skill assets installed without clobbering local configuration.'
+  - 'Force: Users may have existing configuration that should not be overwritten.'
+  - 'Force: Skill files need to be linked or copied for discoverability.'
+  - 'Force: Setup should be repeatable across machines and CI environments.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: workflow-validation-gate
+  name: Workflow Validation Gate
+  pattern_classification: architectural
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-13'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers, check_no_unreachable_dry_run,
+      check_retired_workflow, check_trigger_remediations, check_composite_action_adoption,
+      main) - Validation is decomposed into a main gate with named check functions
+      for each workflow concern.
+  description: A standalone validation script enforces CI/CD workflow hygiene through
+    named check functions before changes are accepted.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Keep GitHub Actions workflow definitions consistent, reproducible, and
+    free of known configuration anti-patterns.'
+  - 'Context: The repository contains multiple workflow files, and maintainers need
+    automated guardrails to prevent drift.'
+  - 'Force: Several workflows can evolve independently.'
+  - 'Force: Common mistakes like hardcoding or unpinned installers are easy to introduce.'
+  - 'Force: Reviewers need clear, automated signals rather than manual workflow inspection.'
+  evidence_strength: high
+  confidence: high
