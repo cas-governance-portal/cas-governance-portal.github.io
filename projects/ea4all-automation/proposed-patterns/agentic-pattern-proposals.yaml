@@ -1,1 +1,236 @@
-pattern_proposals: []
+pattern_proposals:
+- pattern_id: provider-neutral-llm-boundary
+  name: Provider-Neutral LLM Boundary
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/llm/client.py (LLMClient) - Identifies the shared client boundary;
+      its methods are unavailable.
+    - src/ea4all/llm/litellm_client.py (LiteLLMClient) - Identifies a provider-integration
+      component; inheritance and delegation are unverified.
+    - src/ea4all/llm/mock_client.py (MockLLMClient) - Supports the interpretation
+      of replaceable model access.
+  description: A shared LLM client surface is separated from named provider and mock
+    implementations.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Isolate application reasoning from provider-specific integration details.'
+  - 'Context: The llm package contains LLMClient, LiteLLMClient, and MockLLMClient
+    in separate modules.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: explicit-model-call-contract
+  name: Explicit Model-Call Contract
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/llm/client.py (LLMConfig, LLMRequest, LLMResponse, LLMClient) - Supports
+      an explicit call contract, but does not reveal its fields or enforcement.
+  description: Model configuration, requests, and responses have separate named representations
+    at the LLM boundary.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Give application code an explicit vocabulary for model invocation and
+    results.'
+  - 'Context: LLMConfig, LLMRequest, and LLMResponse are defined alongside LLMClient.'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: model-test-double-seam
+  name: Model Test-Double Seam
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/llm/mock_client.py (MockLLMClient) - Identifies an explicit test-double
+      component.
+    - tests/test_llm_client.py (TestSharedLLMClient) - Identifies tests around the
+      shared client.
+    - tests/test_orchestrator_llm.py (TestOrchestratorLLM) - Suggests model integration
+      is tested at the orchestration boundary.
+    - tests/test_cli_llm_options.py (TestCLILLMOptions) - Adds an entry-point-level
+      testing signal.
+  description: A dedicated mock client and tests at client, CLI, and orchestrator
+    boundaries suggest testing model-dependent behaviour without relying solely on
+    live providers.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Separate application integration checks from external model execution.'
+  - 'Context: The repository exposes MockLLMClient and three LLM-focused test classes.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: layered-reasoning-failure-vocabulary
+  name: Layered Reasoning Failure Vocabulary
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/llm/client.py (LLMError, LLMAuthenticationError, LLMTimeoutError,
+      LLMRateLimitError, LLMProviderError) - Shows a client-level failure vocabulary;
+      hierarchy and mapping are unknown.
+    - src/ea4all/llm/structured_engine.py (StructuredReasoningEngine, StructuredReasoningError,
+      StructuredReasoningExhaustedError) - Suggests a separate reasoning failure boundary;
+      does not prove retries or schema repair.
+  description: Separate client and structured-reasoning error names distinguish provider
+    failures from reasoning-layer failure.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Expose failures at the boundary where they can be interpreted without
+    conflating provider access and reasoning completion.'
+  - 'Context: Client errors and structured-reasoning errors are declared in different
+    modules.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: orchestrator-capability-separation
+  name: "Orchestrator\u2013Capability Separation"
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/engagement_intake/orchestrator.py (EngagementOrchestrator) - Suggests
+      an explicit coordination boundary.
+    - src/ea4all/engagement_intake/capabilities.py (assess_engagement_context, ingest_call_evidence,
+      generate_intro_call_field_guide, generate_scoping_questionnaire) - Identifies
+      candidate work units, not their execution graph.
+    - tests/test_orchestrator_llm.py (TestOrchestratorLLM) - Suggests the orchestration
+      boundary participates in model integration.
+  description: An orchestration class is separated from domain operations for assessment,
+    evidence ingestion, and document generation.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Keep coordination concerns distinct from engagement-specific operations.'
+  - 'Context: EngagementOrchestrator and the capabilities module form separate architectural
+    surfaces.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: configuration-preflight-boundary
+  name: Configuration Preflight Boundary
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/engagement_intake/config.py (load_config, validate_config_data, validate_preflight,
+      detect_cycles) - Suggests an execution-configuration safeguard; the validated
+      structures and enforcement are unknown.
+  description: Configuration loading is accompanied by named data-validation, preflight,
+    and cycle-detection functions.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Provide a boundary for detecting invalid execution configuration before
+    it affects model-assisted work.'
+  - 'Context: Configuration-related functions are colocated in engagement_intake/config.py.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: explicit-evidence-assessment-vocabulary
+  name: Explicit Evidence-Assessment Vocabulary
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/evidence_sufficiency/models.py (EvidenceItem, ScopeDefinition, ValidationStatus,
+      ConfidenceLevel, RelevanceLevel, ConclusionStatus, CoverageLevel, GapMateriality)
+      - Supports explicit evidence-assessment concepts, not their runtime enforcement.
+    - src/ea4all/engagement_intake/capabilities.py (ingest_call_evidence) - Provides
+      an ingestion-related signal; use of evidence_sufficiency models is not confirmed.
+  description: Evidence and assessment dimensions have explicit domain representations
+    rather than appearing only as undifferentiated text.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Make evidence quality and conclusion status representable in model-assisted
+    assessment.'
+  - 'Context: A dedicated evidence_sufficiency models module complements a named engagement
+    evidence-ingestion capability.'
+  evidence_strength: low
+  confidence: low
+- pattern_id: explicit-approval-and-finding-state
+  name: Explicit Approval and Finding State
+  pattern_classification: intelligence
+  pattern_maturity: emerging
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-14'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/ea4all/engagement_intake/models.py (ApprovalStatus, ApprovalMode, ApprovalBlastRadius,
+      FindingType, FindingDisposition, StalenessStatus, ExecutionTraceStatus) - Shows
+      explicit governance vocabulary, not an enforced approval workflow.
+  description: Approval, finding disposition, staleness, and execution status are
+    represented as explicit domain concepts.
+  pattern_type: emerging
+  applies_to:
+  - ea4all-automation
+  rationale:
+  - 'Intent: Allow governance decisions to be represented separately from findings
+    and execution progress.'
+  - 'Context: The engagement-intake models module declares approval and finding-related
+    state symbols.'
+  evidence_strength: low
+  confidence: low

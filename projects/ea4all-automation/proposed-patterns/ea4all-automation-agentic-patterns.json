@@ -1,33 +1,738 @@
 {
   "catalogue_metadata": {
     "repo_name": "ea4all-automation",
-    "repo_version_or_commit": null,
+    "repo_version_or_commit": "0.1.0",
     "focus": "agentic-ai",
-    "generated_at": "2026-11-11T11:30:31.294698",
-    "scope_notes": "Automated extraction",
+    "generated_at": "2026-11-14T21:48:46.919734",
+    "scope_notes": "Catalogue derived from the supplied manifests, directory listing, and file/symbol inventory. Patterns describe architectural signals, not verified function implementations. No independently autonomous agent is established by the available evidence.",
     "analysis_limits": [
-      "Reasoning response missing required catalogue metadata"
+      "Source bodies, prompts, tests, configuration contents, and workflow definitions were not supplied and could not be inspected.",
+      "The has_code_evidence flag is accompanied by symbol inventories rather than executable implementation excerpts.",
+      "Relationships between components are inferred where explicitly identified; runtime call paths are unverified.",
+      "Shared execution context, pipeline ordering, concurrency, retry policy, stopping conditions, persistence semantics, and approval enforcement could not be established.",
+      "Eight entries are retained as requested, with low-confidence heuristics used where only architectural intent is visible. No unsupported anti-patterns are reported."
     ],
     "default_domain": [
-      "Architecture"
+      "enterprise architecture",
+      "engagement intake",
+      "agentic AI"
     ],
     "default_sources": [
-      "Source Code"
+      "User-supplied repository runtime context"
     ]
   },
   "system_map": {
-    "overview": "No agentic architecture patterns extracted.",
-    "agents": [],
+    "overview": "The inventory suggests an engagement-intake application with a central orchestrator, domain capabilities, and a separate LLM integration layer. Structured reasoning, evidence assessment, and approval-related models indicate intended reliability and governance boundaries, but their execution semantics are not visible. Neither multi-agent collaboration nor autonomous tool selection is established.",
+    "agents": [
+      {
+        "name": "Engagement orchestration boundary",
+        "role": "Apparent application-level coordination point; delegation of decisions to an LLM versus deterministic code is unverified.",
+        "paths": [
+          "src/ea4all/engagement_intake/orchestrator.py",
+          "src/ea4all/engagement_intake/capabilities.py"
+        ],
+        "inputs": [],
+        "outputs": [],
+        "depends_on": []
+      },
+      {
+        "name": "Structured reasoning boundary",
+        "role": "Named reasoning component with explicit error types; autonomous planning and invocation by the orchestrator are not verified.",
+        "paths": [
+          "src/ea4all/llm/structured_engine.py"
+        ],
+        "inputs": [],
+        "outputs": [],
+        "depends_on": []
+      }
+    ],
     "orchestration": {
       "style": "unknown",
-      "description": "N/A",
-      "evidence": []
+      "description": "EngagementOrchestrator suggests centralised coordination, while separate capability functions suggest callable work units. No source body establishes ordering, reactive execution, shared context, parallelism, or the actual coordination topology.",
+      "evidence": [
+        "src/ea4all/engagement_intake/orchestrator.py#EngagementOrchestrator",
+        "src/ea4all/engagement_intake/capabilities.py#assess_engagement_context",
+        "src/ea4all/engagement_intake/capabilities.py#ingest_call_evidence",
+        "tests/test_orchestrator_llm.py#TestOrchestratorLLM"
+      ]
     },
-    "tools_and_integrations": [],
-    "state_and_memory": []
+    "tools_and_integrations": [
+      {
+        "name": "LiteLLM integration",
+        "type": "llm",
+        "used_by": [],
+        "purpose": "A declared LiteLLM dependency and named adapter indicate an external model-provider integration boundary; actual callers and providers are unverified.",
+        "evidence": [
+          "pyproject.toml",
+          "requirements.txt",
+          "src/ea4all/llm/litellm_client.py#LiteLLMClient"
+        ]
+      },
+      {
+        "name": "Mock LLM client",
+        "type": "llm",
+        "used_by": [],
+        "purpose": "Provides a named test-double boundary for model integration; response behaviour and test wiring are not visible.",
+        "evidence": [
+          "src/ea4all/llm/mock_client.py#MockLLMClient",
+          "tests/test_llm_client.py#TestSharedLLMClient",
+          "tests/test_orchestrator_llm.py#TestOrchestratorLLM"
+        ]
+      }
+    ],
+    "state_and_memory": [
+      {
+        "kind": "derived",
+        "description": "EvidenceItem and evidence-assessment enums suggest explicit representations of evidence and judgments. Mutation, provenance links, and persistence are not verified.",
+        "evidence": [
+          "src/ea4all/evidence_sufficiency/models.py#EvidenceItem",
+          "src/ea4all/evidence_sufficiency/models.py#ValidationStatus",
+          "src/ea4all/evidence_sufficiency/models.py#ConclusionStatus"
+        ]
+      },
+      {
+        "kind": "persistent",
+        "description": "Repository paths provide locations named for knowledge, traces, evaluations, and execution configuration. Runtime read/write behaviour and use as agent memory are unverified.",
+        "evidence": [
+          "cas-knowledge/runtime/traces/",
+          "cas-knowledge/runtime/evaluations/",
+          "cas-knowledge/runtime/execution-profile.yaml",
+          "cas-knowledge/runtime/rule-context.json",
+          "cas-knowledge/projects/"
+        ]
+      }
+    ]
   },
-  "patterns": [],
+  "patterns": [
+    {
+      "id": "provider-neutral-llm-boundary",
+      "name": "Provider-Neutral LLM Boundary",
+      "type": "pattern",
+      "agentic_concern": "execution",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "A model-client adapter is visible; model-directed tool calling is not established.",
+          "evidence": [
+            "src/ea4all/llm/client.py#LLMClient",
+            "src/ea4all/llm/litellm_client.py#LiteLLMClient"
+          ]
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Portability is suggested by the component separation; measured targets are unavailable."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "Client separation does not establish the caller's autonomy."
+        }
+      },
+      "summary": "A shared LLM client surface is separated from named provider and mock implementations.",
+      "tags": [
+        "llm-boundary",
+        "provider-abstraction"
+      ],
+      "intent": "Isolate application reasoning from provider-specific integration details.",
+      "context": "The llm package contains LLMClient, LiteLLMClient, and MockLLMClient in separate modules.",
+      "solution": "The visible structure places a shared client definition beside concrete integration modules. Interface conformance, dependency injection, and provider selection require source inspection.",
+      "implementation_signals": [
+        "A common LLMClient symbol exists independently of LiteLLMClient.",
+        "A mock implementation is colocated with the provider adapter.",
+        "LiteLLM is declared in both dependency manifests."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/llm/client.py",
+          "symbols": [
+            "LLMClient"
+          ],
+          "note": "Identifies the shared client boundary; its methods are unavailable."
+        },
+        {
+          "path": "src/ea4all/llm/litellm_client.py",
+          "symbols": [
+            "LiteLLMClient"
+          ],
+          "note": "Identifies a provider-integration component; inheritance and delegation are unverified."
+        },
+        {
+          "path": "src/ea4all/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ],
+          "note": "Supports the interpretation of replaceable model access."
+        }
+      ],
+      "reuse_notes": "Inspect interface methods and adapter conformance before treating this as a reusable implementation.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "moderate"
+      }
+    },
+    {
+      "id": "explicit-model-call-contract",
+      "name": "Explicit Model-Call Contract",
+      "type": "pattern",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Named request and response types do not establish a tool protocol.",
+          "evidence": [
+            "src/ea4all/llm/client.py#LLMRequest",
+            "src/ea4all/llm/client.py#LLMResponse"
+          ]
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Contract consistency is suggested, but validation guarantees are unverified."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "Transport contracts alone do not determine autonomy."
+        }
+      },
+      "summary": "Model configuration, requests, and responses have separate named representations at the LLM boundary.",
+      "tags": [
+        "contracts",
+        "llm-interface"
+      ],
+      "intent": "Give application code an explicit vocabulary for model invocation and results.",
+      "context": "LLMConfig, LLMRequest, and LLMResponse are defined alongside LLMClient.",
+      "solution": "Represent configuration and each side of a model call with distinct symbols in the shared client module. Fields, typing mechanisms, validation, and adapter usage are not visible.",
+      "implementation_signals": [
+        "Separate configuration, request, and response symbols exist in one shared module."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/llm/client.py",
+          "symbols": [
+            "LLMConfig",
+            "LLMRequest",
+            "LLMResponse",
+            "LLMClient"
+          ],
+          "note": "Supports an explicit call contract, but does not reveal its fields or enforcement."
+        }
+      ],
+      "reuse_notes": "Verify which fields carry prompts, generation settings, metadata, and usage before adapting the contract.",
+      "confidence": "medium",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "moderate"
+      }
+    },
+    {
+      "id": "model-test-double-seam",
+      "name": "Model Test-Double Seam",
+      "type": "heuristic",
+      "agentic_concern": "evaluation",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "No protocol behaviour is exposed by the test-class inventory.",
+          "evidence": []
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Repeatable testing is a plausible intent, not a verified property of the mock."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "Tests do not establish production autonomy."
+        }
+      },
+      "summary": "A dedicated mock client and tests at client, CLI, and orchestrator boundaries suggest testing model-dependent behaviour without relying solely on live providers.",
+      "tags": [
+        "evaluation",
+        "test-double"
+      ],
+      "intent": "Separate application integration checks from external model execution.",
+      "context": "The repository exposes MockLLMClient and three LLM-focused test classes.",
+      "solution": "Provide a mock at the model boundary and organise tests around multiple application entry points. Actual mock injection, deterministic responses, and assertions remain unverified.",
+      "implementation_signals": [
+        "MockLLMClient has its own module.",
+        "LLM-specific tests exist for the shared client, CLI options, and orchestrator."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/llm/mock_client.py",
+          "symbols": [
+            "MockLLMClient"
+          ],
+          "note": "Identifies an explicit test-double component."
+        },
+        {
+          "path": "tests/test_llm_client.py",
+          "symbols": [
+            "TestSharedLLMClient"
+          ],
+          "note": "Identifies tests around the shared client."
+        },
+        {
+          "path": "tests/test_orchestrator_llm.py",
+          "symbols": [
+            "TestOrchestratorLLM"
+          ],
+          "note": "Suggests model integration is tested at the orchestration boundary."
+        },
+        {
+          "path": "tests/test_cli_llm_options.py",
+          "symbols": [
+            "TestCLILLMOptions"
+          ],
+          "note": "Adds an entry-point-level testing signal."
+        }
+      ],
+      "reuse_notes": "Inspect fixtures and assertions before claiming deterministic replay, offline coverage, or failure-path coverage.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "weak"
+      }
+    },
+    {
+      "id": "layered-reasoning-failure-vocabulary",
+      "name": "Layered Reasoning Failure Vocabulary",
+      "type": "heuristic",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Failure types do not establish tool invocation.",
+          "evidence": []
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Reliability-related intent is suggested; handling policies are not visible."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "An exhaustion error does not prove an autonomous repair loop."
+        }
+      },
+      "summary": "Separate client and structured-reasoning error names distinguish provider failures from reasoning-layer failure.",
+      "tags": [
+        "failure-contract",
+        "structured-reasoning"
+      ],
+      "intent": "Expose failures at the boundary where they can be interpreted without conflating provider access and reasoning completion.",
+      "context": "Client errors and structured-reasoning errors are declared in different modules.",
+      "solution": "Define authentication, timeout, rate-limit, and provider error symbols at the client boundary, and separate reasoning and exhaustion errors beside StructuredReasoningEngine. Catching, translation, retry counts, and exhaustion conditions are unverified.",
+      "implementation_signals": [
+        "Provider-related errors are named separately.",
+        "StructuredReasoningExhaustedError exists outside the client module."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/llm/client.py",
+          "symbols": [
+            "LLMError",
+            "LLMAuthenticationError",
+            "LLMTimeoutError",
+            "LLMRateLimitError",
+            "LLMProviderError"
+          ],
+          "note": "Shows a client-level failure vocabulary; hierarchy and mapping are unknown."
+        },
+        {
+          "path": "src/ea4all/llm/structured_engine.py",
+          "symbols": [
+            "StructuredReasoningEngine",
+            "StructuredReasoningError",
+            "StructuredReasoningExhaustedError"
+          ],
+          "note": "Suggests a separate reasoning failure boundary; does not prove retries or schema repair."
+        }
+      ],
+      "reuse_notes": "Verify exception propagation and terminal conditions before extracting a retry or recovery pattern.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "high",
+        "evidence_strength": "weak"
+      }
+    },
+    {
+      "id": "orchestrator-capability-separation",
+      "name": "Orchestrator\u2013Capability Separation",
+      "type": "heuristic",
+      "agentic_concern": "execution",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Python capability functions are visible, but model-directed invocation is not.",
+          "evidence": [
+            "src/ea4all/engagement_intake/capabilities.py#assess_engagement_context"
+          ]
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "The separation suggests explicit coordination, but execution behaviour is unavailable."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "A named orchestrator does not prove fixed sequencing or constrained autonomy."
+        }
+      },
+      "summary": "An orchestration class is separated from domain operations for assessment, evidence ingestion, and document generation.",
+      "tags": [
+        "orchestration",
+        "capability-boundaries"
+      ],
+      "intent": "Keep coordination concerns distinct from engagement-specific operations.",
+      "context": "EngagementOrchestrator and the capabilities module form separate architectural surfaces.",
+      "solution": "Expose domain work as named functions alongside a dedicated orchestration component. Invocation relationships, step ordering, branching, shared context, and fan-out/fan-in cannot be established from the inventory.",
+      "implementation_signals": [
+        "A dedicated EngagementOrchestrator class exists.",
+        "Assessment, ingestion, and generation functions are grouped separately."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/engagement_intake/orchestrator.py",
+          "symbols": [
+            "EngagementOrchestrator"
+          ],
+          "note": "Suggests an explicit coordination boundary."
+        },
+        {
+          "path": "src/ea4all/engagement_intake/capabilities.py",
+          "symbols": [
+            "assess_engagement_context",
+            "ingest_call_evidence",
+            "generate_intro_call_field_guide",
+            "generate_scoping_questionnaire"
+          ],
+          "note": "Identifies candidate work units, not their execution graph."
+        },
+        {
+          "path": "tests/test_orchestrator_llm.py",
+          "symbols": [
+            "TestOrchestratorLLM"
+          ],
+          "note": "Suggests the orchestration boundary participates in model integration."
+        }
+      ],
+      "reuse_notes": "Inspect the orchestrator before classifying this as a sequential pipeline, reactive loop, or parallel workflow.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "foundational",
+        "reuse_potential": "medium",
+        "evidence_strength": "weak"
+      }
+    },
+    {
+      "id": "configuration-preflight-boundary",
+      "name": "Configuration Preflight Boundary",
+      "type": "heuristic",
+      "agentic_concern": "safety",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Configuration validation does not expose a tool protocol.",
+          "evidence": []
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Pre-execution reliability is suggested, but invocation timing and rejection behaviour are unverified."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "The effect of configuration validation on agent choices is unknown."
+        }
+      },
+      "summary": "Configuration loading is accompanied by named data-validation, preflight, and cycle-detection functions.",
+      "tags": [
+        "preflight",
+        "configuration-validation"
+      ],
+      "intent": "Provide a boundary for detecting invalid execution configuration before it affects model-assisted work.",
+      "context": "Configuration-related functions are colocated in engagement_intake/config.py.",
+      "solution": "Separate loading from named validation operations, including cycle detection. The inspected inventory does not identify the graph being checked, whether checks run before execution, or whether failures block execution.",
+      "implementation_signals": [
+        "load_config and validate_config_data are separate symbols.",
+        "validate_preflight and detect_cycles are explicitly named."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/engagement_intake/config.py",
+          "symbols": [
+            "load_config",
+            "validate_config_data",
+            "validate_preflight",
+            "detect_cycles"
+          ],
+          "note": "Suggests an execution-configuration safeguard; the validated structures and enforcement are unknown."
+        }
+      ],
+      "reuse_notes": "Confirm startup call paths and cycle-detection inputs before treating this as a workflow-DAG validation pattern.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "medium",
+        "evidence_strength": "weak"
+      }
+    },
+    {
+      "id": "explicit-evidence-assessment-vocabulary",
+      "name": "Explicit Evidence-Assessment Vocabulary",
+      "type": "heuristic",
+      "agentic_concern": "memory",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "Evidence ingestion is named, but no external retrieval or tool protocol is established.",
+          "evidence": [
+            "src/ea4all/engagement_intake/capabilities.py#ingest_call_evidence"
+          ]
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Evidence quality appears relevant, but downstream use is unverified."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "Evidence models do not show whether they constrain generated conclusions."
+        }
+      },
+      "summary": "Evidence and assessment dimensions have explicit domain representations rather than appearing only as undifferentiated text.",
+      "tags": [
+        "evidence",
+        "epistemic-state"
+      ],
+      "intent": "Make evidence quality and conclusion status representable in model-assisted assessment.",
+      "context": "A dedicated evidence_sufficiency models module complements a named engagement evidence-ingestion capability.",
+      "solution": "Define EvidenceItem and ScopeDefinition alongside named dimensions for validation, confidence, relevance, coverage, materiality, and conclusion status. Their relationships, persistence, and use in prompts or decisions remain unverified.",
+      "implementation_signals": [
+        "Evidence representation and conclusion status are separately named.",
+        "Confidence, relevance, coverage, and gap materiality have dedicated symbols."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/evidence_sufficiency/models.py",
+          "symbols": [
+            "EvidenceItem",
+            "ScopeDefinition",
+            "ValidationStatus",
+            "ConfidenceLevel",
+            "RelevanceLevel",
+            "ConclusionStatus",
+            "CoverageLevel",
+            "GapMateriality"
+          ],
+          "note": "Supports explicit evidence-assessment concepts, not their runtime enforcement."
+        },
+        {
+          "path": "src/ea4all/engagement_intake/capabilities.py",
+          "symbols": [
+            "ingest_call_evidence"
+          ],
+          "note": "Provides an ingestion-related signal; use of evidence_sufficiency models is not confirmed."
+        }
+      ],
+      "reuse_notes": "Verify provenance links and decision rules before claiming evidence-grounded generation or durable agent memory.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "medium",
+        "evidence_strength": "weak"
+      }
+    },
+    {
+      "id": "explicit-approval-and-finding-state",
+      "name": "Explicit Approval and Finding State",
+      "type": "heuristic",
+      "agentic_concern": "control",
+      "agentic_profile": {
+        "system_shape": "unknown",
+        "orchestration_mode": "unknown",
+        "agent_to_agent": {
+          "present": "unknown",
+          "mechanism": "unknown",
+          "evidence": []
+        },
+        "tool_protocols": {
+          "mcp": "unknown",
+          "tool_calling": "unknown",
+          "notes": "No action execution or authorisation protocol is visible.",
+          "evidence": []
+        },
+        "optimisation_targets": {
+          "primary": "unknown",
+          "secondary": [],
+          "notes": "Governance intent is suggested, but approval enforcement and risk thresholds are unknown."
+        },
+        "simplicity_vs_autonomy": {
+          "position": "unknown",
+          "rationale": "Approval-related types alone do not establish a human-in-the-loop gate."
+        }
+      },
+      "summary": "Approval, finding disposition, staleness, and execution status are represented as explicit domain concepts.",
+      "tags": [
+        "approval",
+        "governance",
+        "state-model"
+      ],
+      "intent": "Allow governance decisions to be represented separately from findings and execution progress.",
+      "context": "The engagement-intake models module declares approval and finding-related state symbols.",
+      "solution": "Provide distinct representations for approval status, approval mode, blast radius, finding disposition, staleness, and execution trace status. State transitions, human ownership, and blocking checks cannot be verified.",
+      "implementation_signals": [
+        "ApprovalStatus, ApprovalMode, and ApprovalBlastRadius are separate symbols.",
+        "FindingDisposition and ExecutionTraceStatus distinguish assessment disposition from execution status."
+      ],
+      "evidence": [
+        {
+          "path": "src/ea4all/engagement_intake/models.py",
+          "symbols": [
+            "ApprovalStatus",
+            "ApprovalMode",
+            "ApprovalBlastRadius",
+            "FindingType",
+            "FindingDisposition",
+            "StalenessStatus",
+            "ExecutionTraceStatus"
+          ],
+          "note": "Shows explicit governance vocabulary, not an enforced approval workflow."
+        }
+      ],
+      "reuse_notes": "Inspect transition rules and side-effect boundaries before describing this as human approval gating.",
+      "confidence": "low",
+      "extraction_metadata": {
+        "abstraction_level": "structural",
+        "reuse_potential": "medium",
+        "evidence_strength": "weak"
+      }
+    }
+  ],
   "anti_patterns": [],
-  "cross_cutting_concerns": [],
-  "open_questions": []
+  "cross_cutting_concerns": [
+    {
+      "concern": "Prompt and output contracts",
+      "approach": "Named request/response types and a structured reasoning engine suggest distinct integration and reasoning contracts.",
+      "evidence": [
+        "src/ea4all/llm/client.py#LLMRequest",
+        "src/ea4all/llm/client.py#LLMResponse",
+        "src/ea4all/llm/structured_engine.py#StructuredReasoningEngine"
+      ],
+      "notes": "No prompt text, output schema, parser, or validation implementation was available.",
+      "confidence": "low"
+    },
+    {
+      "concern": "Observability and evaluation",
+      "approach": "Execution status symbols, runtime directories, and a skill-evaluation workflow path indicate observability and evaluation surfaces.",
+      "evidence": [
+        "src/ea4all/engagement_intake/models.py#ExecutionTraceStatus",
+        "cas-knowledge/runtime/traces/",
+        "cas-knowledge/runtime/evaluations/",
+        ".github/workflows/cas-skill-evals.yml"
+      ],
+      "notes": "Trace contents, correlation propagation, evaluation metrics, and CI gating are unverified.",
+      "confidence": "low"
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "What is the actual execution graph, and is a shared context propagated across steps?",
+      "why_it_matters": "Determines whether pipeline execution and context propagation warrant separate foundational patterns.",
+      "evidence_gap": "Only the orchestrator class name and capability function names are available.",
+      "suggested_next_check": "Inspect EngagementOrchestrator methods, capability signatures, and their callers for sequencing, branching, context mutation, and fan-out/fan-in."
+    },
+    {
+      "question": "Does StructuredReasoningEngine validate output and perform bounded repair or retries?",
+      "why_it_matters": "Distinguishes a structured-output component from a verified validation-and-recovery loop.",
+      "evidence_gap": "Error names do not establish schemas, retry counts, repair prompts, or stopping rules.",
+      "suggested_next_check": "Inspect StructuredReasoningEngine and tests covering invalid output, provider failure, and exhaustion."
+    },
+    {
+      "question": "Which decisions are delegated to the model, and can it invoke tools?",
+      "why_it_matters": "Establishes the agent boundary, autonomy level, and whether this is model-assisted orchestration or an autonomous agent.",
+      "evidence_gap": "Prompts, request fields, dispatch logic, and model responses were not supplied.",
+      "suggested_next_check": "Inspect LLMRequest, orchestrator model calls, prompt construction, and any tool-dispatch code."
+    },
+    {
+      "question": "Are approval states enforced before side effects, and who grants approval?",
+      "why_it_matters": "Separates governance metadata from an operational human-in-the-loop control.",
+      "evidence_gap": "Approval-related symbols are visible, but consumers and transitions are not.",
+      "suggested_next_check": "Find references to ApprovalStatus, ApprovalMode, and ApprovalBlastRadius around write and execution operations."
+    },
+    {
+      "question": "How are evidence, traces, and knowledge files persisted and reused?",
+      "why_it_matters": "Determines whether repository files function as durable memory, audit records, or static inputs.",
+      "evidence_gap": "Directory names do not establish readers, writers, identity, provenance, or recovery behaviour.",
+      "suggested_next_check": "Inspect file I/O, evidence model relationships, trace serialization, and subsequent-run loading."
+    },
+    {
+      "question": "Are the apparent client contracts and validation boundaries exercised consistently?",
+      "why_it_matters": "Determines whether these are systemic architectural patterns rather than unused or optional components.",
+      "evidence_gap": "Imports, inheritance, call sites, test assertions, and preflight invocation were not available.",
+      "suggested_next_check": "Inspect client implementations, CLI construction, orchestration wiring, configuration consumers, and the supplied LLM-focused test files."
+    }
+  ]
 }
