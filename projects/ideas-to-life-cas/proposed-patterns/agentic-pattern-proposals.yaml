@@ -2743,7 +2743,7 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: llm-provider-abstraction
-  name: LLM Provider Abstraction for Portability
+  name: LLM Provider Abstraction with Mocking
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
@@ -2756,22 +2756,22 @@ pattern_proposals:
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Real provider client
-    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Deterministic test client
-  description: LLM calls are routed through a thin client interface with a mock implementation,
-    decoupling agent logic from any specific model provider.
+      using LiteLLM.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client for deterministic
+      testing.
+  description: All LLM interactions are routed through a unified client interface,
+    allowing provider portability and deterministic testing via a mock client.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Allow the system to run deterministically in CI without live API calls
-    and to switch providers without rewriting agent logic.'
-  - 'Context: src/cas_runner/llm/ contains LiteLLMClient (real) and MockLLMClient
-    (test/dry-run). Dependencies include litellm and pydantic, indicating a typed
-    interface.'
-  - 'Force: Testing governance logic in CI without incurring LLM costs'
-  - 'Force: Need to support multiple model providers'
-  - 'Force: Want to keep agent prompts and tool calls agnostic to provider-specific
-    quirks'
+  - 'Intent: Decouple agent logic from specific LLM providers to enable switching,
+    cost control, and deterministic testing.'
+  - 'Context: The CAS runner uses LiteLLM for multi-provider support and MockLLMClient
+    for tests.'
+  - 'Force: Provider lock-in'
+  - 'Force: Testing determinism'
+  - 'Force: Cost variability'
   evidence_strength: high
   confidence: high
 - pattern_id: centralized-flow-runner-pipeline
@@ -3673,35 +3673,33 @@ pattern_proposals:
   evidence_strength: medium
   confidence: medium
 - pattern_id: governance-action-state-machine
-  name: Governing State Transitions via Action Engine
+  name: Governance Action Engine with State Transitions
   pattern_classification: intelligence
   pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-10'
+    date: '2026-11-15'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
     - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
-      - Registry and engine for transitions.
-    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
-      - High-level service coordinating actions.
-  description: The system uses a dedicated engine to manage permitted state transitions
-    in the knowledge store, ensuring only valid changes are applied.
+      - State-based action engine.
+  description: Governance actions are determined by a state machine with a transition
+    registry, ensuring only valid transitions trigger actions.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - "Intent: To formalise how entities in the knowledge store can move between states\
-    \ (e.g., draft \u2192 approved)."
-  - 'Context: TransitionRegistry (in governance_action_engine.py) suggests a registry
-    of allowed transitions, and GovernanceActionService orchestrates actions.'
-  - 'Force: Knowledge items must follow a lifecycle (draft, review, accepted).'
-  - 'Force: Agents should not arbitrarily change statuses.'
-  - 'Force: Audit trail needed for every change.'
+  - 'Intent: Provide a structured way to decide and execute governance actions based
+    on current state and allowed transitions.'
+  - 'Context: GovernanceActionEngine uses TransitionRegistry to map state changes
+    to actions.'
+  - 'Force: Complex governance workflow'
+  - 'Force: Predictability'
+  - 'Force: Auditability'
   evidence_strength: medium
   confidence: medium
 - pattern_id: compliance-engine-guardrails
@@ -11011,5 +11009,241 @@ pattern_proposals:
   - 'Force: Agent executions may be non-deterministic'
   - 'Force: Need to understand why a particular decision was made'
   - 'Force: Want to evaluate and improve workflows over time'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: pipeline-context-orchestration
+  name: Pipeline Orchestration with Shared Context
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Central orchestrator; likely executes
+      steps sequentially.
+  description: Workflows are defined as ordered steps that share a mutable context
+    object, enabling step-by-step orchestration with state propagation.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a predictable execution model where each step receives and updates
+    the same context.'
+  - 'Context: FlowRunner in runner.py orchestrates steps in a pipeline.'
+  - 'Force: Complexity of multi-step flows'
+  - 'Force: State management'
+  - 'Force: Reproducibility'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: skill-module-capabilities
+  name: Skill-Based Reusable Capability Modules
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .agents/skills/cas-add-or-modify-feature/ - Skill for adding features.
+    - .claude/skills/cas-drawio-generator/ - Skill for generating diagrams.
+  description: Agent capabilities are packaged as discoverable 'skills' (CLI subcommands)
+    that can be invoked by the agent to perform complex, reusable operations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Allow agents to perform complex, reusable operations (e.g., add feature,
+    refactor) via standardized skill modules.'
+  - 'Context: Found in .agents/skills and .claude/skills directories with subfolders
+    per skill.'
+  - 'Force: Reusability'
+  - 'Force: Discovery'
+  - 'Force: Consistency'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: verifier-agent-quality-gate
+  name: Verifier Agent for Quality Gates
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .claude/agents/verifier.md - Verifier agent definition.
+    - .agents/subagents/verifier.md - Duplicate verifier definition.
+  description: A dedicated verifier agent is used to validate generated architecture
+    artifacts against governance rules and quality criteria before acceptance.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Add an independent quality gate to catch errors or non-compliance in
+    agent-generated outputs.'
+  - 'Context: Verifier agent defined in both .claude and .agents; likely invoked after
+    main agent produces artifacts.'
+  - 'Force: Quality assurance'
+  - 'Force: Agent hallucination'
+  - 'Force: Governance compliance'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: compliance-rule-engine
+  name: Compliance Enforcement via Rule Engine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Central
+      compliance checking.
+  description: Compliance is enforced by a rule engine that evaluates agent outputs
+    against governance rules and produces findings.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Automatically check agent-generated artifacts for compliance with organizational
+    architecture rules.'
+  - 'Context: ComplianceEngine in governance module; likely used by FlowRunner or
+    CI.'
+  - 'Force: Governance policy'
+  - 'Force: Automated enforcement'
+  - 'Force: Error detection'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: telemetry-adapter-normalization
+  name: Telemetry Normalization Adapters
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/agent_telemetry.py (CodingAgentTelemetryAdapter, ClaudeCodeTelemetryAdapter,
+      AntigravityTelemetryAdapter) - Adapters for different agents.
+  description: Telemetry from various external coding agents is normalized into a
+    unified format via adapter classes, enabling consistent monitoring and cost estimation.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide a consistent view of agent activity across different coding tools
+    (Claude Code, Antigravity) for monitoring and governance.'
+  - 'Context: AgentTelemetryAdapter subclasses implement parsing for specific tools.'
+  - 'Force: Heterogeneous tools'
+  - 'Force: Unified metrics'
+  - 'Force: Cost tracking'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: template-driven-knowledge-artifacts
+  name: Template-Driven Knowledge Artifacts
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/templates/architecture_decision_record_template.md - ADR template.
+    - cas-knowledge/templates/pattern_template.md - Pattern template.
+  description: Architecture knowledge artifacts (ADRs, patterns, signals) are generated
+    using standardized templates to ensure consistency and completeness.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Simplify creation and maintenance of architecture knowledge by providing
+    reusable templates.'
+  - 'Context: Templates exist for various artifact types (ADR, pattern, signal, learning).'
+  - 'Force: Consistency'
+  - 'Force: Documentation burden'
+  - 'Force: Knowledge reuse'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: config-driven-execution-context
+  name: Configuration-Driven Execution Context
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/execution-profile.yaml - Runtime profile.
+    - cas-knowledge/runtime/rule-context.json - Rule context.
+  description: Execution parameters such as runtime profile and rule context are externalized
+    in YAML/JSON files, allowing environment-specific behavior without code changes.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Separate execution configuration from agent logic to allow tuning and
+    environment adaptation.'
+  - 'Context: cas-knowledge/runtime contains execution-profile.yaml and rule-context.json.'
+  - 'Force: Environment variability'
+  - 'Force: Operational flexibility'
+  - 'Force: Reproducibility'
+  evidence_strength: medium
+  confidence: medium
+- pattern_id: pipeline-definition-validation
+  name: Pipeline Definition Validation
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - specs/090-simplify-cicd-workflows/validate_workflows.py (check_yaml_syntax,
+      check_zero_hardcoding, check_no_unpinned_installers) - Checks for workflow quality.
+  description: CI/CD workflow files are statically validated to catch syntax errors,
+    hardcoded variables, or anti-patterns before deployment.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Ensure that workflow definitions are syntactically correct and follow
+    project conventions.'
+  - 'Context: A validation script checks YAML syntax, hardcoding, pinned installers,
+    and other workflow properties.'
+  - 'Force: CI reliability'
+  - 'Force: Maintainability'
+  - 'Force: Preventing drift'
   evidence_strength: medium
   confidence: medium
