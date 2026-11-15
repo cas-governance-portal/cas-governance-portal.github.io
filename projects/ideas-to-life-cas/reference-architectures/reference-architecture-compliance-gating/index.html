@@ -3399,93 +3399,87 @@
 
 <h1 id="reference-architecture-rule-based-compliance-gating-for-agent-outputs">Reference Architecture: Rule-Based Compliance Gating for Agent Outputs</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>This pattern enforces governance rules on agent-generated outputs before they enter a trusted repository. It acts as a quality gate to prevent non-compliant content from being persisted. Use this when you need to maintain integrity of a knowledge base or artifact store.</p>
+<p>Rule-Based Compliance Gating for Agent Outputs establishes an automated, deterministic verification barrier that intercepts agent-generated artifacts—such as architecture specifications, models, code, and documentation—prior to commit, promotion, or deployment. The gate guarantees that generated outputs comply with architectural standards, structural schemas, security guardrails, and project conventions.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>When agent outputs must be validated against rules before being stored or published.</li>
-<li>When there is a need for centralized governance across multiple projects or teams.</li>
-<li>When rules can be defined and updated independently of the agent logic.</li>
-<li>When auditability and traceability of compliance decisions are required.</li>
+<li>Automated generative AI or autonomous agent workflows generating structured architectural artifacts or source code that must adhere to enterprise standards.</li>
+<li>CI/CD release pipelines where human review cannot scale with automated agent output generation rates.</li>
+<li>Systems requiring deterministic safety, traceability, and audit compliance metrics for all machine-generated content.</li>
+<li>Environments with explicit architectural fitness functions and governance invariants stored in version control.</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>When output quality is not critical or all outputs are trusted by default.</li>
-<li>When the rule set is trivial and can be enforced directly within the agent's logic.</li>
-<li>When real-time, low-latency validation is required and rule evaluation introduces unacceptable overhead.</li>
-<li>When the team lacks the ability to maintain a rule engine and prefers simple hardcoded checks.</li>
+<li>Early-stage, exploratory prototyping where deterministic schema constraints restrict creativity and rules are not yet defined.</li>
+<li>Real-time conversational agent streaming interfaces where sub-second latency is critical and compliance checks introduce unacceptable delays (use inline stream filtering or async auditing instead).</li>
+<li>Domain workflows that lack formal, codifiable heuristics or declarative policies, relying entirely on subjective human qualitative critique.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    source["Agent Output Source"]
-    engine["ComplianceEngine"]
-    rules[("Rules Repository")]
-    store[("Content Store")]
-    audit[("Audit Log")]
+    Agent["Autonomous Agent (Container)"]
+    Engine["Compliance Engine (Container)"]
+    RulesStore[("Rules Repository (Data store)")]
+    MetricsStore[("Compliance Findings Store (Data store)")]
+    CIPipeline["CI/CD Pipeline Gate (External System)"]
 
-    source --&gt;|1. Output| engine
-    engine --&gt;|2. Fetch rules| rules
-    engine --&gt;|3. Evaluate| engine
-    engine --&gt;|4a. Pass| store
-    engine --&gt;|4b. Fail| audit
+    Agent --&gt;|"1. Emits candidate artifacts"| Engine
+    Engine --&gt;|"2. Evaluates declarative rules"| RulesStore
+    Engine --&gt;|"3. Persists metrics and findings"| MetricsStore
+    Engine --&gt;|"4. Enforces pass/fail barrier"| CIPipeline
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class source,engine container
-    class rules,store,audit store</code></pre>
+    class Agent,Engine container
+    class RulesStore,MetricsStore store
+    class CIPipeline external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>ComplianceEngine</strong>: Evaluates agent outputs against rules and produces findings. Path: <code>src/cas_runner/governance/compliance_engine.py</code>.</li>
-<li><strong>ComplianceFinding</strong>: Data structure representing a violation or note. Path: <code>src/cas_runner/governance/models.py</code>.</li>
-<li><strong>ComplianceMetrics</strong>: Aggregates metrics for compliance checks. Path: <code>src/cas_runner/governance/models.py</code>.</li>
-<li><strong>Rules Repository</strong>: Storage for governance rules. Path: <code>cas-knowledge/global/rules</code>.</li>
-<li><strong>Content Store</strong>: Holds approved artifacts. Path: persistence layer.</li>
-<li><strong>Audit Log</strong>: Records findings for traceability. Path: logging system.</li>
+<li><strong>ComplianceEngine</strong> (<code>src/cas_runner/governance/compliance_engine.py</code>): Core evaluation engine that processes candidate artifacts, applies rule logic, maps violations into structured finding objects, and calculates aggregate metrics.</li>
+<li><strong>Governance Data Models</strong> (<code>src/cas_runner/governance/models.py</code>): Strongly-typed dataclass/Pydantic models representing <code>ComplianceFinding</code>, <code>ComplianceMetrics</code>, and evaluation statuses (<code>PASS</code>, <code>WARN</code>, <code>FAIL</code>).</li>
+<li><strong>Rules Repository</strong> (<code>cas-knowledge/global/rules</code>): Centralized or project-scoped codified rules, schema definitions, and fitness functions stored in version control.</li>
+<li><strong>Continuous Architecture CI Gate</strong> (<code>.github/workflows/cas-build-validation.yml</code>, <code>.github/workflows/cas-continuous-architecture.yml</code>): Continuous integration workflows that orchestrate test suites and compliance checks, blocking merge operations when critical violations occur.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li>Implementation: Python with pydantic models.</li>
-<li>Rule definition: YAML or JSON for flexibility.</li>
-<li>Alternative considered: OPA (Open Policy Agent) set aside due to complexity.</li>
-<li>Storage: Document store or versioned file system.</li>
-<li>Logging: Structured logging.</li>
+<li><strong>Evaluation Runtime</strong>: Python 3.11+ using native Abstract Syntax Tree (<code>ast</code>), regular expressions, and <code>jsonschema</code> for deterministic structural checks.</li>
+<li><strong>Data Validation &amp; Typing</strong>: Pydantic v2 and Python dataclasses for strongly-typed <code>ComplianceFinding</code> schemas, ensuring clean serialization into CI reports and JSON logs.</li>
+<li><strong>CI/CD Integration</strong>: GitHub Actions workflows executing headless runner commands against changed file paths.</li>
+<li><strong>Alternatives Set Aside</strong>:</li>
+<li><em>Open Policy Agent (OPA/Rego)</em>: Excluded to eliminate external binary dependencies and separate query syntax; native Python rules preserve tight cohesion with the <code>cas_runner</code> execution context.</li>
+<li><em>LLM-as-a-Judge</em>: Excluded as a blocking gate to eliminate non-deterministic hallucinations, latency spikes, and recurring API token costs.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Strict Gating</strong>: Block non-compliant outputs.</li>
-<li><strong>Soft Gating</strong>: Flag and allow for review.</li>
-<li><strong>Async Evaluation</strong>: Check asynchronously to reduce latency.</li>
-<li><strong>Event-driven</strong>: Trigger checks on events.</li>
-<li><strong>Rule Evolution</strong>: Versioned rules with exception overrides.</li>
+<li><strong>Strict Blocking Gate</strong>: Enforces zero-tolerance validation in pull requests; any violation with severity <code>ERROR</code> fails the build and prevents merge.</li>
+<li><strong>Advisory / Observation Mode</strong>: Rules are evaluated and findings are logged to <code>ComplianceMetrics</code> dashboards for trend analysis without failing builds, ideal for staging new rules.</li>
+<li><strong>Staged Multi-Tier Gate</strong>: Fast regex and schema validation runs locally via pre-commit hooks; complex cross-artifact semantic checks execute asynchronously in continuous integration.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Engine must be reliable; failure mode configurable (fail-open/closed).</li>
-<li><strong>Performance &amp; Latency</strong>: Fast evaluation; stateless; caching.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Low overhead.</li>
-<li><strong>Operability</strong>: Clear metrics, versioned rules, auditable logs.</li>
+<li><strong>Reliability</strong>: Fully deterministic execution ensuring that identical commits evaluated against unchanged rule sets produce identical finding reports across all developer machines and CI workers.</li>
+<li><strong>Performance &amp; Latency</strong>: Optimized rule evaluation that completes in &lt;2.0 seconds across hundreds of candidate files, avoiding developer friction during local pre-commit and CI runs.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Minimal compute footprint running directly inside existing test runners without invoking paid commercial APIs or external neural networks.</li>
+<li><strong>Operability</strong>: Emits structured machine-readable JSON artifacts and ANSI-colored CLI terminal logs with precise file locations and clear remediation instructions.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li>Hardcoded rules: leads to rigidity. Use external rule files.</li>
-<li>Ignoring findings: compliance is useless if not actionable.</li>
-<li>Complex rule syntax: maintainability issue. Keep rules simple.</li>
-<li>Unhandled engine failures: may cause false positives/negatives.</li>
-<li>Missing audit logs: loss of traceability.</li>
+<li><strong>Rule Proliferation &amp; CI Latency Degradation</strong>: Uncontrolled growth of inefficient, unindexed checks leading to degraded build throughput. <em>Remedy</em>: Audit rules quarterly, apply file-type targeting filters, and retire obsolete rules.</li>
+<li><strong>Opaque Failure Diagnostics</strong>: Reporting failures with vague messages like "Compliance failed" without line numbers or context. <em>Remedy</em>: Require all rules to populate file path, line number, rule identifier, and remediation advice in <code>ComplianceFinding</code>.</li>
+<li><strong>Rule Shadowing and Conflicts</strong>: Multiple rules enforcing contradictory invariants, resulting in unsolvable gate failures. <em>Remedy</em>: Implement static validation of rule definitions and maintain centralized rule registries.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
 <ul>
-<li>Start with a minimal rule set and integrate the engine.</li>
-<li>Use a sidecar approach for existing agents.</li>
-<li>Governance ownership: domain: governance, initiative: central-ai-governance, owner: architecture@company.com.</li>
-<li>Migration path: Phase 1: basic engine; Phase 2: metrics and alerting; Phase 3: policy-as-code integration.</li>
+<li><strong>Step 1 - Baseline Ingestion</strong>: Integrate <code>ComplianceEngine</code> and <code>models.py</code> into the repository tooling without attaching blocking CI triggers.</li>
+<li><strong>Step 2 - Advisory Calibration</strong>: Execute rules in advisory mode to collect historical metrics, fixing false positives and codifying baseline standards.</li>
+<li><strong>Step 3 - Automated Enforcement</strong>: Wire <code>cas-build-validation.yml</code> to execute compliance checks on pull requests with branch protection rules enabled.</li>
+<li><strong>Governance Ownership</strong>: Governed by the Enterprise Architecture Team under domain <code>ideas-to-life-cas</code>.</li>
 </ul>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../../../adr/adr-0001-rule-engine.md">ADR-0001: Rule engine selection</a></li>
-<li><a href="../../../patterns/governance-as-code.md">Global pattern: Governance-as-Code</a></li>
-<li><a href="../../../src/cas_runner/governance/compliance_engine.py">Compliance Engine source</a></li>
-<li><a href="../../../src/cas_runner/governance/models.py">Compliance models source</a></li>
+<li>Source Component: <code>src/cas_runner/governance/compliance_engine.py</code></li>
+<li>Data Models: <code>src/cas_runner/governance/models.py</code></li>
+<li>CI Workflow: <code>.github/workflows/cas-build-validation.yml</code></li>
+<li>Architecture Workflow: <code>.github/workflows/cas-continuous-architecture.yml</code></li>
 </ul>
 
 
@@ -3493,9 +3487,6 @@
 
 
 
-
-  
-  
 
 
 

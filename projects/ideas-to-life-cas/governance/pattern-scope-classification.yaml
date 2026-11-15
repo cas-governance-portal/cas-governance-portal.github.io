@@ -2,304 +2,578 @@ global_pattern_candidates:
 - id: provider-agnostic-llm-facade
   scope: global
   classification: core
-  evidence_summary: Multiple LLM client implementations (LiteLLMClient, MockLLMClient)
-    across the CAS codebase; consistent interface used by all agentic components.
-  rationale: Reusable across any AI/agent system that requires LLM provider abstraction
-    and deterministic testing. Decouples business logic from vendor-specific APIs,
-    a foundational architectural mechanism.
+  evidence_summary: Implemented across src/cas_runner/llm/litellm_client.py (LiteLLMClient)
+    and src/cas_runner/llm/mock_client.py (MockLLMClient) with runtime dependency
+    litellm>=1.83.14.
+  rationale: Foundational abstraction decoupling core orchestration and agent reasoning
+    from specific model providers while enabling deterministic offline testability.
   promotion_readiness: high
 - id: finite-state-governance-engine
   scope: global
   classification: core
-  evidence_summary: TransitionRegistry and GovernanceActionEngine enforce valid state
-    transitions across multiple governance artifacts; repeated throughout governance
-    modules.
-  rationale: A general pattern for constraining autonomous actions through an explicit
-    transition registry. Applicable to any system needing auditable, rule-based state
-    management.
+  evidence_summary: Implemented in src/cas_runner/governance/governance_action_engine.py
+    (TransitionRegistry, GovernanceActionEngine) and governance_action_service.py.
+  rationale: Essential guardrail bounding autonomous agent actions to an explicit
+    state transition registry to prevent illegal state mutations.
   promotion_readiness: high
-- id: rule-grounded-compliance-evaluation
+- id: sequential-pipeline-flow-runner
   scope: global
   classification: core
-  evidence_summary: ComplianceEngine evaluates rules and produces structured findings/metrics;
-    used in CI and agent pipelines.
-  rationale: Core governance mechanism for validating agent outputs against declarative
-    rules. Reusable across domains requiring automated compliance checking.
+  evidence_summary: Implemented in src/cas_runner/runner.py (FlowRunner) and src/cas_runner/cli.py
+    (main) driving linear multi-step execution flows.
+  rationale: Core execution architecture ensuring deterministic ordering and predictable
+    context propagation across agent and governance stages.
   promotion_readiness: high
-- id: declarative-steering-projection
+- id: schema-enforced-domain-contracts
   scope: global
   classification: core
-  evidence_summary: Steering models transform raw git deltas into typed PromptFact
-    and ArchitecturalDelta objects; used in multiple CI workflows.
-  rationale: Pattern for grounding LLM context in verifiable facts from repository
-    changes. Applicable to any agentic system needing to avoid hallucination and context
-    bloat.
-  promotion_readiness: medium
+  evidence_summary: Extensively implemented in src/cas_runner/governance/models.py
+    and src/cas_runner/skills/models.py using Pydantic v2 schemas.
+  rationale: Eliminates unvalidated and hallucinated LLM payloads across subsystem
+    boundaries by enforcing strict data validation schemas.
+  promotion_readiness: high
 - id: file-backed-blackboard-workspace
   scope: global
   classification: core
-  evidence_summary: CAS uses a versioned directory hierarchy (cas-knowledge) for decisions,
-    patterns, rules, and runtime state; multiple modules read/write this structure.
-  rationale: File-based knowledge repository pattern that is portable, git-friendly,
-    and auditable. Reusable across projects requiring long-term shared memory without
-    a database.
+  evidence_summary: Established directory hierarchy in cas-knowledge/ with global/,
+    projects/, runtime/, and templates/ namespaces referenced across runtime steps.
+  rationale: Foundational persistence mechanism providing human-inspectable, git-versioned
+    long-term blackboard memory for agents without external database dependencies.
   promotion_readiness: high
-- id: telemetry-grounded-health-scoring
+- id: compliance-gating
   scope: global
-  classification: supporting
-  evidence_summary: Health model calculates status from compliance findings and traceable
-    metrics; used in dashboards and CI gates.
-  rationale: Reusable pattern for aggregating heterogeneous governance/operations
-    metrics into a health status with explanatory reasons. Complements core governance
-    patterns.
-  promotion_readiness: medium
-- id: skill-packaged-agent-procedures
+  classification: core
+  evidence_summary: Implemented in src/cas_runner/governance/compliance_engine.py
+    (ComplianceEngine) producing typed ComplianceFinding and ComplianceMetrics models.
+  rationale: Foundational safety gate evaluating code and architectural deltas against
+    codified rules before changes are committed or promoted.
+  promotion_readiness: high
+- id: declarative-agent-skill-packaging
   scope: global
-  classification: supporting
-  evidence_summary: Skills defined as reusable directories across .agents and .claude,
-    with evaluation suites and CI enforcement.
-  rationale: Pattern for packaging agent capabilities as declarative, reusable, and
-    versionable skill modules. Applicable to multi-agent environments.
-  promotion_readiness: medium
-- id: bootstrap-governance-block-injection
-  scope: global
-  classification: supporting
-  evidence_summary: Bootstrap merges governance blocks into agent configuration files
-    (AGENTS.md, CLAUDE.md, etc.) idempotently.
-  rationale: Reusable pattern for injecting operational policies into agent runtimes
-    during onboarding, ensuring consistent governance across tools.
-  promotion_readiness: medium
-project_pattern_candidates:
-- id: declarative-agent-command-registry
-  scope: project
-  rationale: Command manifest structure is tightly coupled to CAS workflow definitions;
-    not yet proven reusable outside this project.
-  future_promotion_potential: medium
-- id: sequential-pipeline-flow-runner
-  scope: project
-  rationale: Orchestration pattern is implemented but could be considered general;
-    however, evidence is limited to CAS's specific step registry.
-  future_promotion_potential: low
-- id: schema-enforced-domain-contracts
-  scope: project
-  rationale: Typed Pydantic models for governance/steering are useful but tightly
-    tied to CAS domain vocabulary.
-  future_promotion_potential: medium
-- id: ci-driven-steering-projection
-  scope: project
-  rationale: Specific GitHub Actions workflow integration; not an independent reusable
-    pattern.
-  future_promotion_potential: low
-- id: capability-lineage-anchoring
-  scope: project
-  rationale: Lineage tracking is embedded in CAS knowledge model; may be generalizable
-    but lacks cross-project evidence.
-  future_promotion_potential: medium
-- id: heuristic-to-pattern-promotion-lifecycle
-  scope: project
-  rationale: Pattern evolution lifecycle is documented and supported by templates,
-    but it's specific to architectural knowledge management.
-  future_promotion_potential: medium
-- id: reconciliation-agentic-merger
-  scope: project
-  rationale: LLM-based merge resolution is emerging and only evidenced in CAS governance;
-    may be generalized later.
-  future_promotion_potential: high
+  classification: core
+  evidence_summary: Implemented across .agents/skills/ and .claude/skills/ directory
+    bundles containing standalone procedures for feature modifications, diagrams,
+    and audits.
+  rationale: Decomposes monolithic agent prompts into portable, reusable, and versioned
+    domain capability packages callable across heterogeneous AI harnesses.
+  promotion_readiness: high
 - id: deterministic-mock-evaluation-harness
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/llm/mock_client.py (MockLLMClient)
+    providing canned, deterministic responses across CI and unit test suites.
+  rationale: Provides zero-cost, network-independent test doubles to validate multi-step
+    agent flows deterministically in automated pipelines.
+  promotion_readiness: high
+- id: declarative-skill-eval-harness
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/skills/models.py and executed via
+    .github/workflows/cas-skill-evals.yml with runtime evaluation reports.
+  rationale: Enables automated regression testing of packaged agent skills against
+    declarative assertions and test cases.
+  promotion_readiness: high
+- id: independent-verifier-subagent
+  scope: global
+  classification: supporting
+  evidence_summary: Configured in .agents/subagents/verifier.md and .claude/agents/verifier.md
+    acting as a distinct verification role.
+  rationale: Separates generation from validation by introducing an adversarial check
+    step to prevent agent self-confirmation bias.
+  promotion_readiness: medium
+- id: multi-adapter-agent-telemetry
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/dashboard/agent_telemetry.py supporting
+    Claude Code, Antigravity, and generic coding agents via AgentTelemetrySpan.
+  rationale: Normalizes disparate execution traces from diverse external coding assistants
+    into standardized spans for cross-agent cost and duration analysis.
+  promotion_readiness: medium
+- id: deterministic-health-scoring
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/dashboard/health_model.py (calculate_health,
+    get_health_reasons, HealthStatus).
+  rationale: Pure functional health evaluation mapping quantitative governance metrics
+    and findings into discrete operational statuses and human-readable diagnostic
+    reasons.
+  promotion_readiness: high
+- id: workspace-governance-injection-bootstrap
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/bootstrap.py (merge_cas_governance_block,
+    init_workspace, _create_symlink_or_copy).
+  rationale: Idempotently provisions workspace directories and injects mandatory governance
+    steering blocks into developer assistant entrypoints without clobbering user configs.
+  promotion_readiness: high
+- id: grounded-prompt-fact-projection
+  scope: global
+  classification: supporting
+  evidence_summary: Implemented in src/cas_runner/steering/models.py (PromptFact,
+    SteeringRuntimeIndex, ArchitecturalDelta) and .github/workflows/cas-build-steering-projection.yml.
+  rationale: Grounds LLM prompts in verified, typed VCS deltas and capability records
+    rather than unconstrained raw diff dumps, mitigating hallucination and token bloat.
+  promotion_readiness: high
+project_pattern_candidates:
+- id: pattern-authoritative-architecture-work-registry
   scope: project
-  rationale: Mock LLM client is a test double pattern, but its packaging and usage
-    are CAS-specific.
+  rationale: Specific to CAS workflow orchestration where individual Architecture
+    Work files act as backlogs while evolution maps and intent docs are derived views.
+  future_promotion_potential: high
+- id: pattern-business-intent-traceability-pipeline
+  scope: project
+  rationale: Binds specific CAS ADR schemas and alignment reports to business drivers;
+    remains emerging within this repository's current lifecycle stage.
+  future_promotion_potential: medium
+- id: pattern-closed-loop-continuous-governance
+  scope: project
+  rationale: Tightly coupled to the continuous architecture runner loop and GitHub
+    Actions CI triggers of ideas-to-life-cas.
+  future_promotion_potential: high
+- id: pattern-multi-project-architecture-knowledge-graph
+  scope: project
+  rationale: Strategic direction for multi-project knowledge traversal within the
+    ideas-to-life portfolio; requires further multi-repo deployment evidence.
+  future_promotion_potential: high
+- id: deterministic-workflow-validation
+  scope: project
+  rationale: Validation script in specs/090-simplify-cicd-workflows/ tailored specifically
+    to GitHub Actions workflow constraints in this repository.
   future_promotion_potential: low
-- id: typed-compliance-synthesis-contract
+- id: docs-as-code-portal-projection
   scope: project
-  rationale: Schema-constrained compliance outputs are an implementation detail of
-    CAS's compliance engine.
-  future_promotion_potential: low
-- id: traceable-metric-telemetry-envelope
-  scope: project
-  rationale: Telemetry integration is useful but currently tied to CAS's governance
-    model.
+  rationale: Project-specific documentation site rendering and CNAME publishing pipeline
+    utilizing MkDocs Material and local preprocessors.
   future_promotion_potential: medium
 candidate_patterns_requiring_review:
-- id: pattern-proposal-only-steering-projection
-  rationale: Proposal-only projection is a valid idea, but evidence is limited to
-    one workflow and maturity is low.
-  evidence_gaps: No cross-project recurrence; unclear if it generalizes beyond CAS
-    CI.
-  recommended_next_step: Gather additional evidence from other projects using CAS.
-- id: telemetry-grounded-evaluations
-  rationale: OpenTelemetry integration is present but implementation details are not
-    fully evidenced.
-  evidence_gaps: Only dependency declarations and trace directory exist; no clear
-    evaluation loop evidence.
-  recommended_next_step: Document actual trace usage and metrics collection in CAS
-    workflows.
-- id: git-delta-prompt-facts
-  rationale: Steering models define RawGitDelta and PromptFact, but the extraction
-    pipeline is not explicitly verified.
-  evidence_gaps: No explicit code path converting git deltas to facts; only model
-    definitions.
-  recommended_next_step: Map the conversion logic and evaluate its determinism.
-- id: pattern-evolution-lifecycle
-  rationale: Documented but not fully operationalized; templates exist but no enforcement
-    or evidence of actual promotions.
-  evidence_gaps: No evidence of successful heuristic-to-pattern promotions.
-  recommended_next_step: Track actual promotions and refine criteria.
-- id: health-dashboard-projection
-  rationale: Health model is implemented but the dashboard integration is not fully
-    verified.
-  evidence_gaps: Only health_model.py exists; no UI or API proof.
-  recommended_next_step: Inspect dashboard routes and data flow.
-- id: runtime-execution-context-store
-  rationale: Runtime state files exist, but their role in governance is unclear.
-  evidence_gaps: No explicit consumption of execution-profile.yaml or rule-context.json
-    by agents.
-  recommended_next_step: Identify how runtime context influences agent behavior.
+- id: reconciliation-agentic-merger
+  rationale: Applies non-deterministic LLM synthesis to resolve semantic merge conflicts
+    in structured markdown and YAML files.
+  evidence_gaps: Lacks objective error-rate data, conflict resolution validation suites,
+    and rollback safety benchmarks across concurrent agent edits.
+  recommended_next_step: Implement evaluation test suites comparing AgenticMerger
+    outputs against standard 3-way git merges to measure semantic regression rates.
+- id: heuristic-to-pattern-promotion-lifecycle
+  rationale: Defines an evolutionary path promoting informal agent heuristics to verified
+    architectural patterns using standardized templates.
+  evidence_gaps: Insufficient historical instances of completed promotions transitioning
+    through heuristic -> pattern -> stable within production projects.
+  recommended_next_step: Observe pattern promotion events across at least two external
+    projects before standardizing the promotion template as a global model.
+- id: capability-lineage-anchoring
+  rationale: Tracks fine-grained provenance and functional evolution of architecture
+    capabilities via typed lineage models.
+  evidence_gaps: Models exist in steering/models.py, but longitudinal validation of
+    lineage traversal during complex multi-branch refactoring is limited.
+  recommended_next_step: Validate whether capability lineage graphs remain consistent
+    and performant after successive automated refactoring cycles.
 duplicate_overlapping_patterns:
 - patterns:
   - provider-agnostic-llm-facade
   - dual-tier-llm-gateway-abstraction
   - provider-agnostic-llm-client
   - provider-agnostic-llm-gateway
-  - dual-mode-llm-provider-abstraction
   - pluggable-llm-provider-abstraction
-  - provider-agnostic-llm-port
+  - provider-agnostic-llm-adapter
   - model-agnostic-provider-indirection
+  - dual-mode-llm-provider-abstraction
   - dual-backend-llm-abstraction
   - model-agnostic-llm-facade-with-mock-fallback
   - llm-provider-abstraction
   - llm-provider-client-abstraction
   - llm-provider-adapter
+  - mock-llm-for-testing
+  - deterministic-mock-client
   - llm-provider-abstraction-with-mock
   - pluggable-llm-provider
+  - mock-llm-deterministic-eval
+  - provider-agnostic-llm-port
+  - provider-abstraction-with-mock-parity
+  - mock-llm-deterministic-testing
+  - mock-llm-testing
+  - swappable-client-adapter
+  - client-adapter-test-double
+  - pluggable-adapter-client
+  - swappable-provider-adapter
+  - pluggable-infrastructure-client-adapter
+  - pluggable-provider-adapter
+  - adapter-based-client-substitution
   - provider-client-adapter
   - llm-provider-adapter-port
-  recommended_action: 'Merge into a single canonical pattern: ''Provider-Agnostic
-    LLM Client with Mock Parity''.'
-  rationale: All describe the same abstraction pattern for LLM access with a deterministic
-    mock implementation. Duplicates cause governance fragmentation.
+  - llm-provider-adapter-boundary
+  - provider-adapter-strategy
+  - external-client-adapter
+  - llm-client-adaptor-pattern
+  - llm-client-abstraction-interface
+  - strategy-pattern-for-llm-clients
+  - adapter-pattern-for-external-dependencies
+  - adapter-pattern-for-external-integrations
+  - llm-client-abstraction-adapter
+  - llm-client-adapter-interface
+  - llm-client-strategy
+  - llm-provider-strategy
+  - mock-object-for-external-dependency
+  - llm-client-adapter-pattern
+  - llm-client-strategy-pattern
+  - llm-client-strategy-adapter
+  - llm-client-abstraction-strategy
+  - llm-client-abstraction
+  - pluggable-llm-client-abstraction
+  - pluggable-client-strategy
+  recommended_action: Consolidate under 'provider-agnostic-llm-facade' (core) and
+    'deterministic-mock-evaluation-harness' (supporting).
+  rationale: Over 50 proposed patterns describe the identical implementation in src/cas_runner/llm/
+    (LiteLLMClient and MockLLMClient). Consolidating into production client and mock
+    double patterns eliminates extensive duplication.
 - patterns:
   - finite-state-governance-engine
   - finite-state-governance-action-engine
   - state-machine-governance-guardrail
+  - registry-guarded-governance-state-machine
+  - finite-transition-governance-guardrail
   - state-machine-constrained-action-engine
   - stateful-transition-registry
+  - declarative-state-machine-governance
   - explicit-governance-transition-registry
   - transition-registry-governance-actions
   - governance-action-state-machine
+  - governance-state-machine
+  - governance-action-transition
+  - state-transition-registry
+  - transition-registry-governed-state
+  - governance-transition-registry
+  - governance-state-transitions
+  - transition-based-governance-actions
+  - controlled-transition-registry
+  - governance-action-transition-registry
+  - governance-state-transition-registry
   - transition-registry-bounded-autonomy
-  - declarative-state-machine-governance
-  recommended_action: Consolidate into a single 'Transition Registry Governance Action
-    Engine' pattern.
-  rationale: All describe the same state machine enforcement mechanism for governance
-    actions.
-- patterns:
-  - rule-grounded-compliance-evaluation
-  - declarative-compliance-findings-aggregation
-  - typed-compliance-synthesis-contract
-  - evidence-grounded-compliance-scoring
-  - compliance-guardrail-filtering
-  - declarative-schema-enforced-compliance
-  - compliance-guardrail
-  - compliance-gate
-  - compliance-engine-guardrail
-  - compliance-engine-rule-validation
-  recommended_action: Unify under 'Compliance Evaluation Engine'.
-  rationale: All focus on rule-based evaluation of agent outputs with structured findings.
-- patterns:
-  - telemetry-grounded-health-scoring
-  - telemetry-grounded-health-observability
-  - health-model-observability-guardrail
-  - compliance-driven-health-scoring
-  - health-dashboard-aggregation
-  - health-metric-aggregation
-  - health-scoring-governance
-  recommended_action: Merge into 'Governance Health Scoring from Telemetry'.
-  rationale: All describe aggregation of metrics into health status.
-- patterns:
-  - declarative-steering-projection
-  - steering-fact-projection
-  - git-delta-prompt-fact-projection
-  - delta-driven-prompt-fact-projection
-  - structured-fact-projection-indexing
-  - prompt-fact-projection
-  - steering-context-projection
-  - steering-projection-fact-synthesis
-  - grounded-prompt-fact-projection
-  - evidence-derived-steering-facts
-  recommended_action: Collapse into 'Git Delta to Prompt Fact Projection'.
-  rationale: All focus on converting repository changes into typed facts for agent
-    context.
-- patterns:
-  - file-backed-blackboard-workspace
-  - file-backed-agentic-knowledge-repository
-  - file-backed-blackboard-knowledge-base
-  - git-backed-knowledge-blackboard
-  - knowledge-blackboard
-  - persistent-governance-blackboard
-  - knowledge-base-as-memory
-  - knowledge-blackboard-memory
-  recommended_action: Merge into 'File-Backed Knowledge Blackboard'.
-  rationale: All share the concept of using a versioned file tree as persistent agent
-    memory.
-- patterns:
-  - bootstrap-governance-block-injection
-  - bootstrap-workspace-injection
-  - bootstrap-governance-merge
-  - bootstrap-workspace-merge
-  - bootstrap-workspace-setup
-  - workspace-bootstrap
-  - bootstrap-workspace-initialization
-  recommended_action: Unify into 'Governance Block Bootstrap Injection'.
-  rationale: All describe injecting governance blocks into agent configurations during
-    workspace initialization.
-- patterns:
-  - skill-packaged-agent-procedures
-  - skill-packaged-capability
-  - skill-based-capability-packaging
-  - portable-skill-packaging
-  - declarative-skill-packages
-  - skill-capability-packages
-  - modular-skill-capabilities
-  recommended_action: Consolidate into 'Declarative Skill Packaging'.
-  rationale: All describe packaging agent capabilities as reusable skill directories.
-- patterns:
-  - telemetry-observable-agent-steps
-  - telemetry-grounded-traceability
-  - telemetry-grounded-runtime-tracing
-  - traceable-metric-telemetry-envelope
-  - traceable-metric-telemetry
-  recommended_action: Merge into 'Traceable Telemetry for Agent Execution'.
-  rationale: All focus on OpenTelemetry instrumentation and traceability of agent
-    steps.
+  - transition-registry-state-machine
+  - declarative-transition-registry
+  - transition-registry-governance-state-machine
+  recommended_action: Consolidate into 'finite-state-governance-engine'.
+  rationale: All entries represent the TransitionRegistry and GovernanceActionEngine
+    pattern in src/cas_runner/governance/governance_action_engine.py.
 - patterns:
   - sequential-pipeline-flow-runner
   - sequential-pipeline-context-propagation
-  - sequential-pipeline-orchestration
-  - sequential-flow-pipeline-runner
-  - sequential-flow-orchestration-pipeline
   - centralized-flow-runner-orchestration
-  recommended_action: Unify into 'Sequential Pipeline with Shared Context'.
-  rationale: All describe executing a deterministic sequence of steps with shared
-    mutable context.
+  - sequential-pipeline-orchestration
+  - sequential-pipeline-orchestrator
+  - sequential-flow-orchestration-pipeline
+  - declarative-pipeline-flow-runner
+  - centralized-flow-runner-pipeline
+  - centralised-flow-runner-pipeline
+  - flow-runner-sequence
+  - sequential-pipeline-shared-context
+  - centralised-flow-orchestrator
+  - central-pipeline-orchestration
+  - sequential-flow-runner
+  - shared-context-pipeline
+  - sequential-pipeline-context
+  - flow-runner-context-pipeline
+  - flow-runner-context-propagation
+  - pipeline-execution-with-shared-context
+  - shared-blackboard-execution-context
+  - shared-context-sequential-pipeline
+  - flow-sequential-pipeline
+  - flow-runner-pipeline
+  - flow-runner-sequential-pipeline
+  - sequential-flow-pipeline
+  - sequential-flow-context-propagation
+  - pipeline-execution
+  - orchestrated-runner-pipeline
+  - pipeline-context-orchestration
+  - sequential-governance-flow-runner
+  - flow-runner-application-orchestration
+  - flow-runner-orchestration
+  - thin-cli-runner-application
+  recommended_action: Consolidate into 'sequential-pipeline-flow-runner'.
+  rationale: Dozens of redundant entries all point to FlowRunner in src/cas_runner/runner.py
+    orchestrating sequential steps with a shared context object.
+- patterns:
+  - file-backed-blackboard-workspace
+  - file-backed-agentic-knowledge-repository
+  - git-backed-knowledge-blackboard
+  - knowledge-as-code-blackboard
+  - file-backed-blackboard-knowledge-base
+  - knowledge-blackboard-templates
+  - persistent-knowledge-store
+  - evidence-first-persistent-memory
+  - persistent-knowledge-base
+  - persistent-knowledge-base-memory
+  - evidence-driven-knowledge-blackboard
+  - persistent-governance-blackboard
+  - persistent-knowledge-blackboard
+  - knowledge-base-memory
+  - knowledge-blackboard
+  - knowledge-base-as-memory
+  - evidence-first-knowledge-memory
+  - evidence-driven-knowledge-memory
+  - knowledge-base-blackboard
+  - file-system-knowledge-repository
+  - file-backed-knowledge-repository
+  - hierarchical-file-backed-knowledge-store
+  - file-backed-hierarchical-knowledge-repository
+  - declarative-hierarchical-knowledge-store
+  - hierarchical-filesystem-knowledge-repository
+  - hierarchical-file-system-knowledge-store
+  - file-based-repository-persistence
+  - file-based-knowledge-base-layout
+  - knowledge-base-artifact-folder-contract
+  - knowledge-directory-hierarchy
+  - knowledge-artifact-repository-structure
+  - knowledge-directory-layout
+  - filesystem-as-knowledge-store
+  - knowledge-base-convention-directory
+  - file-system-backed-runtime-state
+  - knowledge-folder-structure
+  - hierarchical-knowledge-repository-structure
+  recommended_action: Consolidate into 'file-backed-blackboard-workspace'.
+  rationale: All entries describe the Git-managed directory tree in cas-knowledge/
+    functioning as a persistent blackboard memory structure.
+- patterns:
+  - rule-grounded-compliance-evaluation
+  - declarative-compliance-findings-aggregation
+  - two-tier-compliance-guardrails
+  - compliance-guardrail-filtering
+  - declarative-schema-enforced-compliance
+  - evidence-grounded-compliance-scoring
+  - compliance-finding-guardrail
+  - compliance-evaluation-guardrail
+  - compliance-engine-guardrails
+  - compliance-gating
+  - compliance-gate
+  - governance-backed-validation-gate
+  - governance-compliance-guardrail
+  - compliance-engine-guardrail
+  - rule-based-compliance-guardrail
+  - governance-compliance-gate
+  - compliance-evaluation-gate
+  - governance-compliance-engine
+  - compliance-guardrail-engine
+  - compliance-gatekeeper
+  - compliance-rule-engine
+  - compliance-engine
+  - compliance-engine-strategy
+  - compliance-engine-rule-checking
+  - compliance-engine-centralized-checker
+  - compliance-engine-rule-validation
+  - compliance-engine-dedicated-checker
+  - policy-compliance-engine
+  - compliance-engine-validation
+  - compliance-engine-findings-pipeline
+  - compliance-engine-validator
+  - compliance-engine-rule-evaluation
+  - compliance-engine-dedicated-validator
+  recommended_action: Consolidate into 'compliance-gating'.
+  rationale: Entries repeatedly re-propose the ComplianceEngine evaluator and its
+    emission of structured ComplianceFinding records.
+- patterns:
+  - telemetry-grounded-health-scoring
+  - compliance-driven-health-scoring
+  - health-model-observability-guardrail
+  - telemetry-grounded-health-observability
+  - traceable-health-metrics
+  - explainable-governance-health-model
+  - health-monitor-derived
+  - health-dashboard-aggregation
+  - system-health-model
+  - health-metric-aggregation
+  - health-evaluation-metric
+  - health-scoring-governance
+  - health-and-risk-monitoring
+  - health-observability
+  - health-dashboard-monitoring
+  - self-reported-health-observability
+  - health-observability-feedback
+  - traceable-governance-metrics
+  - system-health-dashboard
+  - health-dashboard-projection
+  - governance-health-monitoring
+  - deterministic-health-scoring
+  - derived-health-signal
+  - health-metrics-computation
+  - pure-functional-health-evaluation
+  - declarative-health-scoring-pipeline
+  - pure-functional-metric-evaluation
+  - pure-health-evaluation-pipeline
+  - rule-driven-health-evaluation-model
+  - derived-health-status-dashboard
+  - health-status-domain-calculation
+  - health-assessment-model
+  - health-score-aggregation
+  - health-calculation-model
+  - health-model-monitoring
+  - health-model-calculation
+  - health-model-derived-value
+  - health-calculation-strategy
+  - health-calculation-function
+  - health-status-calculation
+  - pure-function-health-calculation
+  - composite-health-calculation
+  - health-dashboard-metrics
+  - health-metric-value-object
+  - pure-health-calculation-model
+  - health-metric-calculation
+  - pure-function-health-metric
+  recommended_action: Consolidate into 'deterministic-health-scoring'.
+  rationale: Dozens of variations represent the pure functions in src/cas_runner/dashboard/health_model.py
+    calculating HealthStatus and diagnostic reasons.
+- patterns:
+  - deterministic-governance-injection-bootstrap
+  - steering-block-workspace-bootstrapping
+  - bootstrap-governance-block-injection
+  - bootstrap-workspace-injection
+  - workspace-governance-injection-bootstrap
+  - bootstrap-governance-merge
+  - bootstrap-governed-agent-workspace
+  - workspace-bootstrap
+  - workspace-bootstrap-merge
+  - idempotent-config-merge
+  - bootstrap-workspace-initialisation
+  - agentic-bootstrap-merge
+  - governance-block-injection
+  - shared-state-and-resource-sync
+  - workspace-bootstrap-provisioning
+  - bootstrap-governance-injection
+  - multiprovider-config-generation
+  - bootstrap-config-sync
+  - multi-runtime-config-sync
+  - bootstrap-workspace-setup
+  - bootstrap-workspace-governance-injection
+  - governance-instruction-projection
+  - idempotent-workspace-bootstrap
+  - multi-runtime-agent-parity
+  - agent-workspace-bootstrap
+  - config-sync-across-agents
+  - workspace-bootstrap-template-injection
+  - workspace-bootstrapping-scaffolding
+  - idempotent-workspace-bootstrap-merger
+  - declarative-template-bootstrapping
+  - workspace-bootstrap-initializer
+  - bootstrap-workspace-init
+  - bootstrap-workspace-initialization
+  - factory-method-bootstrap
+  - bootstrap-initialization-script
+  - configuration-merging-heuristic
+  - configuration-block-merging
+  - bootstrap-initialization-and-config-merge
+  - configuration-driven-workspace-setup
+  - bootstrap-configuration-merging
+  - configuration-merge-bootstrap
+  - workspace-initialization-setup
+  - bootstrap-initialization-pipeline
+  - bootstrap-configuration-setup
+  - bootstrap-init-workspace
+  - idempotent-workspace-bootstrap-merging
+  - bootstrap-initialization
+  - workspace-bootstrap-merge-copy
+  - governance-block-merge-bootstrap
+  - idempotent-symlink-scaffolding-bootstrap
+  recommended_action: Consolidate into 'workspace-governance-injection-bootstrap'.
+  rationale: All entries reflect the workspace setup, configuration merge, and symlink
+    routines defined in src/cas_runner/bootstrap.py.
+- patterns:
+  - declarative-agent-command-registry
+  - skill-packaged-agent-procedures
+  - skill-capability-packages
+  - skill-packaged-agent-capabilities
+  - declarative-agent-skill-packaging
+  - skill-packaged-capability
+  - portable-skill-packaging
+  - declarative-skill-packs
+  - skill-based-capability-packaging
+  - skill-module-capabilities
+  - skill-based-agent-capabilities
+  - skill-encapsulation
+  - skill-capability-injection
+  - declarative-skill-packages
+  recommended_action: Consolidate into 'declarative-agent-skill-packaging'.
+  rationale: All variations reflect packaging agent capabilities into discrete skill
+    directories across .agents/skills/ and .claude/skills/.
+- patterns:
+  - skill-evaluation-suites
+  - skill-eval-suite
+  - skill-evaluation-harness
+  - skill-eval-suites
+  - skill-evaluation-suite
+  - evaluatable-skill-suite
+  - declarative-skill-eval-harness
+  - assertion-based-skill-evals
+  - skill-evaluation-framework
+  - skill-eval-typed-report-models
+  - skill-evaluation-suite-modeling
+  recommended_action: Consolidate into 'declarative-skill-eval-harness'.
+  rationale: Reflects the typed evaluation models in src/cas_runner/skills/models.py
+    and the CI workflow .github/workflows/cas-skill-evals.yml.
+- patterns:
+  - dedicated-verifier-subagent
+  - verifier-subagent
+  - independent-verifier-agent
+  - dedicated-verifier-agent
+  - verifier-agent
+  - capability-role-separation
+  - verifier-subagent-delegation
+  - verifier-guardrail-agent
+  - verifier-agent-quality-gate
+  - verification-subagent
+  - independent-verifier-subagent
+  recommended_action: Consolidate into 'independent-verifier-subagent'.
+  rationale: Reflects the dedicated verifier subagent role definition in .agents/subagents/verifier.md
+    and .claude/agents/verifier.md.
+- patterns:
+  - telemetry-adapter-normalization
+  - telemetry-adapter-stack
+  - multi-adapter-agent-telemetry
+  - adapter-based-telemetry-normalization
+  recommended_action: Consolidate into 'multi-adapter-agent-telemetry'.
+  rationale: Represents the adapter classes in src/cas_runner/dashboard/agent_telemetry.py
+    normalizing traces from disparate coding agents.
+- patterns:
+  - declarative-steering-projection
+  - git-delta-prompt-fact-projection
+  - steering-fact-projection
+  - delta-driven-prompt-fact-projection
+  - grounded-prompt-fact-projection
+  - steering-context-projection
+  - prompt-fact-projection
+  - steering-projection-fact-synthesis
+  - steering-runtime-projection
+  - git-delta-prompt-facts
+  - evidence-derived-steering-facts
+  - steering-evidence-index
+  - prompt-fact-contract
+  - git-delta-steering
+  - prompt-fact-extraction
+  - structured-steering-context
+  - prompt-fact-runtime-index
+  - git-delta-as-evidence
+  - steering-rule-projection
+  recommended_action: Consolidate into 'grounded-prompt-fact-projection'.
+  rationale: Reflects transforming git deltas and capabilities into typed PromptFact
+    models to steer agent context.
 promotion_recommendations:
   immediate_candidates:
   - provider-agnostic-llm-facade
   - finite-state-governance-engine
-  - rule-grounded-compliance-evaluation
+  - sequential-pipeline-flow-runner
+  - schema-enforced-domain-contracts
   - file-backed-blackboard-workspace
-  - declarative-steering-projection
+  - compliance-gating
+  - declarative-agent-skill-packaging
+  - deterministic-mock-evaluation-harness
+  - declarative-skill-eval-harness
+  - deterministic-health-scoring
+  - workspace-governance-injection-bootstrap
+  - grounded-prompt-fact-projection
   deferred_candidates:
-  - telemetry-grounded-health-scoring
-  - skill-packaged-agent-procedures
-  - bootstrap-governance-block-injection
+  - independent-verifier-subagent
+  - multi-adapter-agent-telemetry
+  - pattern-authoritative-architecture-work-registry
+  - pattern-closed-loop-continuous-governance
+  - pattern-multi-project-architecture-knowledge-graph
   additional_evidence_required:
   - reconciliation-agentic-merger
   - heuristic-to-pattern-promotion-lifecycle
   - capability-lineage-anchoring
-  - pattern-proposal-only-steering-projection
-  - telemetry-grounded-evaluations
-  - git-delta-prompt-facts
-  - pattern-evolution-lifecycle
-  - health-dashboard-projection
-  - runtime-execution-context-store

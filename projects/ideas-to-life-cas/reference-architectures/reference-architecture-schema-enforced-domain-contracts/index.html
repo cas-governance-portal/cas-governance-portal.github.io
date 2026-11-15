@@ -3312,45 +3312,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pydantic-domain-models" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pydantic Domain Models
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#compliance-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compliance Engine
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#downstream-consumers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Downstream Consumers
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3361,6 +3322,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Technology choices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-technologies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Technologies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternatives-considered-and-set-aside" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives Considered and Set Aside
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3384,56 +3373,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Non-functional characteristics">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#reliability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reliability
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#performance-latency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance &amp; Latency
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cost-efficiency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cost &amp; Efficiency
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#operability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operability
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3455,6 +3394,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Adoption guidance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governance-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governance Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3488,86 +3455,99 @@
 
 <h1 id="reference-architecture-schema-enforced-domain-contracts">Reference Architecture: Schema-Enforced Domain Contracts</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
+<p>The Schema-Enforced Domain Contracts pattern establishes explicit, strongly typed boundary contracts for all domain entities, state mutations, and intelligence payloads exchanged between autonomous agents and core application services.</p>
 <h3 id="when-to-use-this">When to use this</h3>
-<p>Use this pattern when LLM-generated outputs or agentic processes can produce malformed, incomplete, or hallucinated data structures, and when downstream consumers (visualization, health scoring, compliance) rely on strongly-typed inputs. It is particularly valuable in multi-agent pipelines where unvalidated data can propagate errors and make systems non-deterministic.</p>
+<ul>
+<li>When integrating Large Language Models (LLMs) or autonomous agent routines whose outputs are non-deterministic, partially structured, or prone to hallucinated attributes.</li>
+<li>At subsystem and module boundaries where state persistence, compliance evaluation, or visualization requires guaranteed type safety and structural integrity.</li>
+<li>In distributed multi-agent workflows where structured action payloads (e.g., governance remediation actions, compliance findings) trigger state modifications.</li>
+<li>When automated validation feedback is required to guide agent self-correction loops on schema mismatches.</li>
+</ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
-<p>Avoid this pattern in low-stakes, read-only contexts where validation overhead is unnecessary, or where schemas change rapidly and the burden of maintaining contracts outweighs the benefit. It is also not recommended for purely free-text or unstructured outputs that do not feed into state changes or governance.</p>
+<ul>
+<li>For simple, free-form conversational interfaces or streaming text responses where structured downstream processing is not performed.</li>
+<li>In early exploratory prototyping where domain data structures change on every invocation and contract overhead slows proof-of-concept discovery.</li>
+<li>For homogeneous internal helper functions within a single tightly coupled module where standard Python type hints suffice.</li>
+</ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    agent["Agent Output (External System)"]
-    validator["Validation Layer (Container)"]
-    contracts[("Domain Contracts (Data store)")]
-    compliance["Compliance Engine (Container)"]
-    visualizer["Visualizer (Container)"]
-    health["Health Calculator (Container)"]
+    subgraph CAS["CAS Runner Subsystem"]
+        agent["Agent Runner (Container)"]
+        validator["Contract Validator (Container)"]
+        store[("Domain State Store (Store)")]
+        engine["Compliance Engine (Container)"]
+    end
+    llm["External LLM Provider (External System)"]
 
-    agent --&gt;|"1. Raw Output"| validator
-    validator --&gt;|"2. Validate Against"| contracts
-    validator --&gt;|"3. Validated Object"| compliance
-    compliance --&gt;|"4. Governance Results"| visualizer
-    compliance --&gt;|"5. Health Metrics"| health
+    agent --&gt;|1. Prompt Request| llm
+    llm --&gt;|2. Raw JSON Generation| agent
+    agent --&gt;|3. Evaluate Payload| validator
+    validator --&gt;|4. Persist Validated State| store
+    store --&gt;|5. Read Typed Entities| engine
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class agent external
-    class validator,compliance,visualizer,health container
-    class contracts store</code></pre>
+    class agent,validator,engine container
+    class store store
+    class llm external</code></pre>
 <h2 id="components">Components</h2>
-<h3 id="pydantic-domain-models">Pydantic Domain Models</h3>
-<p>Path: <code>src/cas_runner/governance/models.py</code>
-Responsibility: Define the canonical, typed contracts for all governance entities—<code>GovernanceInventory</code>, <code>ComplianceFinding</code>, <code>GovernanceHealth</code>, <code>GovernanceRisks</code>, and <code>GovernanceAction</code>—ensuring a single source of truth for valid data shapes.</p>
-<h3 id="compliance-engine">Compliance Engine</h3>
-<p>Path: <code>src/cas_runner/governance/engine.py</code> (inferred)
-Responsibility: Accepts raw payloads from agent pipelines, validates them against the Pydantic models, and either coerces or rejects invalid data before it reaches downstream consumers.</p>
-<h3 id="downstream-consumers">Downstream Consumers</h3>
-<p>Path: <code>src/cas_runner/visualization/</code>, <code>src/cas_runner/health/</code> (inferred)
-Responsibility: Receive validated domain models and produce governance dashboards, compliance reports, and health metrics without worrying about malformed input.</p>
-<h2 id="technology-choices">Technology choices</h2>
 <ul>
-<li><strong>Pydantic v2</strong>: Core validation and serialization framework. Selected for its ergonomic model definitions, runtime validation, and JSON Schema generation.</li>
-<li><strong>JSON Schema</strong>: Used for external contract definition and as an interchange format when integrating with non-Python services.</li>
-<li><strong>Python 3.11+</strong>: Required for modern typing and Pydantic v2 features.</li>
-<li><em>Alternatives considered</em>: Marshmallow (less typed-native), <code>dataclasses</code> (no validation), and custom validator functions (fragile and non-uniform). Pydantic was chosen for its active ecosystem and alignment with type hints.</li>
+<li><strong>Contract Validator</strong> (<code>src/cas_runner/governance/models.py</code>, <code>src/cas_runner/skills/models.py</code>): Executes declarative runtime schema validation, type coercion, field constraints, and structural invariant checks on incoming agent payloads.</li>
+<li><strong>Agent Runner</strong> (<code>src/cas_runner/skills/models.py</code>): Orchestrates prompt execution with external LLM providers and channels raw JSON completion output to the validator before executing side-effects.</li>
+<li><strong>Compliance Engine</strong> (<code>src/cas_runner/governance/</code>): Consumes verified domain models (e.g., <code>GovernanceInventory</code>, <code>ComplianceFinding</code>) to calculate governance health scores and risk profiles without defensive parsing.</li>
+<li><strong>Domain State Store</strong> (<code>data/</code> or persistent storage): Persists serialized validated models to filesystem or database storage, ensuring state history contains only valid schema instances.</li>
+</ul>
+<h2 id="technology-choices">Technology choices</h2>
+<h3 id="recommended-technologies">Recommended Technologies</h3>
+<ul>
+<li><strong>Pydantic v2</strong>: Selected as the core contract engine due to its compiled Rust-based validation core (<code>pydantic-core</code>), high throughput, native support for JSON Schema generation, and ergonomic dataclass-like syntax.</li>
+<li><strong>JSON Schema Draft 2020-12 / Draft-07</strong>: Used for provider-agnostic function calling and tool definition schemas sent directly to LLM prompt APIs.</li>
+</ul>
+<h3 id="alternatives-considered-and-set-aside">Alternatives Considered and Set Aside</h3>
+<ul>
+<li><strong>Marshmallow</strong>: Set aside due to slower Python-based validation overhead, lack of native typing integration, and more verbose schema declarations.</li>
+<li><strong>Raw Python Dataclasses with jsonschema</strong>: Set aside due to fragmented serialization/deserialization logic and boilerplate parsing code.</li>
+<li><strong>Protocol Buffers / gRPC</strong>: Set aside because the agent orchestration stack is Python-centric, text/JSON-driven at the LLM boundary, and does not require binary transport serialization.</li>
 </ul>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Strict validation</strong>: All fields are required and validated; failures raise exceptions. Useful for safety‑critical governance actions.</li>
-<li><strong>Coercive validation</strong>: Use Pydantic’s <code>model_validate</code> with coercion enabled to tolerate minor type mismatches.</li>
-<li><strong>Partial validation</strong>: Allow optional fields with <code>Partial</code>-style models when only subsets of data are available.</li>
-<li><strong>Schema versioning</strong>: Enforce versioned contracts to handle evolution without breaking consumers.</li>
+<li><strong>Strict Reject (Fail-Fast)</strong>: The pipeline immediately halts execution upon validation failure, logging schema errors and discarding the agent payload. Used for deterministic batch processing and automated gatekeeping.</li>
+<li><strong>Agentic Self-Correction Loop</strong>: When validation fails, the Pydantic error details (<code>loc</code>, <code>msg</code>, <code>type</code>) are formatted into a remedial prompt and sent back to the LLM provider for a localized retry (up to N attempts) before failure.</li>
+<li><strong>Versioned Schema Pipeline</strong>: Dual-model architecture supporting legacy and current domain schemas (e.g., <code>v1.ComplianceFinding</code> and <code>v2.ComplianceFinding</code>) with migration adapters for rolling state upgrades.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
-<h3 id="reliability">Reliability</h3>
 <ul>
-<li><strong>High</strong>: Inconsistent payloads are eliminated before downstream effects. Governance results are deterministic and auditable.</li>
-</ul>
-<h3 id="performance-latency">Performance &amp; Latency</h3>
-<ul>
-<li><strong>Low overhead</strong>: Pydantic validation is fast (microseconds per object). For large batches, validation can be parallelized, but typical governance pipeline latency is negligible.</li>
-</ul>
-<h3 id="cost-efficiency">Cost &amp; Efficiency</h3>
-<ul>
-<li><strong>Minimal incremental cost</strong>: No extra infrastructure; runtime costs are negligible.</li>
-</ul>
-<h3 id="operability">Operability</h3>
-<ul>
-<li><strong>Clear error messages</strong>: Validation errors are structured and loggable. Schema changes require coordinated deployment across consumers and producers.</li>
+<li><strong>Reliability</strong>: Guarantees complete domain isolation from malformed payloads, preventing catastrophic failure or unhandled exceptions deep in business logic.</li>
+<li><strong>Performance &amp; Latency</strong>: Validation overhead is negligible (&lt; 1ms) utilizing Pydantic v2's Rust implementation, representing &lt; 0.1% of the round-trip latency of typical LLM calls.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Early rejection of invalid structures halts invalid downstream execution cascades, saving inference tokens, database I/O, and unnecessary compute.</li>
+<li><strong>Operability</strong>: Generates explicit, structured error trajectories detailing the exact JSON path and constraint violation, simplifying root-cause debugging.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Over-engineering</strong>: Defining schemas for every internal message even where no contract is needed. <em>Remedy</em>: Apply only to external boundaries and state-changing actions.</li>
-<li><strong>Duplicated contracts</strong>: Identical models defined in multiple modules causing drift. <em>Remedy</em>: Centralize in a shared <code>models.py</code> and reference from all modules.</li>
-<li><strong>Catch‑all “Any” types</strong>: Falling back to <code>Any</code> or dicts defeats the purpose. <em>Remedy</em>: Enforce strict typing in code reviews.</li>
-<li><strong>Ignoring schema migration</strong>: Adding fields can break existing consumers. <em>Remedy</em>: Use versioned schemas and deprecation policies.</li>
+<li><strong>Permissive Dictionary Escapes</strong>: Declaring critical payload fields as <code>Dict[str, Any]</code> or <code>typing.Any</code> to bypass schema rigidity. <em>Remedy</em>: Model all domain fields explicitly, using discriminated unions or generic parameterized models where polymorphism is required.</li>
+<li><strong>Post-Persistence Validation</strong>: Storing raw agent output in a database and validating it when read by downstream consumers. <em>Remedy</em>: Enforce validation at the gateway ingestion point prior to state commitment or side-effect execution.</li>
+<li><strong>Unversioned Schema Drift</strong>: Modifying field names or constraints in consumer models without updating upstream prompt schemas, causing systematic validation failures. <em>Remedy</em>: Generate prompt schema definitions dynamically from the source-of-truth Pydantic models using <code>model_json_schema()</code>.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<p>Start by centralizing existing Pydantic models into a single package (e.g., <code>governance/models.py</code>). Add a compliance engine as a mandatory validation gate for all agent outputs that touch repository state. Gradually migrate downstream consumers to rely solely on validated models. Governance ownership: <code>domain_id</code>: <code>ideas-to-life-cas</code>, <code>initiative_id</code>: <code>governance-patterns</code>, owner: <code>architecture@example.com</code>.</p>
+<h3 id="migration-path">Migration Path</h3>
+<ol>
+<li>Identify unstructured boundary dictionaries in existing agent runtimes (<code>src/cas_runner/skills/</code> and <code>src/cas_runner/governance/</code>).</li>
+<li>Define strict Pydantic v2 models representing the domain entities with concrete validations and field constraints.</li>
+<li>Integrate <code>model_validate_json()</code> or <code>model_validate()</code> calls at the extraction layer immediately after LLM execution.</li>
+<li>Refactor downstream components to accept strongly typed instances instead of generic dicts.</li>
+</ol>
+<h3 id="governance-ownership">Governance Ownership</h3>
+<ul>
+<li><strong>Domain</strong>: Intelligence &amp; Governance Infrastructure</li>
+<li><strong>Initiative</strong>: CAS Runner Robustness &amp; Enterprise Alignment</li>
+<li><strong>Owner</strong>: Core CAS Architecture Group</li>
+</ul>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-0012: Adopt Pydantic for Structural Validation</li>
+<li>ADR: Structured Domain Contracts for Autonomous Agent Workflows</li>
 <li>Source: <code>src/cas_runner/governance/models.py</code></li>
-<li>Global pattern: <code>typed-domain-contracts</code> (see pattern catalogue)</li>
+<li>Source: <code>src/cas_runner/skills/models.py</code></li>
 </ul>
 
 

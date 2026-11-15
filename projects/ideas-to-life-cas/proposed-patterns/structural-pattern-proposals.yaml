@@ -1,41 +1,40 @@
 pattern_proposals:
 - pattern_id: pydantic-domain-entity-modeling
-  name: Pydantic Domain Entity Modeling
+  name: Pydantic Domain Entity and Metric Modeling
   pattern_classification: architectural
-  pattern_maturity: emerging
+  pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-14'
+    date: '2026-11-15'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/models.py (GovernanceInventory, GovernanceHealth,
-      ComplianceFinding, TraceableMetric) - Rich domain model set
-    - src/cas_runner/skills/models.py (SkillEvalSuite, SkillEvalCase, SkillEvalResult)
-      - Evaluation-oriented domain structures
-    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health) -
-      Health model and computation
-  description: Domain entities for governance, health, and skill evaluation are modeled
-    as Pydantic v2 classes, providing validation, serialization, and schema adherence.
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, GovernanceThroughput, GovernanceRisks, ComplianceFinding,
+      ComplianceMetrics, GovernanceException, GovernanceAction) - Complete domain
+      aggregate and value object definitions modeling architecture governance metrics
+      and actions.
+  description: Encapsulates governance artifacts, compliance findings, and traceable
+    metrics into strongly-typed Pydantic domain models with built-in runtime validation.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Create type-safe, reusable domain representations that can be persisted
-    and exchanged via JSON/YAML.'
-  - 'Context: The system tracks governance inventory, compliance findings, health
-    metrics, and skill eval results. These need to be validated, serialized, and processed
-    consistently.'
-  - 'Force: Need for robust input validation'
-  - 'Force: JSON/YAML marshalling'
-  - 'Force: Typed access across subsystems'
+  - 'Intent: Ensure schema integrity, strong typing, and deterministic serialization
+    across governance checks and health aggregation.'
+  - 'Context: The system processes governance inventories, architectural decisions,
+    and compliance findings across local file structures and CI pipelines.'
+  - 'Force: Data ingested from heterogeneous Markdown and YAML files can be malformed
+    or incomplete.'
+  - 'Force: Downstream metrics calculations need guaranteed typed attributes without
+    pervasive defensive checks.'
   evidence_strength: high
   confidence: high
 - pattern_id: transition-registry-state-machine
-  name: Transition-Registry-State-Machine
+  name: Transition Registry State Machine
   pattern_classification: architectural
   pattern_maturity: emerging
   knowledgeType: signal
@@ -47,21 +46,22 @@ pattern_proposals:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry) -
-      Registry for valid governance action transitions.
-  description: A registry that maps valid state transitions for governance actions,
-    enforcing state integrity.
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Registry defining allowed governance transitions executed by the action engine.
+  description: Decouples state transition declarations from execution logic using
+    a centralized TransitionRegistry consumed by an action execution engine.
   pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Centralize and validate possible transitions between states (e.g., draft
-    -> approved) to prevent invalid flows.'
-  - 'Context: Governance actions undergo lifecycle changes; manual checks would lead
-    to inconsistencies.'
-  - 'Force: Need for consistent workflow'
-  - 'Force: Multiple concurrent modifications'
-  - 'Force: Extensibility for new states'
+  - 'Intent: Constrain governance artifact lifecycles (e.g., draft, review, approved,
+    retired) to verified, deterministic state changes.'
+  - 'Context: Governance actions must mutate artifact status and trigger validation
+    without hardcoding transition paths inside command handlers.'
+  - 'Force: Ad-hoc mutations lead to invalid governance states (e.g. promoting unreviewed
+    heuristics to patterns).'
+  - 'Force: Adding new states or action triggers should not require modifying the
+    execution dispatcher.'
   evidence_strength: high
   confidence: high
 - pattern_id: pure-functional-health-evaluation
@@ -6355,3 +6355,164 @@ pattern_proposals:
   - 'Force: Testable service'
   evidence_strength: medium
   confidence: medium
+- pattern_id: adapter-based-telemetry-normalization
+  name: Adapter-Based Telemetry Normalization
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/agent_telemetry.py (AgentTelemetrySpan, CodingAgentTelemetryAdapter,
+      AntigravityTelemetryAdapter, ClaudeCodeTelemetryAdapter, _normalize_iso, _parse_iso_epoch,
+      estimate_agent_cost_usd) - Adapters translating specific agent traces into unified
+      AgentTelemetrySpan models.
+  description: Normalizes diverse upstream agent and runtime telemetry outputs into
+    standard AgentTelemetrySpan structures using specialized adapter implementations.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Isolate the dashboard and health calculation engine from vendor-specific
+    telemetry trace formats and timestamps.'
+  - 'Context: Telemetry data originates from diverse external execution agents (Claude
+    Code, Antigravity, generic coding agents) with differing payload formats and timestamp
+    standards.'
+  - 'Force: Dashboard metrics require consistent ISO epoch dates and standardized
+    duration and cost fields.'
+  - 'Force: External trace formats change independently of the internal health monitoring
+    system.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: service-facade-action-orchestrator
+  name: Service Facade Action Orchestrator
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Application service encapsulating governance operations and delegating to
+      domain engines.
+  description: Exposes a consolidated application service interface coordinating compliance
+    engines, action engines, and persistence layers for presentation callers.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent CLI commands from directly orchestrating domain rules, engines,
+    and multiple repositories.'
+  - 'Context: The CLI needs to trigger compliance validations, evaluate system health,
+    and persist resolutions without coupling CLI handlers to internal domain logic.'
+  - 'Force: Direct CLI-to-domain coupling makes headless CI automation or alternative
+    runner interfaces difficult to maintain.'
+  - 'Force: Multiple domain engines must be invoked in a coherent transaction-like
+    sequence.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: idempotent-symlink-scaffolding-bootstrap
+  name: Idempotent Symlink and Scaffolding Bootstrap
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (_create_symlink_or_copy, merge_cas_governance_block,
+      merge_claude_settings, init_workspace, render_onboarding_checklist) - Safely
+      manages filesystem initialization with symlink/copy fallbacks and non-destructive
+      JSON/YAML configuration merging.
+  description: Establishes workspace conventions by creating symlinks, falling back
+    to copies, and merging template configuration blocks non-destructively.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Initialize target development environments safely and repeatedly without
+    destroying preexisting local configurations.'
+  - 'Context: When onboarding a new repository or workspace, CAS governance files,
+    Claude settings, and directory templates must be linked or copied reliably.'
+  - 'Force: OS-level permission differences or cross-filesystem links may cause symlink
+    creation to fail.'
+  - 'Force: Existing configuration files must be merged rather than blindly overwritten.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pluggable-client-strategy
+  name: Pluggable Client Strategy
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production implementation
+      wrapping LiteLLM gateway.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Deterministic test implementation
+      satisfying the client interface.
+  description: Provides mock and live client implementations conforming to a common
+    invocation interface to facilitate fast deterministic testing and offline execution.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple external network and gateway dependencies from flow execution
+    and automated tests.'
+  - 'Context: Flow runners need to interact with external inference or validation
+    services, but CI and local test suites cannot depend on live credentials or billable
+    endpoints.'
+  - 'Force: External services are slow, nondeterministic, and require network access.'
+  - 'Force: End-to-end integration tests must run reliably in isolated environments.'
+  evidence_strength: high
+  confidence: high
+- pattern_id: hierarchical-knowledge-repository-structure
+  name: Hierarchical Knowledge Repository Structure
+  pattern_classification: architectural
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-15'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/ - Directory hierarchy segregating global governance, project
+      instances, runtime traces, and structural templates.
+  description: Organizes architecture documentation and governance state into a strictly
+    segregated filesystem hierarchy separating global rules, project instances, runtime
+    traces, and templates.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Enable scalable Documentation-as-Code where governance rules, decisions,
+    and runtime metrics are version-controlled alongside code.'
+  - 'Context: Organizations need to maintain global architectural rules while allowing
+    individual projects to retain localized decisions, runtime traces, and compliance
+    records.'
+  - 'Force: Monolithic documentation files become unmanageable and cause merge conflicts.'
+  - 'Force: Runtime telemetry must not pollute global policy standards.'
+  evidence_strength: high
+  confidence: high
