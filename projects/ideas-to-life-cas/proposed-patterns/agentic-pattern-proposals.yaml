@@ -9058,33 +9058,33 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: workspace-bootstrap-governance-injection
-  name: Workspace Bootstrapping with Governance Injection
+  name: Workspace Bootstrap Governance Injection
   pattern_classification: intelligence
   pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-10'
+    date: '2026-11-16'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/bootstrap.py (bootstrap, init_workspace, render_onboarding_checklist,
-      _create_symlink_or_copy) - Workspace setup functions.
-  description: Workspace initialization injects governance blocks, symlinks skills,
-    and renders onboarding checklists to prepare agent environments.
+    - src/cas_runner/bootstrap.py (merge_cas_governance_block, merge_claude_settings,
+      bootstrap, init_workspace) - Merges governance blocks into target workspace
+      configuration files.
+  description: Inject shared governance blocks, steering rules, and tool settings
+    directly into developer agent configurations during workspace bootstrap.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Automate agent workspace setup to ensure governance and skills are consistently
-    available.'
-  - 'Context: bootstrap.py provides functions to merge governance block, set up Claude
-    settings, and symlink skills.'
-  - 'Force: Manual setup is error-prone'
-  - 'Force: Need for consistent agent context'
-  - 'Force: Multi-platform compatibility'
+  - 'Intent: Ensure that IDE-based AI agents (such as Claude Code or custom agents)
+    automatically adhere to organization-wide rules without manual copy-pasting.'
+  - 'Context: Different developers launch AI agents locally; without automated bootstrap,
+    agents hallucinate outside repository standards or ignore governance rules.'
+  - 'Force: Developer friction when manually configuring agent rule sets'
+  - 'Force: Risk of overwriting custom developer settings with rigid central policies'
   evidence_strength: high
   confidence: high
 - pattern_id: flow-runner-pipeline
@@ -11526,34 +11526,35 @@ pattern_proposals:
   evidence_strength: high
   confidence: high
 - pattern_id: independent-verifier-subagent
-  name: Independent Verifier Subagent Gate
+  name: Independent Verifier Subagent
   pattern_classification: intelligence
-  pattern_maturity: established
+  pattern_maturity: strategic_direction
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-15'
+    date: '2026-11-16'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - .agents/subagents/verifier.md - Defines verifier role, responsibility, and gating
-      criteria for pull requests.
-    - .claude/agents/verifier.md - Claude-specific mirror of the verifier subagent.
-  description: Separates work execution from compliance validation by assigning a
-    dedicated verifier subagent with strict evaluation instructions.
-  pattern_type: implemented
+    - .agents/subagents/verifier.md - Role specification defining independent verification
+      agent.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics) -
+      Typed structures modeling findings and metrics output by verification passes.
+  description: Segregate mutation and validation responsibilities by defining a dedicated
+    verifier subagent with specialized evaluation criteria.
+  pattern_type: emerging
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Prevent generative hallucination and self-serving bias by requiring a
-    secondary verification agent to audit actions.'
-  - 'Context: CI/CD and pull request evaluation pipelines validating architecture
-    changes and feature implementations.'
-  - 'Force: Primary agents tend to rationalize their own generated code and rule compliance.'
-  - 'Force: Manual human review of repetitive architectural checks creates a developer
-    bottleneck.'
+  - 'Intent: Eliminate self-review confirmation bias where the generating agent approves
+    its own flawed architecture changes or hallucinations.'
+  - 'Context: When agents propose architecture decisions or code mutations, relying
+    solely on self-reflection fails on subtle boundary violations.'
+  - 'Force: Single agents are prone to justifying their prior generations during self-critique'
+  - 'Force: Verification requires focused checklists and rules distinct from creative
+    generation prompts'
   evidence_strength: high
   confidence: high
 - pattern_id: pluggable-llm-client-abstraction
@@ -11903,5 +11904,263 @@ pattern_proposals:
     calculating ComplianceMetrics.'
   - 'Force: LLMs can generate plausible yet structurally non-conforming YAML or JSON'
   - 'Force: Governance decisions need machine-verifiable compliance indicators'
+  evidence_strength: high
+  confidence: high
+- pattern_id: multi-harness-telemetry-adapter
+  name: Multi-Harness Agent Telemetry Normalization
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/agent_telemetry.py (AgentTelemetrySpan, CodingAgentTelemetryAdapter,
+      AntigravityTelemetryAdapter, ClaudeCodeTelemetryAdapter, estimate_agent_cost_usd)
+      - Defines distinct adapters normalising trace spans from different coding agent
+      ecosystems.
+  description: Decouple agent execution runtimes from cost and health telemetry by
+    introducing runtime-specific adapters that normalize spans into a standard telemetry
+    model.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Aggregate trace metrics, token usage, and cost estimation across heterogeneous
+    agent environments (e.g. Claude Code, Antigravity, coding CLI agents).'
+  - 'Context: Agent execution happens across diverse IDE plugins, CLIs, and automated
+    pipelines, each producing disparate trace formats.'
+  - 'Force: Different agent harnesses emit distinct telemetry schema formats'
+  - 'Force: Financial and health tracking require unified cost and span aggregations'
+  - 'Force: Adapters must gracefully infer providers when metadata is incomplete'
+  evidence_strength: high
+  confidence: high
+- pattern_id: file-backed-blackboard-repository
+  name: File-Backed Architectural Knowledge Blackboard
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - cas-knowledge/runtime/rule-context.json - Stores active rules context evaluated
+      by agents during pipeline executions.
+    - cas-knowledge/templates/heuristic-to-pattern_template.md - Templatized contract
+      for agents promoting heuristics into patterns.
+  description: Use a structured, version-controlled filesystem as a shared blackboard
+    for agent memory, decision logs, heuristics, and runtime evaluation contexts.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Maintain durable, human-auditable, and agent-accessible persistent memory
+    without relying on proprietary vector or graph databases.'
+  - 'Context: Autonomous and human-assisted agents make architecture decisions, generate
+    diagrams, and record rules that must survive across workflow runs.'
+  - 'Force: Need persistent memory across stateless CI/CD runners'
+  - 'Force: Humans must inspect and approve architectural decisions'
+  - 'Force: Schema drift must be avoided across agent updates'
+  evidence_strength: high
+  confidence: high
+- pattern_id: specialised-skill-directory-encapsulation
+  name: Specialized Skill Directory Encapsulation
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .agents/skills/cas-drawio-generator/ - Isolated skill package for generating
+      and validating DrawIO architecture diagrams.
+    - src/cas_runner/bootstrap.py (_create_symlink_or_copy, merge_claude_settings)
+      - Provisions and synchronizes agent settings and skills into target workspaces.
+  description: Encapsulate agent capabilities into self-contained skill packages mirrored
+    across agent runner environments (.agents and .claude).
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Modularize agent tools so that specific skills (e.g., diagram generator,
+    module refactorer, review sync) can be maintained and tested independently.'
+  - 'Context: Agents performing architectural governance require specific procedural
+    knowledge and scripts to execute focused actions without polluting system prompt
+    contexts.'
+  - 'Force: Monolithic system prompts exceed token budgets and degrade tool execution
+    accuracy'
+  - 'Force: Multiple agent environments (.claude, local CLI, CI workflows) require
+    identical tool capabilities'
+  evidence_strength: high
+  confidence: high
+- pattern_id: state-machine-governance-engine
+  name: State-Machine Governed Action Engine
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Registers valid transitions and dispatches actions through strict lifecycle
+      validation.
+    - src/cas_runner/governance/models.py (GovernanceAction, ResolutionResult, GovernanceException)
+      - Data models defining action schemas, exceptions, and execution results.
+  description: Constrain autonomous agent decision execution within an explicit finite
+    state transition registry that validates actions before mutating governance state.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent agents from skipping mandatory governance steps (e.g. promoting
+    without prior verification or resolving without an approved action).'
+  - 'Context: Governance actions must transition through known states (proposed, evaluated,
+    approved, rejected, resolved) without unpredictable jumps.'
+  - 'Force: Unconstrained agents may execute destructive state updates out of order'
+  - 'Force: Complex audit logs require deterministic proof of state transitions'
+  evidence_strength: high
+  confidence: high
+- pattern_id: dual-gateway-mockable-llm-client
+  name: Dual-Gateway Mockable LLM Abstraction
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Production LLM wrapper
+      handling multi-provider routing and token settings.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Mock client delivering predefined
+      completions for agent testing.
+  description: Provide a swappable LLM client boundary pairing a multi-provider LiteLLM
+    client with an offline mock client to enable deterministic testing of agent logic.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple agentic business and governance logic from specific model providers
+    and enable offline, reproducible CI tests without LLM API costs.'
+  - 'Context: Agent workflows calling LLMs directly in test environments cause flaky
+    tests, token expenses, and dependency on external API availability.'
+  - 'Force: Developers need multi-model flexibility (OpenAI, Anthropic, local models)'
+  - 'Force: Automated CI test suites require deterministic, cost-free LLM completions'
+  evidence_strength: high
+  confidence: high
+- pattern_id: evidence-derived-health-scoring
+  name: Evidence-Derived Agentic Health Scoring
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/health_model.py (HealthStatus, calculate_health, get_health_reasons)
+      - Computes health status from quantitative metrics and outputs descriptive failure
+      reasons.
+    - src/cas_runner/governance/models.py (GovernanceHealth, GovernanceRisks) - Typed
+      models tracking architectural health and risk indicators.
+  description: Compute system and governance health status through deterministic mathematical
+    thresholds over collected compliance findings and trace metrics.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Provide an unambiguous indicator of whether an agent-assisted system
+    is healthy, degraded, or unhealthy without relying on vague LLM summaries.'
+  - 'Context: Agent-driven refactoring and automated PR generation need automated
+    gating criteria before deployment or publication.'
+  - 'Force: LLM self-evaluations tend to be overly optimistic'
+  - 'Force: Raw violation counts need clear classification for CI pipeline gating'
+  evidence_strength: high
+  confidence: high
+- pattern_id: pipeline-orchestration-flow-runner
+  name: Pipeline Orchestration Flow Runner
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/runner.py (FlowRunner) - Main pipeline execution engine orchestrating
+      continuous architecture steps.
+    - src/cas_runner/cli.py (main) - CLI entry point initiating runner execution with
+      parsed flags.
+  description: Orchestrate multi-step agentic workflows sequentially via a dedicated
+    FlowRunner that manages execution context and step lifecycles.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Coordinate complex multi-phase agent tasks (e.g., ingestion, compliance
+    checking, reconciliation, artifact generation) with predictable control flow.'
+  - 'Context: Agent tasks require executing discrete steps in sequence where downstream
+    steps depend on data generated by upstream steps.'
+  - 'Force: Autonomous agent loops without step boundaries can get trapped in repetitive
+    reasoning loops'
+  - 'Force: Shared state must be passed cleanly between distinct operational steps'
+  evidence_strength: high
+  confidence: high
+- pattern_id: declarative-schema-governance-contracts
+  name: Declarative Schema Governance Contracts
+  pattern_classification: governance
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-16'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/models.py (ResolutionResult, TraceableMetric, GovernanceInventory,
+      GovernanceHealth, ComplianceFinding, GovernanceAction) - Typed models defining
+      strict contracts across all governance operations.
+    - pyproject.toml - Includes pydantic and jsonschema as core runtime dependencies.
+  description: Enforce strict typing and runtime schema validation on all agent outputs,
+    governance actions, and telemetry using Pydantic and JSON Schema.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent unstructured or hallucinated agent output from propagating through
+    the architecture pipeline.'
+  - 'Context: Agents generating findings, health assessments, or actions can produce
+    non-conforming JSON if not tightly bound by runtime validation.'
+  - 'Force: LLMs frequently emit near-compliant JSON with subtle field omissions or
+    type mismatches'
+  - 'Force: Downstream consumers require guaranteed field presence and types'
   evidence_strength: high
   confidence: high
