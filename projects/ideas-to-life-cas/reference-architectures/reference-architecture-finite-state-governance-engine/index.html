@@ -3323,34 +3323,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Technology choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#recommended-choices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Recommended Choices
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternatives-considered-set-aside" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives Considered &amp; Set Aside
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3395,34 +3367,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Adoption guidance">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#migration-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Migration Path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#governance-ownership" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Governance &amp; Ownership
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -3455,99 +3399,95 @@
 
 <h1 id="reference-architecture-deterministic-governance-action-state-machine">Reference Architecture: Deterministic Governance Action State Machine</h1>
 <h2 id="purpose-when-to-use-this">Purpose &amp; when to use this</h2>
-<p>Enforces provable, deterministic state transitions for all governance mutations initiated by autonomous agents or automated workflows. Autonomous agents can hallucinate or attempt invalid workflow bypasses; this pattern restricts state updates exclusively to formally registered transitions evaluated through a Finite State Machine (FSM).</p>
+<p>The Deterministic Governance Action State Machine enforces strict lifecycle controls and immutable transition rules across autonomous agents and automated governance pipelines. By mediating all governance mutations through a centralized TransitionRegistry, it guarantees that agents cannot bypass verification gates, skip compliance checks, or trigger illegal state transitions.</p>
 <h3 id="when-to-use-this">When to use this</h3>
 <ul>
-<li>Autonomous agents or automated pipelines are executing mutations against architectural, compliance, or lifecycle governance records (e.g., pattern promotion, rule exceptions, gate approvals).</li>
-<li>Strict regulatory compliance and security posture require an immutable, auditable log proving that each state change followed valid preconditions and verified transition rules.</li>
-<li>Multi-step governance workflows where skipping intermediate verification or approval stages introduces critical risk.</li>
+<li>Operating autonomous AI agents or automated orchestrators empowered to modify artifact lifecycles, promotion stages, or architectural decisions.</li>
+<li>Systems requiring audit-grade deterministic state tracking with auditable pre-condition and post-condition checks.</li>
+<li>Critical environments where unauthorized skipping of intermediate states (e.g., jumping from Draft directly to Published without Review) introduces high regulatory or operational risk.</li>
+<li>Architectures requiring formal decoupling between decision-making agents (intent) and state mutation engines (execution).</li>
 </ul>
 <h3 id="when-not-to-use-this">When NOT to use this</h3>
 <ul>
-<li>Unstructured, open-ended conversational agent interactions with no formal lifecycle states or persistence.</li>
-<li>Trivial CRUD models where transitions carry no compliance risk, policy dependencies, or branching constraints.</li>
-<li>High-frequency ephemeral data streaming (e.g., telemetry metrics collection) where transactional transition verification induces unnecessary latency.</li>
+<li>Simple, low-risk CRUD domains where lifecycle states are linear and unconstrained by regulatory or compliance requirements.</li>
+<li>High-throughput, stateless data streaming pipelines where state machine overhead and transition locking introduce unacceptable latency bottlenecks.</li>
+<li>Prototyping stages with volatile and undefined lifecycle states where strict transition validation impedes rapid experimentation.</li>
 </ul>
 <h2 id="overview">Overview</h2>
 <pre class="mermaid"><code>flowchart LR
-    agent["Autonomous Agent (External System)"]
-    service["Governance Action Service (Container)"]
-    engine["Governance Action Engine (Container)"]
-    registry["Transition Registry FSM (Container)"]
-    audit[("Governance Audit Store (Data store)")]
+    agent["Autonomous Agent / Caller (External System)"]
+    engine["GovernanceActionEngine (Container)"]
+    registry["TransitionRegistry (Container)"]
+    validator["Pre/Post Condition Validator (Container)"]
+    auditStore[("Audit Log &amp; State Store (Data store)")]
 
-    agent --&gt;|1. Requests State Mutation| service
-    service --&gt;|2. Validates &amp; Dispatches| engine
-    engine --&gt;|3. Verifies Transition Legality| registry
-    registry --&gt;|4. Transition Decision| engine
-    engine --&gt;|5. Commits State &amp; Audit Trail| audit
-    engine --&gt;|6. Execution Result| service
-    service --&gt;|7. Return Final Response| agent
+    agent --&gt;|"1. Request Mutation (GovernanceAction)"| engine
+    engine --&gt;|"2. Validate Transition Allowed"| registry
+    registry --&gt;|"3. Query Transition Rules"| engine
+    engine --&gt;|"4. Execute Guardrail Checks"| validator
+    validator --&gt;|"5. Confirm Assertions"| engine
+    engine --&gt;|"6. Commit State Mutation &amp; Audit"| auditStore
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef store fill:#1168bd,stroke:#0b4884,color:#fff
     classDef external fill:#666666,stroke:#333333,color:#fff
-    class service,engine,registry container
-    class audit store
+    class engine,registry,validator container
+    class auditStore store
     class agent external</code></pre>
 <h2 id="components">Components</h2>
 <ul>
-<li><strong>GovernanceActionService</strong> (<code>src/cas_runner/governance/governance_action_service.py</code>): Exposes the public governance API boundary, authenticates agent caller identities, parses incoming mutation payloads, and coordinates request orchestration with the engine.</li>
-<li><strong>GovernanceActionEngine</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Executes domain governance actions, enforces pre/post-conditions, triggers side effects, and records audit trails upon successful state transitions.</li>
-<li><strong>TransitionRegistry</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): Houses the deterministic finite state machine graph, evaluating whether a requested state transition from state S(n) to S(n+1) under action A is permitted.</li>
-<li><strong>Governance Models &amp; Contracts</strong> (<code>src/cas_runner/governance/models.py</code>): Defines typed immutable data structures (<code>GovernanceAction</code>, <code>GovernanceException</code>, <code>TransitionContext</code>) ensuring strictly typed boundaries and schema enforcement.</li>
+<li><strong>GovernanceActionEngine</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): The primary execution gateway that intercepts state mutation requests, validates caller authority, queries the TransitionRegistry, coordinates precondition checks, and writes committed transitions to the audit store.</li>
+<li><strong>TransitionRegistry</strong> (<code>src/cas_runner/governance/governance_action_engine.py</code>): The declarative configuration store that defines the immutable finite state machine graph. It tracks valid transitions (<code>(source_state, action) -&gt; destination_state</code>) and blocks undefined path mutations.</li>
+<li><strong>Typed Lifecycle Models &amp; Exceptions</strong> (<code>src/cas_runner/governance/models.py</code>): Strongly typed schemas (<code>GovernanceAction</code>) and custom exceptions (<code>GovernanceException</code>) enforcing schema conformity and unambiguous error signaling.</li>
+<li><strong>Audit Log &amp; State Store</strong> (<code>src/cas_runner/governance/store.py</code>): Durable persistence layer maintaining append-only transition journals for historical replays and compliance audits.</li>
 </ul>
 <h2 id="technology-choices">Technology choices</h2>
-<h3 id="recommended-choices">Recommended Choices</h3>
 <ul>
-<li><strong>Implementation Language</strong>: Python 3.11+ using Pydantic v2 for typed model validation and static type guarantees.</li>
-<li><strong>State Engine Core</strong>: In-memory declarative <code>TransitionRegistry</code> with deterministic directed-acyclic/cyclic state validation tables, avoiding external heavyweight runtime dependencies.</li>
-<li><strong>Persistence &amp; Audit</strong>: Relational database with transactional ACID guarantees (e.g., PostgreSQL) or append-only event ledgers for state transitions.</li>
+<li><strong>Runtime &amp; Contracts</strong>: Python 3.11+ using Pydantic v2 schemas for deterministic type validation and deserialization safety.</li>
+<li><strong>State Modeling</strong>: In-memory declarative transition graphs using frozen dictionaries/sets, minimizing execution overhead while providing deterministic O(1) transition evaluations.</li>
+<li><strong>Persistence</strong>: Append-only transactional storage (e.g., PostgreSQL or WAL-backed SQLite) ensuring zero data loss upon state transition commitments.</li>
 </ul>
-<h3 id="alternatives-considered-set-aside">Alternatives Considered &amp; Set Aside</h3>
-<ul>
-<li><strong>Ad-hoc Procedural Conditionals</strong>: Rejected due to high risk of gate bypassing, lack of visibility into state transition coverage, and high defect rates under agent hallucination.</li>
-<li><strong>Distributed BPMN Workflow Engines (e.g., Camunda, Temporal)</strong>: Set aside as initial runtime dependency due to operational complexity; lightweight Python FSM contracts provide sufficient isolation with lower operational overhead.</li>
-</ul>
+<p><em>Alternatives Considered and Set Aside:</em>
+- <em>Ad-hoc Procedural Logic</em>: Fragmented conditional branches (<code>if state == ...</code>) set aside due to susceptibility to drift, human error, and lack of systematic auditability.
+- <em>Heavyweight BPMN Engines</em>: Tools like Camunda or Temporal were set aside for this scope as they add excessive operational complexity for embedded in-process agent guardrails.</p>
 <h2 id="variants">Variants</h2>
 <ul>
-<li><strong>Synchronous Interactive Mode</strong>: Real-time blocking evaluation where agent requests are validated, committed, and responded to within a single synchronous request-response boundary.</li>
-<li><strong>Asynchronous Gatekeeper Mode</strong>: State mutations are recorded in a pending transition state, requiring asynchronous quorum, human-in-the-loop (HITL) sign-off, or multi-agent consensus before entering terminal state.</li>
-<li><strong>Dry-Run / Policy Simulation Mode</strong>: Evaluates state transition validity without committing mutations or executing side-effects, allowing agents to pre-flight actions.</li>
+<li><strong>Synchronous Enforcing Mode</strong>: Blocks the agent synchronously until transition validity is verified and the audit record is committed. Ideal for build systems, promotion pipelines, and CI gates.</li>
+<li><strong>Dry-Run Simulation Mode</strong>: Enables agents to test hypothetical state transitions without altering live state, enabling agents to validate feasibility during planning phases.</li>
+<li><strong>Asynchronous Distributed Mode</strong>: Offloads execution to background workers with distributed locks (e.g., Redis Redlock) for high-concurrency environments with distributed worker pools.</li>
 </ul>
 <h2 id="non-functional-characteristics">Non-functional characteristics</h2>
 <ul>
-<li><strong>Reliability</strong>: Deterministic state gating guarantees zero illegal state transitions even under erroneous agent input; exceptions are strongly typed and bubble up with machine-readable remediation codes.</li>
-<li><strong>Performance &amp; Latency</strong>: In-memory transition table lookup incurs sub-millisecond overhead (&lt; 2ms) during the validation phase; database commit boundaries bound total execution time to standard write latency.</li>
-<li><strong>Cost &amp; Efficiency</strong>: Zero external service licensing overhead; runs co-located with service runners, minimizing infrastructure cost.</li>
-<li><strong>Operability</strong>: Transitions emit structured OpenTelemetry traces and audit events detailing caller identity, previous state, target state, applied action, and timestamp.</li>
+<li><strong>Reliability</strong>: Eliminates intermediate or corrupted states. Failures trigger explicit <code>GovernanceException</code> aborts, ensuring atomicity.</li>
+<li><strong>Performance &amp; Latency</strong>: Sub-millisecond transition validation in memory; aggregate transition latency is bounded solely by downstream storage write speeds.</li>
+<li><strong>Cost &amp; Efficiency</strong>: Minimal compute footprint; prevents costly downstream failures caused by illegal state transitions triggering runaway autonomous workflows.</li>
+<li><strong>Operability</strong>: Emits structured transition telemetry, enabling real-time alerting on repeated transition rejections that might signal agent drift or prompt compromise.</li>
 </ul>
 <h2 id="anti-patterns-known-pitfalls">Anti-patterns &amp; known pitfalls</h2>
 <ul>
-<li><strong>Engine Bypass via Direct Database Updates</strong>: Modifying entity state directly in the database without passing through GovernanceActionEngine, corrupting state consistency. <em>Remedy</em>: Restrict data tier permissions so that only the service account utilized by GovernanceActionEngine possesses write privileges.</li>
-<li><strong>Domain Logic Smear into Registry</strong>: Injecting business mutation logic directly into TransitionRegistry definitions. <em>Remedy</em>: Keep TransitionRegistry strictly focused on topology (allowed transitions and guard checks); keep execution logic inside GovernanceActionEngine.</li>
-<li><strong>Permissive Dynamic Transitions</strong>: Creating catch-all wildcard transitions (e.g., <code>* -&gt; Approved</code>). <em>Remedy</em>: Require explicit source-target mapping for every transition.</li>
+<li><strong>The God State / Wildcard Transition</strong>: Adding open transitions allowing bypass routes around intermediate review or validation phases.
+  <em>Remedy</em>: Require all transitions to declare explicit source and destination pairs.</li>
+<li><strong>Out-of-Band State Mutation</strong>: Modifying the underlying persistence store directly without routing requests through the <code>GovernanceActionEngine</code>.
+  <em>Remedy</em>: Restrict database write permissions exclusively to the service identity running the engine.</li>
+<li><strong>Silent Exception Swallowing</strong>: Calling code capturing <code>GovernanceException</code> without signaling failure to the orchestrator.
+  <em>Remedy</em>: Standardize return error codes and mandate abort protocols for agent callers upon receiving state machine exceptions.</li>
 </ul>
 <h2 id="adoption-guidance">Adoption guidance</h2>
-<h3 id="migration-path">Migration Path</h3>
 <ol>
-<li>Inventory existing governance entity states and map out all valid transitions on an explicit state chart.</li>
-<li>Encode valid states and transitions in <code>TransitionRegistry</code> within <code>src/cas_runner/governance/governance_action_engine.py</code>.</li>
-<li>Wrap all mutation endpoints with <code>GovernanceActionService</code> to ensure no agent can mutate entity state directly.</li>
-<li>Introduce negative regression tests verifying that unauthorized transitions raise <code>GovernanceException</code>.</li>
+<li><strong>Map State Topology</strong>: Document the complete lifecycle states of the target entity along with all permissible transitions.</li>
+<li><strong>Codify Transitions</strong>: Register permitted transitions into <code>TransitionRegistry</code> within <code>src/cas_runner/governance/governance_action_engine.py</code>.</li>
+<li><strong>Deploy Validation Gates</strong>: Implement custom validation hooks on transitions requiring business logic or automated test assertion checks.</li>
+<li><strong>Adopt Client Contracts</strong>: Migrate callers to instantiate typed <code>GovernanceAction</code> models and handle <code>GovernanceException</code> failures.</li>
 </ol>
-<h3 id="governance-ownership">Governance &amp; Ownership</h3>
-<ul>
-<li><strong>Domain ID</strong>: core-governance</li>
-<li><strong>Initiative ID</strong>: autonomous-guardrails-v1</li>
-<li><strong>Ownership</strong>: Enterprise Architecture &amp; AI Governance Operations</li>
-</ul>
+<p><strong>Governance &amp; Ownership:</strong>
+- <strong>Domain</strong>: Core Governance &amp; Agentic Reliability
+- <strong>Initiative</strong>: Enterprise Agent Guardrails (<code>ideas-to-life-cas</code>)
+- <strong>Owner</strong>: Architecture Review Board</p>
 <h2 id="related">Related</h2>
 <ul>
-<li>ADR-0014: Formal State Machine Integration for Autonomous Agent Actions</li>
-<li><code>src/cas_runner/governance/governance_action_engine.py</code></li>
-<li><code>src/cas_runner/governance/governance_action_service.py</code></li>
-<li><code>src/cas_runner/governance/models.py</code></li>
+<li>Implementation: <code>src/cas_runner/governance/governance_action_engine.py</code></li>
+<li>Data Models: <code>src/cas_runner/governance/models.py</code></li>
+<li>Architecture Decision: Autonomous Agent Guardrails &amp; State Integrity Policy</li>
 </ul>
 
 
