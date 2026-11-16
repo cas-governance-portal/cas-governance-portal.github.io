@@ -1,8 +1,8 @@
 - id: flow:workflow:github:cas-build-steering-projection
   name: CAS Build Steering Projection
   type: workflow
-  description: Automated workflow triggered after validation to generate and stage
-    fresh steering projections for agent consumption.
+  description: Downstream workflow that projects architectural deltas and operational
+    capability updates into workspace steering documentation post-validation.
   trigger:
     type: event
     event: workflow_run, workflow_dispatch
@@ -102,10 +102,13 @@
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
-  component_ids: []
+  component_ids:
+  - comp-flowrunner
+  - comp-knowledgeconfig
   control_roles:
   - Prevent
   - Generate
+  - Correct
   artefacts: []
   implementation:
   - .github/workflows/cas-build-steering-projection.yml
@@ -116,8 +119,7 @@
 - id: flow:workflow:github:cas-build-validation
   name: CAS Build Validation
   type: workflow
-  description: Continuous integration workflow that statically and dynamically verifies
-    CAS contract integrity across pull requests and pushes.
+  description: GitHub Actions workflow defined in .github/workflows/cas-build-validation.yml
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -249,9 +251,9 @@
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
-    - Generate
-    - Detect
     - Prevent
+    - Detect
+    - Generate
     invokes_flow_id: flow:cli:cas:main
   - id: step:10:upload-validation-report
     name: Upload validation report
@@ -262,12 +264,11 @@
     evidence_ids:
     - ev-wf-cas-build-validation
     confidence: high
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
+  - Prevent
   - Generate
   - Detect
-  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-build-validation.yml
@@ -278,8 +279,9 @@
 - id: flow:workflow:github:cas-continuous-architecture-loop
   name: CAS Continuous Architecture Loop
   type: workflow
-  description: PR automation executing the continuous architecture loop across knowledge,
-    rules, patterns, and code specs to enforce architectural invariants.
+  description: Continuous architecture CI/CD pipeline triggered on PRs to validate
+    architectural invariants, check Western Electric control bands, and verify structural
+    alignment.
   trigger:
     type: event
     event: pull_request
@@ -383,6 +385,8 @@
     confidence: high
   component_ids:
   - comp-flowrunner
+  - comp-governanceconfig
+  - comp-casconfig
   control_roles:
   - Prevent
   - Detect
@@ -396,8 +400,8 @@
 - id: flow:workflow:github:cas-managed-steering-sync
   name: CAS Managed Steering Sync
   type: workflow
-  description: Bi-directional synchronization workflow aligning local agent steering
-    projections and managed markdown sections with current codebase realities.
+  description: Automated steering synchronization workflow validating and applying
+    managed section diffs to instruction files (AGENTS.md, CLAUDE.md).
   trigger:
     type: event
     event: pull_request, workflow_dispatch
@@ -448,8 +452,8 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Detect
     - Prevent
+    - Detect
   - id: step:4:setup-cas-environment
     name: Setup CAS Environment
     sequence: 4
@@ -549,9 +553,9 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
+    - Prevent
     - Generate
     - Correct
-    - Prevent
   - id: step:12:inspect-projection
     name: Inspect Projection
     sequence: 12
@@ -588,8 +592,8 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Correct
     - Detect
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:14:commit-changes
     name: Commit Changes
@@ -632,12 +636,14 @@
     - Generate
     - Correct
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-flowrunner
+  - comp-casconfig
   control_roles:
-  - Generate
-  - Detect
   - Prevent
+  - Detect
   - Correct
+  - Generate
   artefacts: []
   implementation:
   - .github/workflows/cas-managed-steering-sync.yml
@@ -648,8 +654,8 @@
 - id: flow:workflow:github:cas-governance-portal-publish
   name: CAS Governance Portal Publish
   type: workflow
-  description: Publishes the consolidated CAS governance documentation and health
-    metrics to MkDocs Material site upon knowledge updates.
+  description: Publishes the consolidated architecture governance portal and health
+    dashboard using MkDocs Material.
   trigger:
     type: event
     event: push, workflow_dispatch, repository_dispatch
@@ -767,10 +773,12 @@
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-  component_ids: []
+  component_ids:
+  - comp-knowledgeconfig
+  - comp-casconfig
   control_roles:
-  - Generate
   - Prevent
+  - Generate
   artefacts: []
   implementation:
   - .github/workflows/cas-portal-publish.yml
@@ -781,8 +789,8 @@
 - id: flow:workflow:github:cas-skill-evaluations
   name: CAS Skill Evaluations
   type: workflow
-  description: Evaluates agent skills against deterministic assertions and optional
-    Tier 2 LLM-as-judge fixtures.
+  description: Executes evaluation suites against CAS skills (AGENTS rules hygiene,
+    ADR synchronization, refactoring) with assertions and optional LLM-as-judge scoring.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch, schedule
@@ -846,10 +854,12 @@
     - ev-wf-cas-skill-evals
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-llmconfig
+  - comp-flowrunner
   control_roles:
-  - Correct
   - Prevent
+  - Correct
   - Detect
   artefacts: []
   implementation:
@@ -967,8 +977,8 @@
     - ev-wf-publish-distribution
     confidence: high
     control_roles:
-    - Correct
     - Detect
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:8:publish-release-wheel-assets-t
     name: Publish Release Wheel Assets to ideas-to-life/setup-cas
@@ -995,10 +1005,10 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Generate
-  - Detect
   - Prevent
+  - Generate
   - Correct
+  - Detect
   artefacts: []
   implementation:
   - .github/workflows/publish-distribution.yml
@@ -1009,8 +1019,8 @@
 - id: flow:cli:cas:main
   name: cas
   type: cli
-  description: Primary CLI dispatch entrypoint for the CAS runner, resolving project
-    target context, orchestrating flow pipelines, and managing governance actions.
+  description: Primary CLI dispatch executing governance commands, architectural loop
+    evaluations, baseline synchronization, and cockpit inspection.
   trigger:
     type: cli_command
     event: cas
@@ -1032,13 +1042,11 @@
     confidence: high
   component_ids:
   - comp-flowrunner
-  - comp-load_config
   - comp-casconfig
-  - comp-effectivecasconfig
+  - comp-load_config
   control_roles:
-  - Detect
   - Prevent
-  - Generate
+  - Detect
   artefacts: []
   implementation:
   - pyproject.toml
@@ -1118,11 +1126,131 @@
   - ev-reg-src-cas_runner-portal_preprocessor.py-relationship_map
   confidence: high
   status: discovered
+- id: flow:declared_flow:src-cas_runner-ui-server.py:matched_patterns
+  name: matched_patterns
+  type: declared_flow
+  description: Flow declared in src/cas_runner/ui/server.py:plan_payload
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-plan_payload
+  entrypoint:
+    path: src/cas_runner/ui/server.py
+    symbol: plan_payload
+    command: matched_patterns
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-plan_payload
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/ui/server.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-ui-server.py-plan_payload
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-ui-server.py:anchors
+  name: anchors
+  type: declared_flow
+  description: Flow declared in src/cas_runner/ui/server.py:intent_payload
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  entrypoint:
+    path: src/cas_runner/ui/server.py
+    symbol: intent_payload
+    command: anchors
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/ui/server.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-ui-server.py-intent_payload
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-ui-server.py:presumptions
+  name: presumptions
+  type: declared_flow
+  description: Flow declared in src/cas_runner/ui/server.py:intent_payload
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  entrypoint:
+    path: src/cas_runner/ui/server.py
+    symbol: intent_payload
+    command: presumptions
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/ui/server.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-ui-server.py-intent_payload
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-ui-server.py:open_questions
+  name: open_questions
+  type: declared_flow
+  description: Flow declared in src/cas_runner/ui/server.py:intent_payload
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  entrypoint:
+    path: src/cas_runner/ui/server.py
+    symbol: intent_payload
+    command: open_questions
+    evidence_id: ev-reg-src-cas_runner-ui-server.py-intent_payload
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/ui/server.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-ui-server.py-intent_payload
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-cas_runner-dashboard-data_access.py:skills
+  name: skills
+  type: declared_flow
+  description: Flow declared in src/cas_runner/dashboard/data_access.py:evaluations
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-cas_runner-dashboard-data_access.py-evaluations
+  entrypoint:
+    path: src/cas_runner/dashboard/data_access.py
+    symbol: evaluations
+    command: skills
+    evidence_id: ev-reg-src-cas_runner-dashboard-data_access.py-evaluations
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/cas_runner/dashboard/data_access.py
+  evidence_ids:
+  - ev-reg-src-cas_runner-dashboard-data_access.py-evaluations
+  confidence: high
+  status: discovered
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:roadmap-bootstrap-flow
   name: roadmap-bootstrap-flow
   type: declared_flow
-  description: Initializes or updates CAS governance workspace assets and bootstrapping
-    checklist for target repositories.
+  description: Initializes project workspace baseline and populates foundational knowledge
+    and governance templates.
   trigger:
     type: unknown
     event: unspecified
@@ -1146,8 +1274,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids:
   - comp-bootstrap
-  - comp-render_onboarding_checklist
   - comp-init_workspace
+  - comp-casconfig
   control_roles:
   - Generate
   artefacts: []
@@ -1256,8 +1384,8 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:steering-projection-flow
   name: steering-projection-flow
   type: declared_flow
-  description: Executes delta baseline analysis, capability lineage extraction, and
-    patch projection for agent steering guidance.
+  description: Projects delta analysis and capability updates into active steering
+    sections without manual documentation overhead.
   trigger:
     type: unknown
     event: unspecified
@@ -1280,6 +1408,7 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids:
   - comp-flowrunner
+  - comp-knowledgeconfig
   control_roles:
   - Generate
   - Correct
@@ -1914,8 +2043,8 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:continuous-architecture-loop
   name: continuous-architecture-loop
   type: declared_flow
-  description: Multi-step orchestrated continuous architecture loop executing rules
-    contextualization, alignment verification, control bands checks, and state generation.
+  description: Authoritative multi-step architecture assessment loop evaluating change
+    sets against patterns, rules, and control band thresholds.
   trigger:
     type: unknown
     event: unspecified
@@ -1996,6 +2125,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids:
   - comp-flowrunner
+  - comp-governanceconfig
+  - comp-sdlcprofilespec
   control_roles:
   - Prevent
   - Detect
@@ -2252,8 +2383,7 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:pattern-lifecycle-flow
   name: pattern-lifecycle-flow
   type: declared_flow
-  description: Governs the complete lifecycle of architectural patterns from proposal
-    extraction and classification to promotion, ADR generation, and institutionalization.
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
   trigger:
     type: unknown
     event: unspecified
@@ -2339,13 +2469,9 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
-  - Generate
-  - Detect
-  - Correct
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -2808,8 +2934,8 @@
 - id: flow:governance:cas-audit-agent-rules:execution-workflow
   name: Cas Audit Agent Rules Workflow
   type: governance
-  description: Audits, deduplicates, and optimizes agent instruction and rules files
-    (e.g., AGENTS.md, GEMINI.md) for token economy and invariants.
+  description: Agent rule hygiene workflow that audits, deduplicates, and optimizes
+    agent instruction files for token economy and progressive disclosure.
   trigger:
     type: cli_command
     event: skill:cas-audit-agent-rules
@@ -2830,8 +2956,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:2:token-budget-size-compliance
     name: Token Budget & Size Compliance
@@ -2844,8 +2970,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:3:progressive-disclosure-rules-v
     name: Progressive Disclosure (Rules vs. Skills)
@@ -2858,8 +2984,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:4:discoverability-filtering
     name: Discoverability Filtering
@@ -2872,8 +2998,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:5:ephemeral-hygiene
     name: Ephemeral Hygiene
@@ -2886,8 +3012,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:6:check-existing-rule-files
     name: 'Check existing rule files:'
@@ -2900,8 +3026,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:7:measure-file-sizes-and-check-f
     name: Measure file sizes and check for symlinks.
@@ -2914,8 +3040,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:8:update-agents.md-with-streamli
     name: Update `AGENTS.md` with streamlined, high-signal invariants and boundaries.
@@ -2928,8 +3054,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:9:establish-the-symlink
     name: 'Establish the symlink:'
@@ -2942,8 +3068,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:10:ensure-all-mandatory-governanc
     name: Ensure all mandatory governance invariants are preserved (e.g., critical
@@ -2958,8 +3084,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:11:verify-the-symlink-and-file-si
     name: 'Verify the symlink and file sizes:'
@@ -2972,8 +3098,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:12:verify-git-status
     name: 'Verify git status:'
@@ -2986,8 +3112,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:13:run-governance-validation-if-a
     name: 'Run governance validation if applicable:'
@@ -3000,10 +3126,12 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-casconfig
+  - comp-governanceconfig
   control_roles:
   - Prevent
   - Detect
@@ -3017,8 +3145,13 @@
 - id: flow:governance:cas-refactor-knowledge-links:execution-workflow
   name: Cas Refactor Knowledge Links Workflow
   type: governance
-  description: Refactors knowledge artefacts into an explicit, navigable relationship
-    graph without mutating underlying semantics.
+  description: Refactor CAS knowledge artefacts into an explicit navigable relationship
+    graph without changing their semantic content. Use when asked to connect, link,
+    trace, graph, or improve relationships between Architecture Work, Architecture
+    Evolution Maps, Architecture Intent Documents, alignment reports, ADRs, patterns,
+    or other CAS knowledge files, especially under knowledge/projects or knowledge/global.
+    Always invoke before adding frontmatter relationship metadata or Obsidian-style
+    markdown links to CAS knowledge artefacts.
   trigger:
     type: cli_command
     event: skill:cas-refactor-knowledge-links
@@ -3156,14 +3289,13 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Detect
   - Prevent
-  - Correct
+  - Detect
   artefacts: []
   implementation:
   - src/cas_skills/cas-refactor-knowledge-links/SKILL.md
@@ -3174,8 +3306,10 @@
 - id: flow:governance:cas-add-or-modify-feature:execution-workflow
   name: Cas Add Or Modify Feature Workflow
   type: governance
-  description: Mandatory architectural alignment skill executed prior to introducing
-    features or structural code changes.
+  description: MANDATORY skill for any feature request or structural modification.
+    Use when adding features, extending functionality, modifying existing behaviour,
+    or introducing integrations. This skill MUST be invoked before making any code
+    changes to ensure architectural alignment, pattern reuse, and governance compliance.
   trigger:
     type: cli_command
     event: skill:cas-add-or-modify-feature
@@ -3222,8 +3356,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:4:design-route-implementation-pl
     name: Design & Route Implementation Plan
@@ -3253,8 +3387,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Detect
   - Prevent
+  - Detect
   artefacts: []
   implementation:
   - src/cas_skills/cas-add-or-modify-feature/SKILL.md
@@ -3265,8 +3399,11 @@
 - id: flow:governance:cas-refactor-module:execution-workflow
   name: Cas Refactor Module Workflow
   type: governance
-  description: Refactors an existing code module using target architectural rules
-    and pattern guidance while strictly preserving observable behavior.
+  description: MANDATORY skill for refactoring an existing module from a specific
+    target path using repository architecture rules and pattern catalogue guidance
+    while preserving observable behaviour. Use when asked to refactor, restructure,
+    decouple, simplify, decompose, or remove hardcoding/coupling in existing code
+    while preserving observable behaviour.
   trigger:
     type: cli_command
     event: skill:cas-refactor-module
@@ -3379,8 +3516,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:9:design-refactoring
     name: Design Refactoring
@@ -3423,9 +3560,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Detect
   - Prevent
-  - Correct
+  - Detect
   artefacts: []
   implementation:
   - src/cas_skills/cas-refactor-module/SKILL.md
@@ -3436,8 +3572,8 @@
 - id: flow:governance:cas-sync-archgov-reviews:execution-workflow
   name: Cas Sync Archgov Reviews Workflow
   type: governance
-  description: Synchronizes review outcomes from ArchGov REST services into local
-    Git state and triggers downstream ADR/pattern lifecycle transitions.
+  description: Synchronizes external ArchGov review decisions into local Git state
+    and triggers downstream ADR and pattern institutionalization.
   trigger:
     type: cli_command
     event: skill:cas-sync-archgov-reviews
@@ -3460,8 +3596,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:2:inbound-pull-synchronize-remot
     name: '**Inbound Pull**: Synchronize remote review decisions from ArchGov back
@@ -3477,8 +3613,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Detect
     - Prevent
+    - Detect
     - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:3:two-way-synchronization-push-t
@@ -3492,8 +3628,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:4:simulation-dry-run-mode
     name: '**Simulation & Dry-Run Mode**:'
@@ -3506,8 +3642,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:5:inspect-artifact-status
     name: '**Inspect Artifact Status**:'
@@ -3520,8 +3656,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:6:background-scheduling
     name: '**Background Scheduling**:'
@@ -3534,8 +3670,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:7:step-1---project-context-scope
     name: '**Step 1 - Project Context & Scope Resolution**:'
@@ -3548,8 +3684,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:8:step-2---phase-1-outbound-batc
     name: '**Step 2 - Phase 1: Outbound Batch Publication (Push)**:'
@@ -3562,8 +3698,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:9:step-3---phase-2-inbound-revie
     name: '**Step 3 - Phase 2: Inbound Review Synchronization (Pull)**:'
@@ -3576,8 +3712,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:10:step-4---evaluate-diffs-scan-a
     name: '**Step 4 - Evaluate Diffs & Scan Artifact State**:'
@@ -3590,8 +3726,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:11:step-5---downstream-verificati
     name: '**Step 5 - Downstream Verification**:'
@@ -3604,8 +3740,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:12:step-6---report-to-architect-4
     name: '**Step 6 - Report to Architect (4-Quadrant Governance Dashboard)**:'
@@ -3618,8 +3754,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:13:outbound-dispatches-push-newly
     name: '**Outbound Dispatches (Push)**: Newly published or staged candidate drafts,
@@ -3633,8 +3769,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:14:in-flight-remote-reviews-archg
     name: '**In-Flight Remote Reviews (ArchGov)**: Active reviews currently under
@@ -3649,8 +3785,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:15:ratified-governance-decisions-
     name: '**Ratified Governance Decisions & Downstream Chaining**: Approved reference
@@ -3665,8 +3801,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:16:local-offline-governance-artif
     name: '**Local / Offline Governance Artifacts**: Artefacts not published to ArchGov,
@@ -3680,8 +3816,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:17:step-7---governance-validation
     name: '**Step 7 - Governance Validation & Knowledge Sync Gate**:'
@@ -3694,8 +3830,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:18:git--c-users-avfranco-cas-know
     name: '`git -C /Users/avfranco/cas-knowledge add <modified-paths>`'
@@ -3708,8 +3844,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:19:git--c-users-avfranco-cas-know
     name: '`git -C /Users/avfranco/cas-knowledge commit -m "<type>(scope): <description>"`'
@@ -3722,8 +3858,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:20:git--c-users-avfranco-cas-know
     name: '`git -C /Users/avfranco/cas-knowledge push origin main`'
@@ -3736,8 +3872,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:21:git-add-modified-paths
     name: '`git add <modified-paths>`'
@@ -3750,8 +3886,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:22:git-commit--m-type-scope-descr
     name: '`git commit -m "<type>(scope): <description>"`'
@@ -3764,8 +3900,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
   - id: step:23:git-push-origin-branch
     name: '`git push origin <branch>`'
@@ -3778,14 +3914,16 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Correct
     - Prevent
+    - Correct
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-governanceconfig
+  - comp-flowrunner
   control_roles:
+  - Prevent
   - Detect
   - Correct
-  - Prevent
   artefacts: []
   implementation:
   - src/cas_skills/cas-sync-archgov-reviews/SKILL.md
@@ -3796,8 +3934,10 @@
 - id: flow:governance:cas-drawio-generator:execution-workflow
   name: Cas Drawio Generator Workflow
   type: governance
-  description: Produces declarative C4-style draw.io diagrams representing system
-    containers, components, and runtime traces.
+  description: Generates C4-style draw.io compatible XML diagrams (.drawio.xml) for
+    system architecture, containers, components, and runtime flows. Use when the user
+    needs to visualize architectural structures or flows based on codebase analysis
+    or requirements.
   trigger:
     type: cli_command
     event: skill:cas-drawio-generator
@@ -3859,8 +3999,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Generate
     - Prevent
+    - Generate
     invokes_flow_id: flow:cli:cas:main
   - id: step:5:save-verify-save-as-.drawio.xm
     name: '**Save & Verify**: Save as `.drawio.xml` and run through the verification
@@ -3878,8 +4018,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Generate
   - Prevent
+  - Generate
   artefacts: []
   implementation:
   - src/cas_skills/cas-drawio-generator/SKILL.md
