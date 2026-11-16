@@ -3395,6 +3395,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Implementation Signals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary Interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3544,83 +3561,87 @@
 
 <h1 id="provider-agnostic-llm-facade">Provider-Agnostic LLM Facade</h1>
 <h2 id="intent">Intent</h2>
-<p>Encapsulate large language model invocations behind a unified, provider-agnostic client abstraction paired with a deterministic mock test double to decouple agent orchestration from vendor-specific APIs and enable offline execution.</p>
+<p>Encapsulate large language model invocations behind a transport-agnostic interface to isolate agent orchestration from vendor API churn and provide deterministic offline test execution.</p>
 <h2 id="context">Context</h2>
-<p>Applied across agent workflows and orchestration modules where agents execute inference, synthesis, or document reconciliation. In distributed agentic systems, dependencies on external closed-model APIs or proprietary SDKs create provider lock-in, vendor churn, and unreliable test execution in offline or resource-constrained CI/CD environments.</p>
+<p>Agentic systems frequently rely on external closed-model APIs or proprietary SDKs across varying environments. Direct coupling leads to integration friction, provider lock-in, non-deterministic CI test execution, and inconsistent error topologies across model revisions.</p>
 <h2 id="agentic-profile">Agentic Profile</h2>
-<p>Governs autonomous agent steps, flow runners, and semantic merger modules that require LLM interactions. Isolates agent task execution from concrete inference providers, enabling seamless multi-cloud dispatch and zero-cost local test execution.</p>
+<p>Applies across all agent execution steps, composite workflow runners, and automated orchestration modules requiring model inference, structured schema extraction, or prompt evaluation across development, CI/CD, and production.</p>
 <h2 id="forces">Forces</h2>
-<p>Balances multi-model provider flexibility and offline CI testability against the operational discipline required to maintain strict abstraction boundaries.</p>
+<p>The pattern reconciles the need for flexible multi-provider model routing and deterministic offline CI validation against the risk of vendor-specific parameter leakage and abstraction overhead.</p>
 <h3 id="drivers">Drivers</h3>
 <ul>
-<li>Elimination of proprietary vendor SDK lock-in across agent reasoning steps</li>
-<li>Requirement for zero-cost, hermetic, and deterministic CI/CD testing pipelines</li>
-<li>Dynamic multi-cloud model routing and token budgeting across diverse execution environments</li>
+<li>Portability across heterogeneous model providers (e.g., OpenAI, Anthropic, Ollama, local models)</li>
+<li>Hermetic, cost-free CI/CD test execution without network dependencies</li>
+<li>Centralized governance over prompt caching, token budgeting, and telemetry collection</li>
 </ul>
 <h3 id="constraints">Constraints</h3>
 <ul>
-<li>Abstract interface contracts must normalize divergent vendor response schemas and error models</li>
-<li>Test doubles must exhibit behavioural symmetry with live inference endpoints</li>
-<li>Domain logic must strictly consume the abstraction layer without bypassing it for vendor-specific extensions</li>
+<li>Unified interface must normalize distinct model parameter dialects and error schemas</li>
+<li>Direct imports of proprietary provider SDKs must be prohibited in domain and runner logic</li>
 </ul>
 <h3 id="tradeoffs">Tradeoffs</h3>
 <ul>
-<li>Abstraction overhead and delayed availability of vendor-specific proprietary features</li>
-<li>Maintenance cost of dual-client parity between production adapters and mock test doubles</li>
+<li>Small abstraction indirection cost over direct vendor client usage</li>
+<li>Risk of abstraction leakage when exposing provider-specific parameters or specialized modalities</li>
 </ul>
 <h2 id="solution">Solution</h2>
-<p>Establish a polymorphic client interface defining standard text generation and structured output contracts. Implement a production gateway adapter utilizing a multi-provider router alongside a symmetric deterministic mock client for offline testing. Agent workflows interact exclusively through the interface protocol, allowing dynamic configuration-driven injection of production or test doubles without code changes.</p>
+<p>Expose a uniform LLM client abstraction using polymorphic interfaces and protocols, routing production requests through a normalized gateway while substituting drop-in deterministic test doubles in testing environments.</p>
 <h2 id="operationalisation">Operationalisation</h2>
-<p>Integrate the client interface across all workflow steps and automate runtime selection via environment configuration.</p>
+<p>Implementations route standard LLM interactions through the unified client protocol, utilizing production adapters for live routing and deterministic mock clients for pipeline regression gates.</p>
 <h3 id="workflow-implications">Workflow Implications</h3>
 <ul>
-<li>All workflow runners and step implementations must instantiate client adapters through the base protocol</li>
-<li>CI pipelines configure mock client test doubles by default to run tests without network credentials or API expenditure</li>
-<li>Production deployments configure the router adapter with appropriate token budgets, distributed tracing, and retry policies</li>
+<li>Agent steps interact solely with the abstract LLM client interface</li>
+<li>CI pipelines execute with deterministic mock client doubles to prevent flakiness and API costs</li>
+<li>Token budgeting, distributed tracing, and centralized review of model routing are enforced at the facade boundary</li>
 </ul>
 <h3 id="automation-opportunities">Automation Opportunities</h3>
 <ul>
-<li>Automated AST verification in CI to detect and reject direct imports of vendor SDKs</li>
-<li>Continuous fixture generation to keep mock test double response corpora in sync with model schema updates</li>
+<li>Automated static analysis checks blocking direct vendor SDK imports outside adapter packages</li>
+<li>Automated generation of deterministic test fixtures from normalized response records</li>
 </ul>
 <h2 id="implementation-signals">Implementation Signals</h2>
-<p>Concrete implementation evidenced by AST symbols in litellm_client.py and mock_client.py, referenced across FlowRunner and AgenticMerger pipelines.</p>
+<p>Concrete polymorphic abstractions implemented in core runner modules, featuring explicit client protocols alongside matching production and mock implementations.</p>
+<h3 id="primary-interfaces">Primary Interfaces</h3>
+<ul>
+<li>src/cas_runner/llm/base.py</li>
+<li>src/cas_runner/llm/litellm_client.py</li>
+<li>src/cas_runner/llm/mock_client.py</li>
+</ul>
 <h2 id="evidence">Evidence</h2>
-<p>Verified recurring usage across FlowRunner and AgenticMerger modules with established AST symbols in production and mock modules.</p>
+<p>Demonstrated across multi-stage orchestration modules with complete CI/CD regression verification and active static analysis symbol bindings.</p>
 <h3 id="signals">Signals</h3>
 <ul>
-<li>recurring implementation across FlowRunner and AgenticMerger modules</li>
-<li>current architecture state AST support in src/cas_runner/llm/litellm_client.py and src/cas_runner/llm/mock_client.py</li>
-<li>cross-project applicability for LLM-driven orchestration runtimes</li>
-<li>governance model alignment with deterministic CI test double capabilities</li>
+<li>Recurring implementation across FlowRunner and AgenticMerger modules</li>
+<li>Concrete AST symbol references in LiteLLMClient and MockLLMClient</li>
+<li>Proven multi-provider test coverage across CI/CD execution environments</li>
 </ul>
 <h3 id="confidence-basis">Confidence Basis</h3>
-<p>Empirically validated through concrete AST symbols, production multi-provider test coverage, and accepted architecture decision record.</p>
+<p>Production implementations and offline test double integration verified in core runner pipeline.</p>
 <h2 id="consequences">Consequences</h2>
-<p>Provides architectural decoupling, cost control, and deterministic testing while introducing contract maintenance overhead.</p>
+<p>Decouples autonomous agent logic from external model vendors, enhancing determinism and governance while requiring vigilant schema boundary management.</p>
 <h3 id="benefits">Benefits</h3>
 <ul>
-<li>Eliminates direct vendor SDK dependencies in workflow and domain logic</li>
-<li>Enables fast, zero-overhead, deterministic CI/CD execution without API keys or token costs</li>
-<li>Provides standardized prompt and response caching, token budgeting, and centralized observability</li>
+<li>Zero-overhead polymorphic dispatch between live execution and hermetic mock doubles</li>
+<li>Consistent error propagation and normalized parameter representations across providers</li>
+<li>Elimination of proprietary SDK dependencies across agent business logic</li>
 </ul>
 <h3 id="risks">Risks</h3>
 <ul>
-<li>Vendor abstraction leakage if vendor-specific parameters or error structures are not normalized</li>
-<li>Drift between mock client canned responses and real provider completion schemas</li>
+<li>Vendor abstraction leakage if vendor-specific parameters or error structures bypass the gateway</li>
+<li>Potential latency overhead or drift in normalization layers as underlying APIs evolve</li>
 </ul>
 <h3 id="governance-implications">Governance Implications</h3>
 <ul>
-<li>Enforces token budgeting, distributed tracing, and centralized review of model integrations</li>
-<li>Mandates that new model capabilities undergo interface normalization before adoption</li>
+<li>Mandatory architectural boundary for all components invoking large language models</li>
+<li>Centralized review and approval required before introducing proprietary model extensions</li>
 </ul>
 <h2 id="reuse-notes">Reuse Notes</h2>
-<p>Universally applicable across all CAS components, agent steps, and workflow runners invoking language models. Mandatory for local development, offline CI/CD, and production multi-cloud deployments.</p>
+<p>Universally applicable across local development, offline CI/CD pipelines, and multi-cloud runtime deployments for any component or agent step requiring language model interaction.</p>
 <h2 id="confidence">Confidence</h2>
-<p>High confidence supported by complete codebase implementation, robust AST evidence, and Architecture Forum ratification.</p>
+<p>High confidence supported by established production AST implementations, widespread module recurrence, and proven deterministic CI execution.</p>
 <p><strong>Level:</strong> high</p>
 <h3 id="rationale">Rationale</h3>
-<p>High confidence based on verified AST implementations across LiteLLMClient and MockLLMClient, proven multi-provider test coverage, and formal ratification by the Architecture Forum.</p>
+<p>Validated across active runner workflows with concrete production and mock implementations meeting all core promotion criteria.</p>
 
 
 
