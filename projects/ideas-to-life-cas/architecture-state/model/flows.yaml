@@ -1,8 +1,7 @@
 - id: flow:workflow:github:cas-build-steering-projection
   name: CAS Build Steering Projection
   type: workflow
-  description: Downstream workflow that projects architectural deltas and operational
-    capability updates into workspace steering documentation post-validation.
+  description: GitHub Actions workflow defined in .github/workflows/cas-build-steering-projection.yml
   trigger:
     type: event
     event: workflow_run, workflow_dispatch
@@ -102,13 +101,9 @@
     evidence_ids:
     - ev-wf-cas-build-steering-projection
     confidence: high
-  component_ids:
-  - comp-flowrunner
-  - comp-knowledgeconfig
+  component_ids: []
   control_roles:
   - Prevent
-  - Generate
-  - Correct
   artefacts: []
   implementation:
   - .github/workflows/cas-build-steering-projection.yml
@@ -119,7 +114,8 @@
 - id: flow:workflow:github:cas-build-validation
   name: CAS Build Validation
   type: workflow
-  description: GitHub Actions workflow defined in .github/workflows/cas-build-validation.yml
+  description: CI workflow verifying CAS structural contracts, unit tests, and lint
+    rules on pushes and pull requests to prevent broken invariants.
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch
@@ -251,9 +247,9 @@
     - ev-wf-cas-build-validation
     confidence: high
     control_roles:
+    - Generate
     - Prevent
     - Detect
-    - Generate
     invokes_flow_id: flow:cli:cas:main
   - id: step:10:upload-validation-report
     name: Upload validation report
@@ -264,10 +260,12 @@
     evidence_ids:
     - ev-wf-cas-build-validation
     confidence: high
-  component_ids: []
+  component_ids:
+  - comp-casconfig
+  - comp-load_config
   control_roles:
-  - Prevent
   - Generate
+  - Prevent
   - Detect
   artefacts: []
   implementation:
@@ -279,9 +277,8 @@
 - id: flow:workflow:github:cas-continuous-architecture-loop
   name: CAS Continuous Architecture Loop
   type: workflow
-  description: Continuous architecture CI/CD pipeline triggered on PRs to validate
-    architectural invariants, check Western Electric control bands, and verify structural
-    alignment.
+  description: CI workflow triggering the continuous architecture loop upon pull requests
+    modifying knowledge artifacts, rules, patterns, specs, or source code.
   trigger:
     type: event
     event: pull_request
@@ -360,9 +357,21 @@
     - ev-wf-cas-continuous-architecture
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:7:commit-and-push-changes
-    name: Commit and Push changes
+  - id: step:7:run-steering-projection
+    name: Run Steering Projection
     sequence: 7
+    depends_on:
+    - step:1:check-pr-title-body-and-head-c
+    implementation: "# Update Runtime Capability Inventory, lineage, and steering\
+      \ projection proposals\nuv run cas run steering-projection-flow \\\n  --override\
+      \ '{\"governance_fail_on_error\": false}'\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    invokes_flow_id: flow:cli:cas:main
+  - id: step:8:commit-and-push-changes
+    name: Commit and Push changes
+    sequence: 8
     depends_on:
     - step:1:check-pr-title-body-and-head-c
     implementation: "git config --global user.name \"CAS Bot\"\ngit config --global\
@@ -374,9 +383,9 @@
     - ev-wf-cas-continuous-architecture
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  - id: step:8:upload-artifacts
+  - id: step:9:upload-artifacts
     name: Upload Artifacts
-    sequence: 8
+    sequence: 9
     depends_on:
     - step:1:check-pr-title-body-and-head-c
     implementation: actions/upload-artifact@v4
@@ -385,7 +394,6 @@
     confidence: high
   component_ids:
   - comp-flowrunner
-  - comp-governanceconfig
   - comp-casconfig
   control_roles:
   - Prevent
@@ -400,8 +408,8 @@
 - id: flow:workflow:github:cas-managed-steering-sync
   name: CAS Managed Steering Sync
   type: workflow
-  description: Automated steering synchronization workflow validating and applying
-    managed section diffs to instruction files (AGENTS.md, CLAUDE.md).
+  description: Workflow detecting architectural drift and applying managed steering
+    projections to agent instructions (AGENTS.md, GEMINI.md, CLAUDE.md).
   trigger:
     type: event
     event: pull_request, workflow_dispatch
@@ -553,8 +561,8 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Prevent
     - Generate
+    - Prevent
     - Correct
   - id: step:12:inspect-projection
     name: Inspect Projection
@@ -592,8 +600,8 @@
     - ev-wf-cas-managed-steering-sync
     confidence: high
     control_roles:
-    - Detect
     - Correct
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:14:commit-changes
     name: Commit Changes
@@ -637,13 +645,12 @@
     - Correct
     invokes_flow_id: flow:cli:cas:main
   component_ids:
-  - comp-flowrunner
   - comp-casconfig
   control_roles:
-  - Prevent
-  - Detect
-  - Correct
   - Generate
+  - Prevent
+  - Correct
+  - Detect
   artefacts: []
   implementation:
   - .github/workflows/cas-managed-steering-sync.yml
@@ -654,8 +661,7 @@
 - id: flow:workflow:github:cas-governance-portal-publish
   name: CAS Governance Portal Publish
   type: workflow
-  description: Publishes the consolidated architecture governance portal and health
-    dashboard using MkDocs Material.
+  description: GitHub Actions workflow defined in .github/workflows/cas-portal-publish.yml
   trigger:
     type: event
     event: push, workflow_dispatch, repository_dispatch
@@ -773,12 +779,10 @@
     evidence_ids:
     - ev-wf-cas-portal-publish
     confidence: high
-  component_ids:
-  - comp-knowledgeconfig
-  - comp-casconfig
+  component_ids: []
   control_roles:
-  - Prevent
   - Generate
+  - Prevent
   artefacts: []
   implementation:
   - .github/workflows/cas-portal-publish.yml
@@ -789,8 +793,7 @@
 - id: flow:workflow:github:cas-skill-evaluations
   name: CAS Skill Evaluations
   type: workflow
-  description: Executes evaluation suites against CAS skills (AGENTS rules hygiene,
-    ADR synchronization, refactoring) with assertions and optional LLM-as-judge scoring.
+  description: GitHub Actions workflow defined in .github/workflows/cas-skill-evals.yml
   trigger:
     type: event
     event: push, pull_request, workflow_dispatch, schedule
@@ -854,13 +857,10 @@
     - ev-wf-cas-skill-evals
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-llmconfig
-  - comp-flowrunner
+  component_ids: []
   control_roles:
   - Prevent
   - Correct
-  - Detect
   artefacts: []
   implementation:
   - .github/workflows/cas-skill-evals.yml
@@ -977,8 +977,8 @@
     - ev-wf-publish-distribution
     confidence: high
     control_roles:
-    - Detect
     - Correct
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:8:publish-release-wheel-assets-t
     name: Publish Release Wheel Assets to ideas-to-life/setup-cas
@@ -1005,8 +1005,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Prevent
   - Generate
+  - Prevent
   - Correct
   - Detect
   artefacts: []
@@ -1019,8 +1019,9 @@
 - id: flow:cli:cas:main
   name: cas
   type: cli
-  description: Primary CLI dispatch executing governance commands, architectural loop
-    evaluations, baseline synchronization, and cockpit inspection.
+  description: Main CAS CLI entrypoint resolving configuration, target project context,
+    and executing requested CLI commands including workspace initialization, flow
+    running, and steering sync.
   trigger:
     type: cli_command
     event: cas
@@ -1045,6 +1046,7 @@
   - comp-casconfig
   - comp-load_config
   control_roles:
+  - Generate
   - Prevent
   - Detect
   artefacts: []
@@ -1249,8 +1251,8 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:roadmap-bootstrap-flow
   name: roadmap-bootstrap-flow
   type: declared_flow
-  description: Initializes project workspace baseline and populates foundational knowledge
-    and governance templates.
+  description: Initializes project workspace baseline, registers foundational architecture
+    artifacts, and scaffolds repository governance substrate.
   trigger:
     type: unknown
     event: unspecified
@@ -1275,7 +1277,7 @@
   component_ids:
   - comp-bootstrap
   - comp-init_workspace
-  - comp-casconfig
+  - comp-render_onboarding_checklist
   control_roles:
   - Generate
   artefacts: []
@@ -1288,7 +1290,8 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:orchestration-flow
   name: orchestration-flow
   type: declared_flow
-  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
+  description: Core orchestration execution flow coordinating reasoning step transitions,
+    LLM telemetry collection, and artifact generation.
   trigger:
     type: unknown
     event: unspecified
@@ -1338,9 +1341,13 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-flowrunner
+  - comp-llmconfig
+  - comp-telemetryconfig
   control_roles:
   - Prevent
+  - Generate
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1384,8 +1391,7 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:steering-projection-flow
   name: steering-projection-flow
   type: declared_flow
-  description: Projects delta analysis and capability updates into active steering
-    sections without manual documentation overhead.
+  description: Flow declared in src/cas_runner/steps/registry.py:FLOWS
   trigger:
     type: unknown
     event: unspecified
@@ -1406,12 +1412,8 @@
     - ev-reg-src-cas_runner-steps-registry.py-flows
     confidence: high
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-flowrunner
-  - comp-knowledgeconfig
-  control_roles:
-  - Generate
-  - Correct
+  component_ids: []
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1830,20 +1832,9 @@
     command: pattern-scope-classifier
     evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
   steps:
-  - id: step:1:rules-context-loader
-    name: rules-context-loader
-    sequence: 1
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:2:pattern-scope-classifier
+  - id: step:1:pattern-scope-classifier
     name: pattern-scope-classifier
-    sequence: 2
+    sequence: 1
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:pattern-scope-classifier
     evidence_ids:
@@ -1851,8 +1842,7 @@
     confidence: high
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
-  control_roles:
-  - Prevent
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1875,20 +1865,9 @@
     command: pattern-promotion-workflow
     evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
   steps:
-  - id: step:1:rules-context-loader
-    name: rules-context-loader
-    sequence: 1
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:2:pattern-promotion-workflow
+  - id: step:1:pattern-promotion-workflow
     name: pattern-promotion-workflow
-    sequence: 2
+    sequence: 1
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:pattern-promotion-workflow
     evidence_ids:
@@ -1896,8 +1875,7 @@
     confidence: high
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
-  control_roles:
-  - Prevent
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1920,20 +1898,9 @@
     command: promotion-decision-capture
     evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
   steps:
-  - id: step:1:rules-context-loader
-    name: rules-context-loader
-    sequence: 1
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:2:promotion-decision-capture
+  - id: step:1:promotion-decision-capture
     name: promotion-decision-capture
-    sequence: 2
+    sequence: 1
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:promotion-decision-capture
     evidence_ids:
@@ -1941,8 +1908,7 @@
     confidence: high
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
-  control_roles:
-  - Prevent
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -1965,20 +1931,9 @@
     command: promotion-to-decision-records
     evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
   steps:
-  - id: step:1:rules-context-loader
-    name: rules-context-loader
-    sequence: 1
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:2:promotion-to-decision-records
+  - id: step:1:promotion-to-decision-records
     name: promotion-to-decision-records
-    sequence: 2
+    sequence: 1
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:promotion-to-decision-records
     evidence_ids:
@@ -1986,8 +1941,7 @@
     confidence: high
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
-  control_roles:
-  - Prevent
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -2010,20 +1964,9 @@
     command: approved-adr-to-pattern
     evidence_id: ev-reg-src-cas_runner-steps-registry.py-flows
   steps:
-  - id: step:1:rules-context-loader
-    name: rules-context-loader
-    sequence: 1
-    depends_on: []
-    implementation: src/cas_runner/steps/registry.py:rules-context-loader
-    evidence_ids:
-    - ev-reg-src-cas_runner-steps-registry.py-flows
-    confidence: high
-    control_roles:
-    - Prevent
-    invokes_flow_id: flow:cli:cas:main
-  - id: step:2:approved-adr-to-pattern
+  - id: step:1:approved-adr-to-pattern
     name: approved-adr-to-pattern
-    sequence: 2
+    sequence: 1
     depends_on: []
     implementation: src/cas_runner/steps/registry.py:approved-adr-to-pattern
     evidence_ids:
@@ -2031,8 +1974,7 @@
     confidence: high
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
-  control_roles:
-  - Prevent
+  control_roles: []
   artefacts: []
   implementation:
   - src/cas_runner/steps/registry.py
@@ -2043,8 +1985,8 @@
 - id: flow:declared_flow:src-cas_runner-steps-registry.py:continuous-architecture-loop
   name: continuous-architecture-loop
   type: declared_flow
-  description: Authoritative multi-step architecture assessment loop evaluating change
-    sets against patterns, rules, and control band thresholds.
+  description: Deterministic step sequence executing architecture work assessment,
+    control band analysis, pattern classification, and governance validation.
   trigger:
     type: unknown
     event: unspecified
@@ -2125,8 +2067,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids:
   - comp-flowrunner
+  - comp-casconfig
   - comp-governanceconfig
-  - comp-sdlcprofilespec
   control_roles:
   - Prevent
   - Detect
@@ -2934,8 +2876,11 @@
 - id: flow:governance:cas-audit-agent-rules:execution-workflow
   name: Cas Audit Agent Rules Workflow
   type: governance
-  description: Agent rule hygiene workflow that audits, deduplicates, and optimizes
-    agent instruction files for token economy and progressive disclosure.
+  description: Audit, deduplicate, and optimize agent instruction and rules files
+    (AGENTS.md, GEMINI.md, .agents/rules/*.md) for token economy, discoverability,
+    progressive disclosure, and governance invariants. Use when asked to review agent
+    rules, optimize AGENTS.md, eliminate duplicate agent instructions, or enforce
+    repository rule hygiene.
   trigger:
     type: cli_command
     event: skill:cas-audit-agent-rules
@@ -3129,9 +3074,7 @@
     - Prevent
     - Detect
     invokes_flow_id: flow:cli:cas:main
-  component_ids:
-  - comp-casconfig
-  - comp-governanceconfig
+  component_ids: []
   control_roles:
   - Prevent
   - Detect
@@ -3306,10 +3249,8 @@
 - id: flow:governance:cas-add-or-modify-feature:execution-workflow
   name: Cas Add Or Modify Feature Workflow
   type: governance
-  description: MANDATORY skill for any feature request or structural modification.
-    Use when adding features, extending functionality, modifying existing behaviour,
-    or introducing integrations. This skill MUST be invoked before making any code
-    changes to ensure architectural alignment, pattern reuse, and governance compliance.
+  description: Mandatory governance skill flow that validates architectural alignment,
+    verifies existing patterns, and routes changes before code modification.
   trigger:
     type: cli_command
     event: skill:cas-add-or-modify-feature
@@ -3385,7 +3326,9 @@
     control_roles:
     - Prevent
     invokes_flow_id: flow:cli:cas:main
-  component_ids: []
+  component_ids:
+  - comp-governanceconfig
+  - comp-sdlcprofilespec
   control_roles:
   - Prevent
   - Detect
@@ -3572,8 +3515,8 @@
 - id: flow:governance:cas-sync-archgov-reviews:execution-workflow
   name: Cas Sync Archgov Reviews Workflow
   type: governance
-  description: Synchronizes external ArchGov review decisions into local Git state
-    and triggers downstream ADR and pattern institutionalization.
+  description: Skill workflow synchronizing external ArchGov decisions into local
+    Git state, detecting approvals, and triggering ADR or pattern promotion.
   trigger:
     type: cli_command
     event: skill:cas-sync-archgov-reviews
@@ -3614,8 +3557,8 @@
     component_id: ''
     control_roles:
     - Prevent
-    - Detect
     - Correct
+    - Detect
     invokes_flow_id: flow:cli:cas:main
   - id: step:3:two-way-synchronization-push-t
     name: '**Two-Way Synchronization (Push then Pull)**:'
@@ -3919,11 +3862,10 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids:
   - comp-governanceconfig
-  - comp-flowrunner
   control_roles:
   - Prevent
-  - Detect
   - Correct
+  - Detect
   artefacts: []
   implementation:
   - src/cas_skills/cas-sync-archgov-reviews/SKILL.md
@@ -3999,8 +3941,8 @@
     confidence: high
     component_id: ''
     control_roles:
-    - Prevent
     - Generate
+    - Prevent
     invokes_flow_id: flow:cli:cas:main
   - id: step:5:save-verify-save-as-.drawio.xm
     name: '**Save & Verify**: Save as `.drawio.xml` and run through the verification
@@ -4018,8 +3960,8 @@
     invokes_flow_id: flow:cli:cas:main
   component_ids: []
   control_roles:
-  - Prevent
   - Generate
+  - Prevent
   artefacts: []
   implementation:
   - src/cas_skills/cas-drawio-generator/SKILL.md
