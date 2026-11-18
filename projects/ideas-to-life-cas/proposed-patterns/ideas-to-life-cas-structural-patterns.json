@@ -3,54 +3,54 @@
     "repo_name": "ideas-to-life-cas",
     "repo_version_or_commit": "0.2.1",
     "focus": "general-structural-architecture",
-    "generated_at": "2026-11-16T21:55:00Z",
-    "scope_notes": "Structural, domain, and infrastructural architecture analysis of the cas_runner CLI, governance engines, telemetry adapters, and workspace bootstrapping.",
+    "generated_at": "2026-11-18T09:45:20.749600",
+    "scope_notes": "Structural, domain, and infrastructural architecture analysis of the Continuous Architecture System (CAS) runner and knowledge repository.",
     "analysis_limits": [
-      "Targeted codebase snippet inspection without full execution environment",
-      "Analysis excludes agentic prompting and LLM loop logic to respect structural separation"
+      "No direct runtime execution or network trace analysis; analysis is based on static manifest, tree structure, and symbol inspection."
     ],
     "default_domain": [
-      "Architecture Governance",
-      "Continuous Architecture Systems",
-      "Developer Tooling"
+      "continuous-architecture",
+      "architecture-governance",
+      "developer-tooling"
     ],
     "default_sources": [
-      "src/cas_runner",
-      "specs/090-simplify-cicd-workflows"
+      "pyproject.toml",
+      "src/cas_runner/",
+      "cas-knowledge/"
     ]
   },
   "system_map": {
-    "overview": "The cas_runner system is structured as a modular Python CLI and runtime engine that manages Continuous Architecture System (CAS) governance artifacts, verifies compliance, normalizes multi-tool telemetry, and orchestrates workspace state transitions.",
+    "overview": "The Continuous Architecture System (CAS) runner is structured as a multi-tier Python application pairing domain-driven architecture governance with a filesystem-based hierarchical knowledge base. It provides CLI operations, compliance checking, governance lifecycle state transitions, telemetry adaptation, and workspace bootstrapping.",
     "layers": [
       {
-        "name": "Presentation / CLI Layer",
-        "purpose": "Provides user entry points, workspace bootstrapping, and status dashboards.",
+        "name": "presentation",
+        "purpose": "CLI entrypoints and onboarding output formatting using Rich and command-line parsing.",
         "paths": [
-          "src/cas_runner/cli.py",
-          "src/cas_runner/bootstrap.py"
+          "src/cas_runner/cli.py"
         ]
       },
       {
-        "name": "Application Service Layer",
-        "purpose": "Coordinates governance transitions, compliance checks, and flow execution.",
+        "name": "application",
+        "purpose": "Workflow execution orchestration, governance service coordination, and workspace bootstrapping.",
         "paths": [
           "src/cas_runner/runner.py",
+          "src/cas_runner/bootstrap.py",
           "src/cas_runner/governance/governance_action_service.py"
         ]
       },
       {
-        "name": "Domain & Engine Layer",
-        "purpose": "Defines domain entity models, health status calculations, transition rules, and compliance engines.",
+        "name": "domain",
+        "purpose": "Core business models for governance entities, compliance findings, metrics, and health evaluation.",
         "paths": [
           "src/cas_runner/governance/models.py",
-          "src/cas_runner/governance/governance_action_engine.py",
           "src/cas_runner/governance/compliance_engine.py",
+          "src/cas_runner/governance/governance_action_engine.py",
           "src/cas_runner/dashboard/health_model.py"
         ]
       },
       {
-        "name": "Infrastructure & Adapter Layer",
-        "purpose": "Handles external telemetry format adaptation, client communication (LiteLLM/Mock), and filesystem serialization.",
+        "name": "infrastructure",
+        "purpose": "Third-party client adapters, telemetry normalization adapters, and file-system persistence access.",
         "paths": [
           "src/cas_runner/dashboard/agent_telemetry.py",
           "src/cas_runner/llm/litellm_client.py",
@@ -60,40 +60,54 @@
     ],
     "components": [
       {
-        "name": "GovernanceActionEngine",
-        "role": "Encapsulates state transitions and compliance validation mechanics via TransitionRegistry."
+        "name": "GovernanceActionService",
+        "layer": "application",
+        "role": "Orchestrates governance action validation, transitions, and health status reporting."
+      },
+      {
+        "name": "TransitionRegistry",
+        "layer": "domain",
+        "role": "Maintains deterministic state transition mappings for governance actions and entities."
+      },
+      {
+        "name": "ComplianceEngine",
+        "layer": "domain",
+        "role": "Evaluates architectural rules and findings across knowledge artifacts."
       },
       {
         "name": "TelemetryAdapters",
-        "role": "Normalizes agent execution spans across diverse vendors into a unified AgentTelemetrySpan model."
+        "layer": "infrastructure",
+        "role": "Converts heterogeneous provider spans into normalized AgentTelemetrySpan records."
       },
       {
-        "name": "WorkspaceBootstrapper",
-        "role": "Idempotently prepares workspace structures, symlinks, and settings blocks."
+        "name": "BootstrapOrchestrator",
+        "layer": "application",
+        "role": "Project setup and symlink projection of governance files into active development workspaces."
       }
     ],
     "orchestration": {
-      "execution_model": "Synchronous CLI task execution driven by FlowRunner and GovernanceActionService invoking decoupled engine operations."
+      "mechanism": "Command-line driven synchronous workflows running through FlowRunner to GovernanceActionService and ComplianceEngine",
+      "entrypoints": [
+        "cas_runner.cli:main"
+      ]
     },
     "tools_and_integrations": [
       {
-        "name": "Pydantic",
-        "purpose": "Strict domain schema validation and serialization"
-      },
-      {
-        "name": "LiteLLM",
-        "purpose": "Pluggable provider-agnostic model access client"
+        "name": "LiteLLM Client / Mock Client",
+        "type": "Provider Client",
+        "role": "Standardized abstraction for remote model execution and test isolation."
       },
       {
         "name": "OpenTelemetry SDK",
-        "purpose": "Telemetry instrumentation and span ingestion"
+        "type": "Observability",
+        "role": "Span generation and metrics tracking for governance runs."
       }
     ],
     "state_and_memory": [
       {
-        "name": "CAS Knowledge Repository",
-        "type": "File-system repository",
-        "purpose": "Stores governance rules, decisions, maps, models, and runtime profiles as markdown/json/yaml files."
+        "name": "cas-knowledge repository",
+        "type": "File System Hierarchical Store",
+        "description": "Structured repository holding global decisions, rules, templates, and project-specific governance states."
       }
     ]
   },
@@ -108,30 +122,17 @@
         "coupling": "loose",
         "extensibility": "high"
       },
-      "summary": "Core governance entities and telemetry spans are declared as immutable or validated data models using Pydantic, enforcing structural contracts between CLI, engines, and disk storage.",
-      "tags": [
-        "domain-modeling",
-        "pydantic",
-        "validation",
-        "data-contracts"
-      ],
-      "domain": [
-        "Architecture Governance",
-        "Data Integrity"
-      ],
-      "maturity": "production",
-      "intent": "Ensure deterministic validation and serialization of architecture findings, actions, metrics, and health statuses across persistence boundaries.",
-      "context": "The system processes governance artifacts, JSON metrics, and health states that originate from automated analysis runs and external agent logs.",
+      "summary": "Declares immutable and typed governance records, compliance metrics, and action states using Pydantic models.",
+      "intent": "Ensure strict type validation, serialization consistency, and domain invariant enforcement across governance workflows.",
+      "context": "Governance records, compliance findings, and action results must be passed across file boundaries, CLI commands, and metric dashboards.",
       "forces": [
-        "Dynamic inputs from varied external analysis tools can cause schema drift.",
-        "Business rules require strong typing for metrics, health states, and actions.",
-        "Manual validation logic across multiple service files creates duplication."
+        "Data ingested from YAML and JSON files may have missing or malformed attributes.",
+        "Downstream consumers require guaranteed typings without scattered runtime type guards."
       ],
-      "solution": "Define domain models like TraceableMetric, GovernanceInventory, ComplianceFinding, and GovernanceAction within an isolated domain models module using Pydantic BaseModel.",
+      "solution": "Define data contracts as Pydantic models encapsulating governance inventories, compliance metrics, and resolution outputs.",
       "implementation_signals": [
-        "Classes inheriting from BaseModel or dataclass representations",
-        "Explicit field type annotations with nested metric structures",
-        "Strict parsing and serialization used across governance engine inputs"
+        "Class declarations inheriting from BaseModel",
+        "Structured dataclasses representing domain outputs like ComplianceFinding and GovernanceAction"
       ],
       "evidence": [
         {
@@ -148,28 +149,72 @@
             "GovernanceException",
             "GovernanceAction"
           ],
-          "note": "Complete canonical modeling of domain metrics, findings, and governance actions as typed entities."
+          "note": "Complete domain boundary defined using structured Pydantic models."
         }
       ],
       "consequences": {
         "benefits": [
-          "Compile-time and runtime type safety across engine boundaries",
-          "Automatic serializability to JSON/YAML without manual dictionary conversion",
-          "Decoupled schema definitions that serve as living documentation"
+          "Automatic schema validation and serialization to JSON/dict formats.",
+          "Clear boundary definitions between external serialized formats and domain entities."
         ],
         "costs": [
-          "Runtime validation overhead on high-throughput metric streams",
-          "Schema changes require careful version migrations if serialized to disk"
+          "Runtime validation overhead during high-volume object instantiation."
         ],
         "failure_modes": [
-          "Validation errors thrown at runtime when reading legacy artifact formats if backward compatibility defaults are missing"
+          "Schema divergence between raw Markdown/YAML frontmatter and Pydantic validation rules leading to parse exceptions."
         ]
       },
-      "reuse_notes": "Extract domain model classes into a dedicated module with zero runtime dependencies beyond standard schema libraries.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/governance/models.py"
-      }
+      "confidence": "high"
+    },
+    {
+      "id": "adapter-telemetry-normalization",
+      "name": "Adapter Telemetry Normalization",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "infrastructure",
+        "complexity": "medium",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Normalizes disparate tracing formats into a canonical AgentTelemetrySpan domain record using targeted adapter classes.",
+      "intent": "Isolate external vendor-specific trace formats from internal dashboards and health calculation models.",
+      "context": "Agent and developer interactions generate telemetry spans from diverse environments (e.g. Claude Code, Antigravity) that must be ingested uniformly.",
+      "forces": [
+        "Heterogeneous payload structures and timestamp representations across tracing providers.",
+        "Core metric dashboards should not depend on vendor-specific span schemas."
+      ],
+      "solution": "Implement provider-specific adapters (CodingAgentTelemetryAdapter, AntigravityTelemetryAdapter, ClaudeCodeTelemetryAdapter) inheriting from a common interface to convert raw data into AgentTelemetrySpan instances.",
+      "implementation_signals": [
+        "Dedicated adapter classes named with *TelemetryAdapter",
+        "Standardized normalization helpers like _normalize_iso and _parse_iso_epoch"
+      ],
+      "evidence": [
+        {
+          "path": "src/cas_runner/dashboard/agent_telemetry.py",
+          "symbols": [
+            "AgentTelemetrySpan",
+            "CodingAgentTelemetryAdapter",
+            "AntigravityTelemetryAdapter",
+            "ClaudeCodeTelemetryAdapter",
+            "_normalize_iso",
+            "_parse_iso_epoch"
+          ],
+          "note": "Specialized adapter implementations mapping third-party spans into a single canonical telemetry model."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Pluggable support for new telemetry emitters without modifying the dashboard or health models.",
+          "Encapsulated timestamp normalization and cost attribution logic."
+        ],
+        "costs": [
+          "Duplicate mapping logic across adapters when schema structures slightly diverge."
+        ],
+        "failure_modes": [
+          "Provider trace schema updates silent failures defaulting to unrecognized provider tags."
+        ]
+      },
+      "confidence": "high"
     },
     {
       "id": "transition-registry-state-machine",
@@ -181,30 +226,17 @@
         "coupling": "loose",
         "extensibility": "high"
       },
-      "summary": "Separates state transition rules and governance lifecycles into an explicit registry class decoupled from action execution logic.",
-      "tags": [
-        "state-machine",
-        "registry",
-        "extensibility",
-        "governance"
-      ],
-      "domain": [
-        "Workflow Automation",
-        "Architecture Governance"
-      ],
-      "maturity": "production",
-      "intent": "Manage allowed status transitions for governance decisions and actions using a single source of truth.",
-      "context": "Governance actions transition through multiple states (proposed, approved, rejected, deferred). Embedding validation inside workflow handlers leads to inconsistent rules.",
+      "summary": "Manages valid state transitions and governance progression through an explicit transition registry table.",
+      "intent": "Prevent invalid status transitions in governance artifacts and enforce deterministic life-cycle progression.",
+      "context": "Governance actions, decision records, and architectural work items progress through discrete review and promotion stages.",
       "forces": [
-        "State transition rules must be easily auditable by architects.",
-        "Engine handlers should only execute transitions, not hardcode the matrix of allowed states.",
-        "Adding new states or conditional transitions should not require modifying the execution engine."
+        "Ad-hoc status modification leads to orphaned or inconsistently approved governance records.",
+        "Decoupling the transition validation logic from execution engines."
       ],
-      "solution": "Introduce a TransitionRegistry that indexes permissible transitions between states and provides explicit validation methods invoked by GovernanceActionEngine.",
+      "solution": "Define a TransitionRegistry that holds verified valid state transitions, invoked by GovernanceActionEngine prior to mutations.",
       "implementation_signals": [
-        "A dedicated registry class maintaining transition dictionaries or transition graphs",
-        "Engine classes querying the registry before applying state updates",
-        "Clear exceptions raised on illegal state transitions"
+        "Explicit registry object checking source and target states",
+        "Separation between transition verification and engine execution"
       ],
       "evidence": [
         {
@@ -213,130 +245,44 @@
             "TransitionRegistry",
             "GovernanceActionEngine"
           ],
-          "note": "TransitionRegistry decouples state transitions from the GovernanceActionEngine's execution cycle."
+          "note": "TransitionRegistry encapsulates permitted transition paths enforced by GovernanceActionEngine."
         }
       ],
       "consequences": {
         "benefits": [
-          "Centralized validation of valid governance action lifecycles",
-          "Prevents illegal state transitions before side-effects are executed",
-          "Easy to write unit tests for valid and invalid state pairs in isolation"
+          "Centralized rule set for valid lifecycle paths.",
+          "Simplified testing of permissible states without running external actions."
         ],
         "costs": [
-          "Additional abstraction layer compared to straightforward conditional checks"
+          "New lifecycle states require updating registry mappings before usage."
         ],
         "failure_modes": [
-          "Unhandled transitions can stall automated workflows if registry mappings become out of sync with new action types"
+          "Unregistered edge cases causing valid actions to be blocked by rigid transition definitions."
         ]
       },
-      "reuse_notes": "Adaptable to any lifecycle-driven domain model such as ADR approvals, issue tracking, and policy state machines.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/governance/governance_action_engine.py"
-      }
+      "confidence": "high"
     },
     {
-      "id": "heterogeneous-telemetry-adapter-pipeline",
-      "name": "Heterogeneous Telemetry Adapter Pipeline",
-      "type": "pattern",
-      "structural_profile": {
-        "layer": "infrastructure",
-        "complexity": "medium",
-        "coupling": "moderate",
-        "extensibility": "high"
-      },
-      "summary": "Standardizes varying external agent telemetry schemas into a unified internal span representation via specialized adapter classes.",
-      "tags": [
-        "adapter-pattern",
-        "telemetry",
-        "normalization",
-        "opentelemetry"
-      ],
-      "domain": [
-        "Observability",
-        "Agent Instrumentation"
-      ],
-      "maturity": "production",
-      "intent": "Normalize telemetry logs from disparate coding assistants and subagents into a common span model for cost calculation and workspace filtering.",
-      "context": "Telemetry data originates from different CLI tools (Claude Code, Antigravity, custom coding agents) each having idiosyncratic timestamp formats, metadata keys, and token counters.",
-      "forces": [
-        "Dashboard and health models require uniform metrics (cost, duration, provider).",
-        "Upstream telemetry log formats change independently across external tools.",
-        "Downstream analytics should not know about tool-specific serialization quirks."
-      ],
-      "solution": "Implement targeted adapter classes (e.g. CodingAgentTelemetryAdapter, ClaudeCodeTelemetryAdapter, AntigravityTelemetryAdapter) translating raw payloads into AgentTelemetrySpan instances.",
-      "implementation_signals": [
-        "Multiple adapter classes sharing a common target schema",
-        "Normalization helpers for epoch parsing, ISO strings, and provider inference",
-        "Decoupled cost estimation logic operating on the normalized model"
-      ],
-      "evidence": [
-        {
-          "path": "src/cas_runner/dashboard/agent_telemetry.py",
-          "symbols": [
-            "AgentTelemetrySpan",
-            "CodingAgentTelemetryAdapter",
-            "AntigravityTelemetryAdapter",
-            "ClaudeCodeTelemetryAdapter",
-            "_normalize_iso",
-            "_infer_provider",
-            "estimate_agent_cost_usd"
-          ],
-          "note": "Implements concrete adapter classes targeting AgentTelemetrySpan from diverse raw log streams."
-        }
-      ],
-      "consequences": {
-        "benefits": [
-          "Isolates external log schema volatility from core health and telemetry analytics",
-          "Extending support to a new agent runtime requires only adding a new adapter",
-          "Enables uniform cost and latency metrics calculation"
-        ],
-        "costs": [
-          "Requires maintaining individual adapter parsers as external log schemas evolve"
-        ],
-        "failure_modes": [
-          "Unmatched log formats may fail silent inference or result in fallback defaults with missing costs"
-        ]
-      },
-      "reuse_notes": "Applicable whenever multi-vendor CLI runtimes or external monitoring endpoints must feed a consolidated observability pipeline.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/dashboard/agent_telemetry.py"
-      }
-    },
-    {
-      "id": "service-engine-layer-separation",
-      "name": "Service-Engine Layer Separation",
+      "id": "service-layer-orchestration",
+      "name": "Service Layer Governance Orchestration",
       "type": "pattern",
       "structural_profile": {
         "layer": "application",
         "complexity": "medium",
         "coupling": "moderate",
-        "extensibility": "high"
+        "extensibility": "medium"
       },
-      "summary": "Separates high-level workflow coordination and persistence from pure computational rule engines.",
-      "tags": [
-        "layered-architecture",
-        "separation-of-concerns",
-        "service-layer"
-      ],
-      "domain": [
-        "Architecture Governance",
-        "System Organization"
-      ],
-      "maturity": "production",
-      "intent": "Decouple IO, workspace coordination, and high-level execution flows from core compliance calculations and state transitions.",
-      "context": "Governance tasks require inspecting files, executing policies, validating state, and persisting results. Blending these concerns makes automated testing slow and complex.",
+      "summary": "Encapsulates application workflow orchestration into a dedicated service layer behind the CLI boundary.",
+      "intent": "Coordinate domain actions, compliance checks, and state transitions without leaking presentation logic into domain engines.",
+      "context": "The CLI needs to invoke governance checks, state transitions, and metrics computation in unified command flows.",
       "forces": [
-        "Rule evaluation and compliance validation should be testable without filesystem IO.",
-        "CLI handlers require a single coarse-grained entrypoint to invoke actions.",
-        "Reusability of governance engines in multiple environments (CI, local CLI, webhook)."
+        "CLI handlers risk becoming bloated with business logic if they manage domain rules directly.",
+        "Multiple consumers (CLI, CI/CD runners, future APIs) need identical orchestration guarantees."
       ],
-      "solution": "Structure the domain using coarse-grained Service classes (GovernanceActionService) that coordinate I/O and orchestrate fine-grained Engines (ComplianceEngine, GovernanceActionEngine).",
+      "solution": "Introduce GovernanceActionService to orchestrate calls between TransitionRegistry, ComplianceEngine, and domain models.",
       "implementation_signals": [
-        "Coexistence of *Service and *Engine classes in the governance namespace",
-        "Engines accept domain models and return results without directly handling CLI parameters",
-        "Services manage file retrieval, engine invocation, and logging"
+        "Service class coordinating domain engines",
+        "CLI delegating directly to high-level service methods"
       ],
       "evidence": [
         {
@@ -344,45 +290,33 @@
           "symbols": [
             "GovernanceActionService"
           ],
-          "note": "Coordinates application-level governance actions and delegates rule evaluations."
+          "note": "Dedicated service coordinating governance actions and reporting."
         },
         {
-          "path": "src/cas_runner/governance/governance_action_engine.py",
+          "path": "src/cas_runner/cli.py",
           "symbols": [
-            "GovernanceActionEngine"
+            "main"
           ],
-          "note": "Performs state machine transitions and core action evaluations decoupled from service orchestration."
-        },
-        {
-          "path": "src/cas_runner/governance/compliance_engine.py",
-          "symbols": [
-            "ComplianceEngine"
-          ],
-          "note": "Evaluates architectural compliance rules against domain inputs."
+          "note": "Presentation entrypoint delegating orchestration duties to application services."
         }
       ],
       "consequences": {
         "benefits": [
-          "High testability of engine logic using in-memory mock models",
-          "Clear boundaries between workflow management and rule execution",
-          "Services can be reused across CLI commands and background automations"
+          "Clean separation of CLI arguments handling from domain execution flow.",
+          "Reusable application service suitable for programmatic calls from testing or automation scripts."
         ],
         "costs": [
-          "Slight boilerplate indirection passing data through service to engine"
+          "Additional indirection layer for straightforward operations."
         ],
         "failure_modes": [
-          "Leaking filesystem or network calls into the engine layer undermines purity"
+          "Service layer accumulating unrelated orchestration responsibilities over time."
         ]
       },
-      "reuse_notes": "Standard layered enterprise pattern for applications that enforce compliance, auditing, or validation rules.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/governance/"
-      }
+      "confidence": "high"
     },
     {
-      "id": "test-double-client-substitution",
-      "name": "Test Double Client Substitution",
+      "id": "swappable-client-adapter",
+      "name": "Swappable Client Adapter",
       "type": "pattern",
       "structural_profile": {
         "layer": "infrastructure",
@@ -390,28 +324,17 @@
         "coupling": "loose",
         "extensibility": "high"
       },
-      "summary": "Provides matching concrete client implementations for production communication and offline testing via a unified interface.",
-      "tags": [
-        "strategy-pattern",
-        "testability",
-        "dependency-inversion"
-      ],
-      "domain": [
-        "Infrastructure",
-        "Testing"
-      ],
-      "maturity": "production",
-      "intent": "Enable fast, deterministic test suites and offline CLI dry-runs without invoking external network endpoints.",
-      "context": "The runner uses LiteLLM for network calls, but unit tests and CI validation workflows must run without API tokens or network latency.",
+      "summary": "Decouples LLM and provider invocation through matching client abstractions, providing both live and mock implementations.",
+      "intent": "Enable offline testing and zero-cost local verification without relying on external remote network clients.",
+      "context": "Components requiring model evaluations need deterministic offline execution during unit testing and CI builds.",
       "forces": [
-        "CI pipelines must validate runner flows without paid API credits.",
-        "Tests must verify error handling, schema parsing, and retry behaviors deterministically.",
-        "Business logic should not have branching conditionals checking for test environments."
+        "External model API calls introduce non-determinism, latency, and cost to local CI runs.",
+        "Domain engines should not bind directly to litellm library primitives."
       ],
-      "solution": "Maintain a production client (LiteLLMClient) and a mock client (MockLLMClient) implementing congruent communication signatures.",
+      "solution": "Provide parallel LiteLLMClient and MockLLMClient adhering to uniform invocation semantics.",
       "implementation_signals": [
-        "Parallel client classes in the same package (e.g. litellm_client.py, mock_client.py)",
-        "Mock client returning canned responses or configurable fixtures matching real payloads"
+        "Parallel client classes under llm package",
+        "Mock client capable of satisfying client calls without network interaction"
       ],
       "evidence": [
         {
@@ -419,67 +342,94 @@
           "symbols": [
             "LiteLLMClient"
           ],
-          "note": "Production implementation wrapping LiteLLM API."
+          "note": "Production implementation targeting the LiteLLM library."
         },
         {
           "path": "src/cas_runner/llm/mock_client.py",
           "symbols": [
             "MockLLMClient"
           ],
-          "note": "Mock implementation providing deterministic responses for offline runs and testing."
+          "note": "Mock implementation allowing local unit testing and offline execution."
         }
       ],
       "consequences": {
         "benefits": [
-          "Zero external network dependencies during unit and integration test passes",
-          "Guarantees identical interface contract for consumers"
+          "High testability in CI environments without API keys or external dependencies.",
+          "Direct isolation of provider payload changes."
         ],
         "costs": [
-          "Mock client must be maintained whenever the real client API signature changes"
+          "Mock client must be maintained to keep parity with live client interfaces."
         ],
         "failure_modes": [
-          "Drift between mock responses and actual third-party API response shapes"
+          "Behavior drift between MockLLMClient and LiteLLMClient causing false-positive test passes."
         ]
       },
-      "reuse_notes": "Use across all external API gateways (telemetry backends, LLM providers, git forges).",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/llm/"
-      }
+      "confidence": "high"
     },
     {
-      "id": "idempotent-workspace-bootstrapping",
-      "name": "Idempotent Workspace Bootstrapping",
+      "id": "filesystem-hierarchical-knowledge-store",
+      "name": "Filesystem Hierarchical Knowledge Store",
       "type": "pattern",
       "structural_profile": {
-        "layer": "infrastructure",
+        "layer": "domain",
+        "complexity": "low",
+        "coupling": "loose",
+        "extensibility": "high"
+      },
+      "summary": "Organizes architecture governance artifacts in a partitioned markdown/YAML directory hierarchy separating global, project, and runtime scopes.",
+      "intent": "Use Git-trackable files to store architectural decisions, narratives, maps, and rules without requiring an external database.",
+      "context": "Architecture specifications, ADRs, and compliance rules must be versioned, reviewed via pull requests, and accessible locally.",
+      "forces": [
+        "Developers and architects work in Git repositories; external documentation databases break change tracking.",
+        "Need clean separation between global organization-wide rules and project-specific variations."
+      ],
+      "solution": "Structure the repository into explicit folders: `cas-knowledge/global/` (decisions, governance, maps, models, narratives, patterns, rules, signals), `cas-knowledge/projects/`, and `cas-knowledge/runtime/`.",
+      "implementation_signals": [
+        "Directory partitioned by scope: global/, projects/, runtime/, templates/",
+        "Markdown templates for decisions, patterns, rules, and signals"
+      ],
+      "evidence": [
+        {
+          "path": "cas-knowledge/",
+          "symbols": [],
+          "note": "Directory structure partitioning global, project, runtime, and template governance data."
+        }
+      ],
+      "consequences": {
+        "benefits": [
+          "Version-controlled knowledge base with full Git audit trail and PR review workflows.",
+          "Human-readable Markdown/YAML documentation directly co-located with code."
+        ],
+        "costs": [
+          "Query operations require directory scans and file parsing rather than indexed lookups."
+        ],
+        "failure_modes": [
+          "Broken relative links and naming divergences between project directories."
+        ]
+      },
+      "confidence": "high"
+    },
+    {
+      "id": "symlink-workspace-projection",
+      "name": "Symlink Workspace Projection",
+      "type": "pattern",
+      "structural_profile": {
+        "layer": "application",
         "complexity": "medium",
         "coupling": "moderate",
         "extensibility": "medium"
       },
-      "summary": "Initializes and updates project workspaces through declarative configuration merging and symlink or file copying mechanisms.",
-      "tags": [
-        "workspace-management",
-        "idempotence",
-        "configuration"
-      ],
-      "domain": [
-        "Developer Experience",
-        "Infrastructure Automation"
-      ],
-      "maturity": "production",
-      "intent": "Safely set up CAS governance structures in target repos without clobbering existing configuration files.",
-      "context": "Users run CAS bootstrap in new or existing codebases where agent settings, markdown templates, and governance directories must coexist with project-specific settings.",
+      "summary": "Initializes and updates local consumer repositories by projecting governance rules and agent configurations via symlink or deep merge.",
+      "intent": "Ensure client workspaces retain synchronized governance configurations and skill definitions without copy-paste drift.",
+      "context": "Downstream repositories need standardized CAS configurations (e.g. Claude settings, agent rules, and templates) anchored to centralized standards.",
       "forces": [
-        "Re-running bootstrap must not overwrite customized project settings.",
-        "Symlink vs copy behavior depends on operating system and repo setup.",
-        "Users need visible verification checklists after workspace preparation."
+        "Manual distribution of governance files leads to drift across multiple development workspaces.",
+        "Operating systems without symlink support require fallback file copying."
       ],
-      "solution": "Encapsulate file creation, block merging (e.g., merge_cas_governance_block, merge_claude_settings), fallback link-copy strategies, and onboarding checklist generation in a dedicated bootstrap module.",
+      "solution": "Implement a bootstrap mechanism (_create_symlink_or_copy, merge_claude_settings, merge_cas_governance_block) that projects configuration into local workspaces.",
       "implementation_signals": [
-        "Functions with merge_* prefixes handling block preservation",
-        "Conditional symlinking with copy fallback (_create_symlink_or_copy)",
-        "Checklist rendering functions returning actionable onboarding status"
+        "Fallback helper from symlink to copy on failure",
+        "JSON/YAML merge functions preserving local configurations while updating managed blocks"
       ],
       "evidence": [
         {
@@ -489,83 +439,78 @@
             "merge_claude_settings",
             "_create_symlink_or_copy",
             "bootstrap",
-            "render_onboarding_checklist",
             "init_workspace"
           ],
-          "note": "Handles idempotent workspace configuration injection, link creation, and checklist formatting."
+          "note": "Workspace initialization procedures orchestrating file links and configuration merges."
         }
       ],
       "consequences": {
         "benefits": [
-          "Safe repeated execution on existing repositories without data loss",
-          "Consistent directory conventions across all CAS-managed projects",
-          "Clear onboarding instructions rendered directly to the CLI"
+          "Centralized updates propagate automatically to projects linking back to the core repository.",
+          "Preserves project-specific customizations via block-based merging."
         ],
         "costs": [
-          "String and JSON merge operations require defensive handling for invalid formats"
+          "Filesystem permission issues or broken links on Windows/containerized environments."
         ],
         "failure_modes": [
-          "Corrupted pre-existing configuration files could cause merge failures if parsing fails"
+          "Overwriting uncommitted local changes if merge logic misinterprets custom blocks."
         ]
       },
-      "reuse_notes": "Applicable to any scaffolding CLI tool that injects tooling configurations into existing user repositories.",
-      "confidence": "high",
-      "extraction_metadata": {
-        "source": "src/cas_runner/bootstrap.py"
-      }
+      "confidence": "high"
     }
   ],
   "anti_patterns": [
     {
-      "id": "unpinned-ci-installer-drift",
-      "name": "Unpinned CI Tooling Installation",
+      "id": "unbounded-filesystem-scanning",
+      "name": "Unbounded Filesystem Scanning",
+      "confidence": "medium",
       "symptoms": [
-        "Workflows or setup scripts installing packages directly from latest main or without semantic version bounds",
-        "Transient CI failures caused by upstream breaking changes in build dependencies"
+        "Compliance checks and telemetry lookups recursively scanning directories without depth bounds or caching."
       ],
       "impact": [
-        "Non-reproducible pipeline execution and brittle automated governance checks"
+        "Degraded CLI execution performance as knowledge repositories grow to hundreds of projects and files."
       ],
       "suggested_remediation": [
-        "Pin all installer dependencies and GitHub actions to exact commit SHAs or explicit version constraints as enforced by specs/090-simplify-cicd-workflows/validate_workflows.py"
-      ],
-      "confidence": "high"
+        "Introduce indexed metadata caches or pre-computed manifest indices to minimize direct disk hits."
+      ]
     },
     {
-      "id": "leaky-telemetry-parsing-heuristics",
-      "name": "Leaky Telemetry Parsing Heuristics",
+      "id": "dual-configuration-settings-sync-drift",
+      "name": "Dual Configuration Settings Sync Drift",
+      "confidence": "medium",
       "symptoms": [
-        "Spreading vendor-specific regex or timestamp parsing across dashboard presentation logic rather than isolating it within adapters"
+        "Separate directories maintaining parallel agent configs (e.g., `.agents/` vs `.claude/`)."
       ],
       "impact": [
-        "High coupling between dashboard views and external agent log quirks, resulting in fragile reporting"
+        "Configuration drift when skill definitions or subagent instructions are updated in one provider folder but not the other."
       ],
       "suggested_remediation": [
-        "Strictly route all raw telemetry ingestion through dedicated adapter classes that emit standardized AgentTelemetrySpan models"
-      ],
-      "confidence": "medium"
+        "Maintain a single canonical skill source and generate provider-specific directories via build tasks."
+      ]
     }
   ],
   "cross_cutting_concerns": [
     {
-      "name": "OpenTelemetry Instrumentation",
-      "scope": "Across telemetry adapters, dashboard metrics, and CLI execution spans",
-      "pattern_ref": "heterogeneous-telemetry-adapter-pipeline"
+      "concern": "Observability and Tracing",
+      "description": "Utilizes OpenTelemetry SDK to track spans and cost metrics across governance checks and telemetry ingest flows.",
+      "relevant_paths": [
+        "src/cas_runner/dashboard/agent_telemetry.py",
+        "pyproject.toml"
+      ]
     },
     {
-      "name": "Workspace Path & Artifact Resolution",
-      "scope": "Across bootstrap, action engine, and compliance checkers accessing cas-knowledge directories",
-      "pattern_ref": "idempotent-workspace-bootstrapping"
+      "concern": "Schema Validation",
+      "description": "Uses jsonschema and Pydantic models to validate configurations and governance artifacts across runtime boundaries.",
+      "relevant_paths": [
+        "src/cas_runner/governance/models.py",
+        "pyproject.toml"
+      ]
     }
   ],
   "open_questions": [
     {
-      "area": "Persistence Layer",
-      "question": "Will governance artifacts transition from raw filesystem YAML/JSON to an indexed database or embedded storage engine as repository size scales?"
-    },
-    {
-      "area": "Workflow Concurrency",
-      "question": "Is FlowRunner designed for concurrent multi-flow execution or strictly serial CLI invocations?"
+      "question": "How are concurrent modifications to cas-knowledge files prevented when multiple CI runners execute governance checks simultaneously?",
+      "context": "The knowledge base relies on local disk read/writes without evidence of distributed lock management."
     }
   ]
 }

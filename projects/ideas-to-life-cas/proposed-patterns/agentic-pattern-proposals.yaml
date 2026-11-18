@@ -449,27 +449,24 @@ pattern_proposals:
   decision:
     status: proposed
     decided_by: system
-    date: '2026-09-26'
+    date: '2026-11-18'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/runner.py (FlowRunner) - Main pipeline runner executing stages
-      in order.
-  description: Executes discrete architectural steps in a deterministic linear pipeline
-    while propagating and enriching a shared execution context.
+    - src/cas_runner/runner.py (FlowRunner) - Coordinates execution flows and transitions.
+  description: Coordinates multi-step agent and analysis tasks through an explicit
+    FlowRunner passing shared context between stages.
   pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Coordinate multi-stage architectural verification, steering compilation,
-    and agent execution in an ordered sequence.'
-  - 'Context: Serves as the primary entry point in FlowRunner for batch continuous
-    architecture runs in CI/CD.'
-  - 'Force: Autonomous multi-agent loops can spin indefinitely or execute out-of-order
-    without strict gating.'
-  - 'Force: Downstream steps need access to artifacts produced by earlier validation
-    stages.'
+  - 'Intent: Maintain deterministic boundaries and predictable execution order across
+    multi-phase agent tasks.'
+  - 'Context: Executing automated architecture analysis, validations, and sync actions
+    in src/cas_runner/runner.py.'
+  - 'Force: Unpredictability of fully autonomous multi-step agent loops'
+  - 'Force: Need for reproducible step-level telemetry and status reporting'
   evidence_strength: high
   confidence: high
 - pattern_id: telemetry-grounded-traceability
@@ -9844,35 +9841,36 @@ pattern_proposals:
   confidence: high
 - pattern_id: compliance-guardrail-engine
   name: Compliance Guardrail Engine
-  pattern_classification: governance
-  pattern_maturity: strategic_direction
+  pattern_classification: intelligence
+  pattern_maturity: established
   knowledgeType: signal
   decision:
     status: proposed
     decided_by: system
-    date: '2026-11-13'
+    date: '2026-11-18'
   derived_from:
     signals: []
     architecture_work: []
     supporting_evidence:
-    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Compliance
-      evaluation component
-    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, ComplianceException)
-      - Typed compliance outputs
-  description: A dedicated compliance engine evaluates artefacts against rules and
-    emits typed findings and metrics.
-  pattern_type: emerging
+    - src/cas_runner/governance/compliance_engine.py (ComplianceEngine) - Evaluates
+      architectural constraints against files and traces.
+    - src/cas_runner/governance/models.py (ComplianceFinding, ComplianceMetrics, GovernanceRisks)
+      - Data models capturing findings and health metrics.
+  description: Audits proposed code and architecture modifications against formal
+    compliance rules, outputting structured findings and risk assessments.
+  pattern_type: implemented
   applies_to:
   - ideas-to-life-cas
   rationale:
-  - 'Intent: Provide an automated, typed safety net that constrains and scores agent
-    behaviour against governance rules.'
-  - 'Context: ComplianceEngine produces ComplianceFinding/ComplianceMetrics consumed
-    by the dashboard and governance actions.'
-  - 'Force: Automated enforcement vs. false positives'
-  - 'Force: Coverage vs. evaluation cost'
-  evidence_strength: medium
-  confidence: medium
+  - 'Intent: Detect violations of architectural principles, unapproved dependency
+    additions, and governance anomalies before workflows complete.'
+  - 'Context: Compliance evaluation in src/cas_runner/governance/compliance_engine.py
+    utilizing cas-knowledge/runtime/rule-context.json.'
+  - 'Force: Agents generating technically valid code that violates organizational
+    architectural standards'
+  - 'Force: Need for programmatic pass/fail signals to gate CI/CD workflows'
+  evidence_strength: high
+  confidence: high
 - pattern_id: assertion-based-skill-evals
   name: Assertion-Based Skill Evaluation Suites
   pattern_classification: intelligence
@@ -12162,5 +12160,196 @@ pattern_proposals:
   - 'Force: LLMs frequently emit near-compliant JSON with subtle field omissions or
     type mismatches'
   - 'Force: Downstream consumers require guaranteed field presence and types'
+  evidence_strength: high
+  confidence: high
+- pattern_id: declarative-subagent-skill-manifests
+  name: Declarative Subagent and Skill Manifests
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - .agents/subagents/verifier.md - Declares verification subagent role and responsibilities.
+    - src/cas_runner/bootstrap.py (merge_claude_settings, bootstrap) - Mounts and
+      links skill definitions into agent workspace configurations.
+  description: Capsule-like skill and subagent definitions encapsulated as isolated
+    markdown declarations and scripts for portability across Claude and general agents.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Standardize agent capabilities into composable, discoverable packages
+    that work across multiple agent runtimes.'
+  - 'Context: Agent definitions in .agents/ and .claude/ folders containing distinct
+    directories for skills such as cas-audit-agent-rules, cas-drawio-generator, and
+    subagents like verifier.'
+  - 'Force: Vendor lock-in across agent harnesses (e.g., Claude Code vs IDE agents)'
+  - 'Force: Prompt divergence when agent skills are embedded in executable application
+    code'
+  evidence_strength: high
+  confidence: high
+- pattern_id: heterogeneous-agent-telemetry-normalization
+  name: Heterogeneous Agent Telemetry Normalization
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/dashboard/agent_telemetry.py (AgentTelemetrySpan, estimate_agent_cost_usd,
+      CodingAgentTelemetryAdapter, AntigravityTelemetryAdapter, ClaudeCodeTelemetryAdapter)
+      - Defines data contract for agent telemetry and provides concrete adapters for
+      Claude Code and Antigravity.
+  description: Adapts heterogeneous agent execution logs and spans into a normalized
+    OpenTelemetry-compatible span model with dollar-cost estimations.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Track agent activities, compute dollar costs, and monitor duration across
+    different coding agent providers uniformly.'
+  - 'Context: Agent telemetry parsing in src/cas_runner/dashboard/agent_telemetry.py
+    supporting Claude Code, Antigravity, and generic coding agents.'
+  - 'Force: Diverse trace formats generated by Claude Code, open-source agents, and
+    vendor harnesses'
+  - 'Force: Need to track aggregate spending and health across distributed runs'
+  evidence_strength: high
+  confidence: high
+- pattern_id: model-gateway-provider-abstraction
+  name: Model Gateway Provider Abstraction
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/llm/litellm_client.py (LiteLLMClient) - Encapsulates model call
+      dispatching, timeout handling, and parameter normalization.
+    - src/cas_runner/llm/mock_client.py (MockLLMClient) - Provides deterministic responses
+      for test suites without network egress.
+  description: Abstracts foundation model access behind a LiteLLM client interface
+    paired with a mock implementation for unit testing and offline execution.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Decouple agentic components from specific model vendors while enabling
+    offline, zero-token test fixtures.'
+  - 'Context: LLM client module in src/cas_runner/llm/ used by governance and merging
+    engines.'
+  - 'Force: Vendor API shifts and rate limits during automated tests'
+  - 'Force: Requirement to test agent reconciliation logic without invoking paid LLM
+    endpoints'
+  evidence_strength: high
+  confidence: high
+- pattern_id: finite-state-governance-transition-engine
+  name: Finite State Governance Transition Engine
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/governance_action_engine.py (TransitionRegistry, GovernanceActionEngine)
+      - Implements transition verification and execution for governance actions.
+    - src/cas_runner/governance/governance_action_service.py (GovernanceActionService)
+      - Provides service interface to execute valid state machine operations.
+  description: Enforces formal transition rules and validation checks before agent
+    actions or knowledge updates can transition lifecycle states.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Prevent agents or automated scripts from performing illegal state jumps
+    on architectural decisions and governance items.'
+  - 'Context: Governance action management in src/cas_runner/governance/governance_action_engine.py
+    and governance_action_service.py.'
+  - 'Force: Uncontrolled agent drift resulting in draft decisions being marked as
+    approved without peer review'
+  - 'Force: Auditability requirements for changes in enterprise architecture repositories'
+  evidence_strength: high
+  confidence: high
+- pattern_id: agentic-knowledge-reconciliation-merger
+  name: Agentic Knowledge Reconciliation and Merger
+  pattern_classification: intelligence
+  pattern_maturity: strategic_direction
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/governance/agentic_merger.py (AgenticMerger) - Orchestrates semantic
+      merging of governance and architecture records.
+  description: Uses an LLM-assisted reconciliation agent to resolve semantic conflicts
+    and merge distributed knowledge updates into canonical architecture records.
+  pattern_type: emerging
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Synthesize differing architecture drafts, project changes, and governance
+    signals into a unified canonical knowledge base.'
+  - 'Context: AgenticMerger component located at src/cas_runner/governance/agentic_merger.py.'
+  - 'Force: Parallel teams or agents proposing overlapping changes to architecture
+    documents'
+  - 'Force: Standard git merge conflicts in prose documentation resulting in fragmented
+    semantic records'
+  evidence_strength: high
+  confidence: high
+- pattern_id: workspace-steering-projection
+  name: Workspace Steering Projection
+  pattern_classification: intelligence
+  pattern_maturity: established
+  knowledgeType: signal
+  decision:
+    status: proposed
+    decided_by: system
+    date: '2026-11-18'
+  derived_from:
+    signals: []
+    architecture_work: []
+    supporting_evidence:
+    - src/cas_runner/bootstrap.py (bootstrap, merge_cas_governance_block, merge_claude_settings,
+      _create_symlink_or_copy) - Projections of settings and skills into target workspace
+      paths.
+    - .github/workflows/cas-build-steering-projection.yml - Automated workflow projecting
+      steering assets.
+  description: Projects enterprise governance rules, subagent skills, and settings
+    into the local workspace and IDE configuration files during bootstrapping.
+  pattern_type: implemented
+  applies_to:
+  - ideas-to-life-cas
+  rationale:
+  - 'Intent: Guarantee that interactive agent sessions (like Claude Code or IDE copilots)
+    operate with current architecture rules without manual copy-pasting.'
+  - 'Context: src/cas_runner/bootstrap.py updating .claude/settings.json and AGENTS.md
+    / CLAUDE.md files.'
+  - 'Force: Agent prompt context drift when rules are updated in central repos but
+    not in local developer projects'
+  - 'Force: Friction for developers setting up new repositories with agent skills'
   evidence_strength: high
   confidence: high
