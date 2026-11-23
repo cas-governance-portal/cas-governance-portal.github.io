@@ -1,0 +1,4011 @@
+- id: flow:workflow:github:auto-generate-architecture-diagrams
+  name: Auto-Generate Architecture Diagrams
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/architecture-diagrams.yml
+  trigger:
+    type: event
+    event: push, pull_request
+    source: GitHub Actions
+    evidence_id: ev-wf-architecture-diagrams
+  entrypoint:
+    path: .github/workflows/architecture-diagrams.yml
+    command: github workflow Auto-Generate Architecture Diagrams
+    evidence_id: ev-wf-architecture-diagrams
+  steps:
+  - id: step:1:determine-ref-to-checkout
+    name: Determine ref to checkout
+    sequence: 1
+    depends_on: []
+    implementation: "if [ \"${{ github.event_name }}\" = \"pull_request\" ]; then\n\
+      \  echo \"ref=${{ github.head_ref }}\" >> $GITHUB_OUTPUT\nelse\n  echo \"ref=${{\
+      \ github.ref_name }}\" >> $GITHUB_OUTPUT\nfi\n"
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:checkout-code
+    name: Checkout Code
+    sequence: 2
+    depends_on:
+    - step:1:determine-ref-to-checkout
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:3:prevent-loops-skip-if-last-com
+    name: Prevent loops (skip if last commit made by the bot)
+    sequence: 3
+    depends_on:
+    - step:2:checkout-code
+    implementation: "LAST_AUTHOR=\"$(git log -1 --pretty=%an)\"\nif [ \"$LAST_AUTHOR\"\
+      \ = \"github-actions[bot]\" ]; then\n  echo \"Last commit by github-actions[bot];\
+      \ exiting to avoid workflow loop.\"\n  exit 0\nfi\n"
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:4:set-up-python
+    name: Set up Python
+    sequence: 4
+    depends_on:
+    - step:3:prevent-loops-skip-if-last-com
+    implementation: actions/setup-python@v5
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+  - id: step:5:install-dependencies
+    name: Install Dependencies
+    sequence: 5
+    depends_on:
+    - step:4:set-up-python
+    implementation: 'python -m pip install --upgrade pip
+
+      pip install pyyaml pytest
+
+      '
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Detect
+  - id: step:6:generate-architecture-diagrams
+    name: Generate Architecture Diagrams
+    sequence: 6
+    depends_on:
+    - step:5:install-dependencies
+    implementation: 'python src/scripts/generate_architecture_diagrams.py
+
+      '
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:7:verify-git-status-check-for-un
+    name: Verify Git Status (Check for uncommitted diagram changes)
+    sequence: 7
+    depends_on:
+    - step:6:generate-architecture-diagrams
+    implementation: "git status --porcelain\nif [ -n \"$(git status --porcelain)\"\
+      \ ]; then\n  echo \"::warning title=Architecture Diagrams Out of Date::Architecture\
+      \ diagrams or documentation were updated by the generator.\"\n  echo \"changed=true\"\
+      \ >> $GITHUB_OUTPUT\nelse\n  echo \"changed=false\" >> $GITHUB_OUTPUT\nfi\n"
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:8:commit-and-push-generated-diag
+    name: Commit and push generated diagrams back to branch
+    sequence: 8
+    depends_on:
+    - step:7:verify-git-status-check-for-un
+    implementation: "git config user.name \"github-actions[bot]\"\ngit config user.email\
+      \ \"github-actions[bot]@users.noreply.github.com\"\ngit add docs/architecture/*.drawio.xml\
+      \ ARCHITECTURE.md README.md || true\nif [ -n \"$(git status --porcelain)\" ];\
+      \ then\n  git commit -m \"chore: auto-generate architecture diagrams [ci skip]\"\
+      \ || true\n  git push origin HEAD:${BRANCH}\nelse\n  echo \"No changes to commit\"\
+      \nfi\n"
+    evidence_ids:
+    - ev-wf-architecture-diagrams
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  - Detect
+  artefacts: []
+  implementation:
+  - .github/workflows/architecture-diagrams.yml
+  evidence_ids:
+  - ev-wf-architecture-diagrams
+  confidence: high
+  status: discovered
+- id: flow:workflow:github:cas-continuous-architecture-loop
+  name: CAS Continuous Architecture Loop
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/cas-continuous-architecture.yml
+  trigger:
+    type: event
+    event: workflow_dispatch, pull_request
+    source: GitHub Actions
+    evidence_id: ev-wf-cas-continuous-architecture
+  entrypoint:
+    path: .github/workflows/cas-continuous-architecture.yml
+    command: github workflow CAS Continuous Architecture Loop
+    evidence_id: ev-wf-cas-continuous-architecture
+  steps:
+  - id: step:1:checkout-target-repository
+    name: Checkout Target Repository
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:set-up-cas-cli
+    name: Set up CAS CLI
+    sequence: 2
+    depends_on:
+    - step:1:checkout-target-repository
+    implementation: ideas-to-life/setup-cas@main
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+  - id: step:3:pre-flight-environment-credent
+    name: Pre-flight Environment & Credential Check
+    sequence: 3
+    depends_on:
+    - step:2:set-up-cas-cli
+    implementation: "cas governance check-env --target-dir .\nif [ -z \"$KNOWLEDGE_TOKEN\"\
+      \ ]; then\n  echo \"has_knowledge_token=false\" >> \"$GITHUB_OUTPUT\"\n  echo\
+      \ \"[CAS][WARN] CAS_KNOWLEDGE_BRAIN (or legacy CAS_KNOWLEDGE_TOKEN) is not configured.\"\
+      \n  echo \"[CAS][INFO] Degrading gracefully to local deterministic diagnostics\
+      \ mode.\"\n  echo \"[CAS][HINT] Configure secrets at: https://github.com/${{\
+      \ github.repository }}/settings/secrets/actions\"\nelse\n  echo \"has_knowledge_token=true\"\
+      \ >> \"$GITHUB_OUTPUT\"\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:4:run-deterministic-architecture
+    name: Run Deterministic Architecture Linter & Control Bands
+    sequence: 4
+    depends_on:
+    - step:3:pre-flight-environment-credent
+    implementation: 'echo "[CAS][INFO] Running deterministic architecture health checks
+      and statistical control bands..."
+
+      cas governance lint --target-dir .
+
+      cas governance check-bands --target-dir . --advisory
+
+      '
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:5:checkout-central-knowledge-lay
+    name: Checkout Central Knowledge Layer (cas-brain/knowledge)
+    sequence: 5
+    depends_on:
+    - step:4:run-deterministic-architecture
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:6:run-continuous-architecture-sy
+    name: Run Continuous Architecture Synthesis Loop
+    sequence: 6
+    depends_on:
+    - step:5:checkout-central-knowledge-lay
+    implementation: "if [ -z \"$OPENAI_API_KEY\" ] && [ -z \"$GEMINI_API_KEY\" ] &&\
+      \ [ -z \"$HF_TOKEN\" ]; then\n  echo \"[CAS][WARN] No LLM provider API keys\
+      \ configured (OPENAI_API_KEY / GEMINI_API_KEY / HF_TOKEN). Skipping AI synthesis\
+      \ loop.\"\nelse\n  cas run continuous-architecture-loop \\\n    --project \"\
+      $CAS_PROJECT\" \\\n    --target-dir . \\\n    --override '{\"governance_fail_on_error\"\
+      : false}'\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+  - id: step:7:run-pattern-discovery-classifi
+    name: Run Pattern Discovery & Classification Flow
+    sequence: 7
+    depends_on:
+    - step:6:run-continuous-architecture-sy
+    implementation: "if [ -n \"$OPENAI_API_KEY\" ] || [ -n \"$GEMINI_API_KEY\" ] ||\
+      \ [ -n \"$HF_TOKEN\" ]; then\n  cas run pattern-lifecycle-flow \\\n    --project\
+      \ \"$CAS_PROJECT\" \\\n    --target-dir . \\\n    --override '{\"governance_fail_on_error\"\
+      : false}'\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+  - id: step:8:commit-push-updated-architectu
+    name: Commit & Push Updated Architectural Models to Central Brain
+    sequence: 8
+    depends_on:
+    - step:7:run-pattern-discovery-classifi
+    implementation: "git config --global user.name \"CAS Bot\"\ngit config --global\
+      \ user.email \"cas-bot@users.noreply.github.com\"\ngit add .\nif ! git diff\
+      \ --staged --quiet; then\n  git commit -m \"chore(cas): automated architecture\
+      \ synthesis for ${CAS_PROJECT}\"\n  git pull --rebase --autostash origin main\n\
+      \  git push origin main\nelse\n  echo \"[CAS][INFO] No architectural model updates\
+      \ to persist.\"\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-continuous-architecture
+    confidence: high
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .github/workflows/cas-continuous-architecture.yml
+  evidence_ids:
+  - ev-wf-cas-continuous-architecture
+  confidence: high
+  status: discovered
+- id: flow:workflow:github:cas-skill-evaluations
+  name: CAS Skill Evaluations
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/cas-skill-evals.yml
+  trigger:
+    type: event
+    event: push, pull_request, workflow_dispatch, schedule
+    source: GitHub Actions
+    evidence_id: ev-wf-cas-skill-evals
+  entrypoint:
+    path: .github/workflows/cas-skill-evals.yml
+    command: github workflow CAS Skill Evaluations
+    evidence_id: ev-wf-cas-skill-evals
+  steps:
+  - id: step:1:checkout-repository
+    name: Checkout repository
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:set-up-cas-cli
+    name: Set up CAS CLI
+    sequence: 2
+    depends_on:
+    - step:1:checkout-repository
+    implementation: ideas-to-life/setup-cas@main
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+  - id: step:3:run-deterministic-skill-evalua
+    name: Run Deterministic Skill Evaluations
+    sequence: 3
+    depends_on:
+    - step:2:set-up-cas-cli
+    implementation: "ARGS=\"\"\nif [ -n \"${{ github.event.inputs.skill }}\" ]; then\n\
+      \  ARGS=\"$ARGS --skill ${{ github.event.inputs.skill }}\"\nfi\nif [ -n \"${{\
+      \ github.event.inputs.provider }}\" ]; then\n  ARGS=\"$ARGS --provider ${{ github.event.inputs.provider\
+      \ }}\"\nfi\necho \"[CAS][INFO] Running: cas skills eval $ARGS\"\ncas skills\
+      \ eval $ARGS\n"
+    evidence_ids:
+    - ev-wf-cas-skill-evals
+    confidence: high
+  component_ids: []
+  control_roles:
+  - Prevent
+  artefacts: []
+  implementation:
+  - .github/workflows/cas-skill-evals.yml
+  evidence_ids:
+  - ev-wf-cas-skill-evals
+  confidence: high
+  status: discovered
+- id: flow:workflow:github:cas-sdd-tdd-validation
+  name: CAS SDD & TDD Validation
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/cas-validate-sdd.yml
+  trigger:
+    type: event
+    event: pull_request
+    source: GitHub Actions
+    evidence_id: ev-wf-cas-validate-sdd
+  entrypoint:
+    path: .github/workflows/cas-validate-sdd.yml
+    command: github workflow CAS SDD & TDD Validation
+    evidence_id: ev-wf-cas-validate-sdd
+  steps:
+  - id: step:1:checkout-code
+    name: Checkout Code
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:set-up-cas-cli
+    name: Set up CAS CLI
+    sequence: 2
+    depends_on:
+    - step:1:checkout-code
+    implementation: ideas-to-life/setup-cas@main
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+  - id: step:3:check-commit-exemption
+    name: Check Commit Exemption
+    sequence: 3
+    depends_on:
+    - step:2:set-up-cas-cli
+    implementation: "EXEMPT=$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha\
+      \ }} | grep -E \"\\[skip-governance\\]|\\[bugfix\\]\" || true)\nif [ -n \"$EXEMPT\"\
+      \ ]; then\n  echo \"[CAS][SKIP] Exemption found in commit message: $EXEMPT\"\
+      \n  echo \"exempt=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"exempt=false\"\
+      \ >> \"$GITHUB_OUTPUT\"\nfi\n"
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:4:validate-sdd-tdd-compliance-ac
+    name: Validate SDD & TDD Compliance Across Configured SDLC Profile
+    sequence: 4
+    depends_on:
+    - step:3:check-commit-exemption
+    implementation: cas governance verify-diff --target-dir .
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Detect
+  - id: step:5:validate-architectural-guardra
+    name: 'Validate Architectural Guardrails (Anti-Pattern Linter - ARCH-LINT-001,
+      ARCH-LINT-002, ARCH-LINT-003: provider-agnostic-llm-client)'
+    sequence: 5
+    depends_on:
+    - step:4:validate-sdd-tdd-compliance-ac
+    implementation: cas governance lint --target-dir .
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Detect
+  - id: step:6:verify-statistical-control-ban
+    name: Verify Statistical Control Bands
+    sequence: 6
+    depends_on:
+    - step:5:validate-architectural-guardra
+    implementation: cas governance check-bands --target-dir .
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:7:evaluate-agent-skills
+    name: Evaluate Agent Skills
+    sequence: 7
+    depends_on:
+    - step:6:verify-statistical-control-ban
+    implementation: cas skills eval
+    evidence_ids:
+    - ev-wf-cas-validate-sdd
+    confidence: high
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  - Correct
+  artefacts: []
+  implementation:
+  - .github/workflows/cas-validate-sdd.yml
+  evidence_ids:
+  - ev-wf-cas-validate-sdd
+  confidence: high
+  status: discovered
+- id: flow:workflow:github:markdown-lint
+  name: Markdown lint
+  type: workflow
+  description: GitHub Actions workflow defined in .github/workflows/markdown-lint.yml
+  trigger:
+    type: event
+    event: push, pull_request
+    source: GitHub Actions
+    evidence_id: ev-wf-markdown-lint
+  entrypoint:
+    path: .github/workflows/markdown-lint.yml
+    command: github workflow Markdown lint
+    evidence_id: ev-wf-markdown-lint
+  steps:
+  - id: step:1:checkout-repository
+    name: Checkout repository
+    sequence: 1
+    depends_on: []
+    implementation: actions/checkout@v4
+    evidence_ids:
+    - ev-wf-markdown-lint
+    confidence: high
+    control_roles:
+    - Prevent
+  - id: step:2:set-up-node.js
+    name: Set up Node.js
+    sequence: 2
+    depends_on:
+    - step:1:checkout-repository
+    implementation: actions/setup-node@v4
+    evidence_ids:
+    - ev-wf-markdown-lint
+    confidence: high
+  - id: step:3:install-markdownlint-cli
+    name: Install markdownlint-cli
+    sequence: 3
+    depends_on:
+    - step:2:set-up-node.js
+    implementation: npm install -g markdownlint-cli
+    evidence_ids:
+    - ev-wf-markdown-lint
+    confidence: high
+    control_roles:
+    - Detect
+  - id: step:4:lint-markdown-files
+    name: Lint Markdown files
+    sequence: 4
+    depends_on:
+    - step:3:install-markdownlint-cli
+    implementation: markdownlint "**/*.md"
+    evidence_ids:
+    - ev-wf-markdown-lint
+    confidence: high
+    control_roles:
+    - Detect
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .github/workflows/markdown-lint.yml
+  evidence_ids:
+  - ev-wf-markdown-lint
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:hiring_goals
+  name: hiring_goals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: hiring_goals
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:review-existing-software-environment-quickbooks-online-crm-shopify-ringcentral-voip-pos-email-messaging-.
+    name: Review existing software environment (Quickbooks Online, CRM, Shopify, RingCentral
+      VoIP, POS, email, messaging).
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Review existing
+      software environment (Quickbooks Online, CRM, Shopify, RingCentral VoIP, POS,
+      email, messaging).
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:recommend-a-practical-future-state-technology-setup-that-simplifies-business-operations-and-improves-visibility.
+    name: Recommend a practical future-state technology setup that simplifies business
+      operations and improves visibility.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Recommend
+      a practical future-state technology setup that simplifies business operations
+      and improves visibility.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:3:determine-retain-replace-consolidate-decisions-across-crm-ecommerce-inventory-accounting-and-communications.
+    name: Determine retain/replace/consolidate decisions across CRM, ecommerce, inventory,
+      accounting, and communications.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Determine
+      retain/replace/consolidate decisions across CRM, ecommerce, inventory, accounting,
+      and communications.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:4:evaluate-whether-an-erp-centered-approach-is-justified-vs-integrated-best-of-breed-tools-for-a-growing-smb.
+    name: Evaluate whether an ERP-centered approach is justified vs integrated best-of-breed
+      tools for a growing SMB.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Evaluate whether
+      an ERP-centered approach is justified vs integrated best-of-breed tools for
+      a growing SMB.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:5:identify-practical-opportunities-for-ai-automation-workflow-automation-and-custom-integrations.
+    name: Identify practical opportunities for AI automation, workflow automation,
+      and custom integrations.
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Identify practical
+      opportunities for AI automation, workflow automation, and custom integrations.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:capability_priorities
+  name: capability_priorities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: capability_priorities
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:behaviour_expectations
+  name: behaviour_expectations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: behaviour_expectations
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:pragmatic-business-first-architect-who-prioritizes-business-process-and-operational-clarity-over-complex-technology-for-technology-s-sake.
+    name: Pragmatic business-first architect who prioritizes business process and
+      operational clarity over complex technology for technology's sake.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Pragmatic
+      business-first architect who prioritizes business process and operational clarity
+      over complex technology for technology's sake.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:objective-advisor-capable-of-evaluating-multiple-platforms-side-by-side-without-promoting-vendor-lock-in.
+    name: Objective advisor capable of evaluating multiple platforms side-by-side
+      without promoting vendor lock-in.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Objective
+      advisor capable of evaluating multiple platforms side-by-side without promoting
+      vendor lock-in.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:3:clear-communicator-who-delivers-structured-technology-roadmaps-suitable-for-smb-decision-makers.
+    name: Clear communicator who delivers structured technology roadmaps suitable
+      for SMB decision-makers.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Clear communicator
+      who delivers structured technology roadmaps suitable for SMB decision-makers.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:risks
+  name: risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:risk-of-over-engineering-the-future-state-stack-for-an-smb-with-unnecessary-enterprise-grade-erp-overhead.
+    name: Risk of over-engineering the future-state stack for an SMB with unnecessary
+      enterprise-grade ERP overhead.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Risk of over-engineering
+      the future-state stack for an SMB with unnecessary enterprise-grade ERP overhead.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:mitigated-by-candidate-s-demonstrated-history-of-pragmatic-business-first-architecture-decisions.
+    name: Mitigated by candidate's demonstrated history of pragmatic, business-first
+      architecture decisions.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Mitigated
+      by candidate's demonstrated history of pragmatic, business-first architecture
+      decisions.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Prevent
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Prevent
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:coverage_matrix
+  name: coverage_matrix
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: coverage_matrix
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:client_buying_signals
+  name: client_buying_signals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: client_buying_signals
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:requirement_assessments
+  name: requirement_assessments
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: requirement_assessments
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:key_competencies
+  name: key_competencies
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: key_competencies
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:multi-system-architecture-review
+    name: Multi-system Architecture Review
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Multi-system
+      Architecture Review
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:e-commerce-crm-erp-accounting-integration
+    name: E-commerce, CRM, ERP & Accounting Integration
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:E-commerce,
+      CRM, ERP & Accounting Integration
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:3:practical-ai-workflow-automation
+    name: Practical AI & Workflow Automation
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Practical
+      AI & Workflow Automation
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:4:business-process-optimization
+    name: Business Process Optimization
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Business Process
+      Optimization
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:5:vendor-neutral-platform-evaluation
+    name: Vendor-Neutral Platform Evaluation
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Vendor-Neutral
+      Platform Evaluation
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:gaps
+  name: gaps
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: gaps
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:strengths
+  name: strengths
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: strengths
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:extensive-background-in-enterprise-commercial-business-systems-architecture-and-integration.
+    name: Extensive background in enterprise & commercial business systems architecture
+      and integration.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Extensive
+      background in enterprise & commercial business systems architecture and integration.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:proven-track-record-in-vendor-neutral-platform-evaluation-and-technology-roadmapping.
+    name: Proven track record in vendor-neutral platform evaluation and technology
+      roadmapping.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Proven track
+      record in vendor-neutral platform evaluation and technology roadmapping.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:3:deep-expertise-in-ai-driven-process-automation-and-workflow-simplification.
+    name: Deep expertise in AI-driven process automation and workflow simplification.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Deep expertise
+      in AI-driven process automation and workflow simplification.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:weaknesses
+  name: weaknesses
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: weaknesses
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:candidate-s-primary-experience-spans-large-global-enterprises-and-smb-advisory-proposal-must-emphasize-smb-adaptability-and-practical-execution.
+    name: Candidate's primary experience spans large global enterprises and SMB advisory;
+      proposal must emphasize SMB adaptability and practical execution.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:Candidate's
+      primary experience spans large global enterprises and SMB advisory; proposal
+      must emphasize SMB adaptability and practical execution.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_biz_systems_playbook.py:registered_projections
+  name: registered_projections
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_biz_systems_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_biz_systems_playbook.py
+    symbol: data
+    command: registered_projections
+    evidence_id: ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  steps:
+  - id: step:1:resume-executive
+    name: resume-executive
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:resume-executive
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:2:resume-ats
+    name: resume-ats
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:resume-ats
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:3:resume-recruiter
+    name: resume-recruiter
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:resume-recruiter
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:4:cover-letter
+    name: cover-letter
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:cover-letter
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:5:linkedin-profile
+    name: linkedin-profile
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:linkedin-profile
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:6:opportunity-alignment
+    name: opportunity-alignment
+    sequence: 6
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:opportunity-alignment
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:7:executive-brief
+    name: executive-brief
+    sequence: 7
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:executive-brief
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:8:upwork-proposal
+    name: upwork-proposal
+    sequence: 8
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:upwork-proposal
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  - id: step:9:playbook-assembler
+    name: playbook-assembler
+    sequence: 9
+    depends_on: []
+    implementation: src/scripts/generate_upwork_biz_systems_playbook.py:playbook-assembler
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+    confidence: high
+    component_id: comp-ensure_directories
+    control_roles:
+    - Generate
+  component_ids:
+  - comp-ensure_directories
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_biz_systems_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_biz_systems_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:hiring_goals
+  name: hiring_goals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: hiring_goals
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps:
+  - id: step:1:audit-existing-ai-architecture-and-design-a-master-orchestration-layer-for-multi-agent-workflows.
+    name: Audit existing AI architecture and design a master orchestration layer for
+      multi-agent workflows.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Audit existing AI architecture
+      and design a master orchestration layer for multi-agent workflows.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+    - Detect
+  - id: step:2:establish-a-coordinated-human-ai-workforce-transition-model-50-person-org-shifting-to-ai-assisted-operations-.
+    name: Establish a coordinated human + AI workforce transition model (50-person
+      org shifting to AI-assisted operations).
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Establish a coordinated
+      human + AI workforce transition model (50-person org shifting to AI-assisted
+      operations).
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:implement-multi-agent-hierarchy-durable-state-memory-architecture-and-maker-checker-approval-gates.
+    name: Implement multi-agent hierarchy, durable state, memory architecture, and
+      maker/checker approval gates.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Implement multi-agent
+      hierarchy, durable state, memory architecture, and maker/checker approval gates.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+  - id: step:4:enforce-security-boundaries-failure-recovery-idempotency-and-comprehensive-llm-observability.
+    name: Enforce security boundaries, failure recovery, idempotency, and comprehensive
+      LLM observability.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Enforce security boundaries,
+      failure recovery, idempotency, and comprehensive LLM observability.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  - Detect
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:capability_priorities
+  name: capability_priorities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: capability_priorities
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:behaviour_expectations
+  name: behaviour_expectations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: behaviour_expectations
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps:
+  - id: step:1:pragmatic-architect-who-performs-thorough-architectural-audits-before-modifying-production-systems.
+    name: Pragmatic architect who performs thorough architectural audits before modifying
+      production systems.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Pragmatic architect who
+      performs thorough architectural audits before modifying production systems.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+    - Detect
+  - id: step:2:hands-on-system-builder-experienced-with-openai-agents-sdk-langgraph-mcp-python-and-vector-databases.
+    name: Hands-on system builder experienced with OpenAI Agents SDK, LangGraph, MCP,
+      Python, and vector databases.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Hands-on system builder
+      experienced with OpenAI Agents SDK, LangGraph, MCP, Python, and vector databases.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:governance-focused-leader-who-designs-maker-checker-controls-audit-trails-and-deterministic-exception-handling.
+    name: Governance-focused leader who designs maker/checker controls, audit trails,
+      and deterministic exception handling.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Governance-focused leader
+      who designs maker/checker controls, audit trails, and deterministic exception
+      handling.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+    - Detect
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  - Detect
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:risks
+  name: risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps:
+  - id: step:1:risk-of-over-indexing-on-low-code-tool-configurations-rather-than-custom-multi-agent-architecture.
+    name: Risk of over-indexing on low-code tool configurations rather than custom
+      multi-agent architecture.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Risk of over-indexing
+      on low-code tool configurations rather than custom multi-agent architecture.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:tooling-gap-in-native-shopify-salesforce-api-integrations-mitigated-by-custom-api-and-python-platform-strengths.
+    name: Tooling gap in native Shopify/Salesforce API integrations, mitigated by
+      custom API and Python platform strengths.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Tooling gap in native
+      Shopify/Salesforce API integrations, mitigated by custom API and Python platform
+      strengths.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+  - id: step:3:need-to-ensure-clear-evidence-grounding-for-50-person-organizational-scaling-without-overclaiming-past-team-sizes.
+    name: Need to ensure clear evidence grounding for 50-person organizational scaling
+      without overclaiming past team sizes.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_playbook.py:Need to ensure clear evidence
+      grounding for 50-person organizational scaling without overclaiming past team
+      sizes.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:coverage_matrix
+  name: coverage_matrix
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: coverage_matrix
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:client_buying_signals
+  name: client_buying_signals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: client_buying_signals
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:requirement_assessments
+  name: requirement_assessments
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: requirement_assessments
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:hard_requirements
+  name: hard_requirements
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: hard_requirements
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:evidence_gaps
+  name: evidence_gaps
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: evidence_gaps
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:preferred_requirements
+  name: preferred_requirements
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: preferred_requirements
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:strongest_evidence_matches
+  name: strongest_evidence_matches
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: strongest_evidence_matches
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:open_conditions
+  name: open_conditions
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: open_conditions
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:proposal_risks
+  name: proposal_risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: proposal_risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:recommended_work_samples
+  name: recommended_work_samples
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: recommended_work_samples
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:claim_traceability
+  name: claim_traceability
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: claim_traceability
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:classified_gaps
+  name: classified_gaps
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: classified_gaps
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:dimensional_matrix
+  name: dimensional_matrix
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: dimensional_matrix
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:learning_opportunities
+  name: learning_opportunities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: learning_opportunities
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_playbook.py:registered_projections
+  name: registered_projections
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_playbook.py
+    symbol: data
+    command: registered_projections
+    evidence_id: ev-reg-src-scripts-generate_upwork_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:hiring_goals
+  name: hiring_goals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: hiring_goals
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:perform-architectural-reviews-across-multiple-github-repositories-ai-generated-applications-sops-and-prompt-libraries.
+    name: Perform architectural reviews across multiple GitHub repositories, AI-generated
+      applications, SOPs, and prompt libraries.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Perform
+      architectural reviews across multiple GitHub repositories, AI-generated applications,
+      SOPs, and prompt libraries.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:establish-retain-replace-consolidate-decisions-across-disconnected-software-agents-and-business-operating-systems.
+    name: Establish retain/replace/consolidate decisions across disconnected software,
+      agents, and business operating systems.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Establish
+      retain/replace/consolidate decisions across disconnected software, agents, and
+      business operating systems.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:design-shared-company-intelligence-layer-agent-memory-architecture-context-management-and-human-in-the-loop-control-boundaries.
+    name: Design shared company intelligence layer, agent memory architecture, context
+      management, and human-in-the-loop control boundaries.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Design shared
+      company intelligence layer, agent memory architecture, context management, and
+      human-in-the-loop control boundaries.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:enforce-revenue-prioritization-identify-high-roi-core-infrastructure-vs-non-essential-or-overengineered-projects.
+    name: 'Enforce revenue prioritization: identify high-ROI core infrastructure vs
+      non-essential or overengineered projects.'
+    sequence: 4
+    depends_on: []
+    implementation: 'src/scripts/generate_upwork_fractional_ai_playbook.py:Enforce
+      revenue prioritization: identify high-ROI core infrastructure vs non-essential
+      or overengineered projects.'
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+  - id: step:5:provide-strategic-advisory-on-ai-native-development-workflows-model-selection-coding-agent-interaction-and-code-review-governance.
+    name: Provide strategic advisory on AI-native development workflows, model selection,
+      coding agent interaction, and code review governance.
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Provide
+      strategic advisory on AI-native development workflows, model selection, coding
+      agent interaction, and code review governance.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:capability_priorities
+  name: capability_priorities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: capability_priorities
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:behaviour_expectations
+  name: behaviour_expectations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: behaviour_expectations
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:strategic-cto-level-advisor-who-thinks-across-systems-roi-and-architecture-rather-than-line-by-line-coding.
+    name: Strategic CTO-level advisor who thinks across systems, ROI, and architecture
+      rather than line-by-line coding.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Strategic
+      CTO-level advisor who thinks across systems, ROI, and architecture rather than
+      line-by-line coding.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:decisive-evaluator-capable-of-recommending-deprecation-consolidation-or-refactoring-for-lower-roi-projects.
+    name: Decisive evaluator capable of recommending deprecation, consolidation, or
+      refactoring for lower-ROI projects.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Decisive
+      evaluator capable of recommending deprecation, consolidation, or refactoring
+      for lower-ROI projects.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:pragmatic-architect-who-balances-ai-innovation-with-production-stability-state-management-and-clear-operational-boundaries.
+    name: Pragmatic architect who balances AI innovation with production stability,
+      state management, and clear operational boundaries.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Pragmatic
+      architect who balances AI innovation with production stability, state management,
+      and clear operational boundaries.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:risks
+  name: risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:risk-of-being-misperceived-as-a-hands-on-developer-rather-than-a-strategic-advisor-architect.
+    name: Risk of being misperceived as a hands-on developer rather than a strategic
+      advisor / architect.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Risk of
+      being misperceived as a hands-on developer rather than a strategic advisor /
+      architect.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:risk-of-over-building-complex-agentic-frameworks-when-simpler-software-or-sops-suffice.
+    name: Risk of over-building complex agentic frameworks when simpler software or
+      SOPs suffice.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Risk of
+      over-building complex agentic frameworks when simpler software or SOPs suffice.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:proposed_technologies
+  name: proposed_technologies
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: proposed_technologies
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:openai-agents-sdk
+    name: OpenAI Agents SDK
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:OpenAI Agents
+      SDK
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:langgraph
+    name: LangGraph
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:LangGraph
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:model-context-protocol-mcp
+    name: Model Context Protocol (MCP)
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Model Context
+      Protocol (MCP)
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:python
+    name: Python
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Python
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:5:vector-databases-rag
+    name: Vector Databases / RAG
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Vector Databases
+      / RAG
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:6:postgresql-supabase
+    name: PostgreSQL / Supabase
+    sequence: 6
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:PostgreSQL
+      / Supabase
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:requirement_assessments
+  name: requirement_assessments
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: requirement_assessments
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:archetype_signals
+  name: archetype_signals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: archetype_signals
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:work-directly-with-founder-above-implementation-layer
+    name: Work directly with founder above implementation layer
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Work directly
+      with founder above implementation layer
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:puppet-master-ai-systems-strategist-mindset
+    name: Puppet master / AI systems strategist mindset
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Puppet master
+      / AI systems strategist mindset
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:evaluate-retain-replace-consolidate-decisions-across-20-projects
+    name: Evaluate retain/replace/consolidate decisions across 20+ projects
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Evaluate
+      retain/replace/consolidate decisions across 20+ projects
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:shared-company-intelligence-layer-memory-architecture
+    name: Shared company intelligence layer & memory architecture
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Shared company
+      intelligence layer & memory architecture
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:5:revenue-prioritization-and-high-roi-focus
+    name: Revenue prioritization and high-ROI focus
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Revenue
+      prioritization and high-ROI focus
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:6:guidance-on-ai-native-development-and-coding-agent-governance
+    name: Guidance on AI-native development and coding agent governance
+    sequence: 6
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Guidance
+      on AI-native development and coding agent governance
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_fractional_ai_playbook.py:primary_responsibilities
+  name: primary_responsibilities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_fractional_ai_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_fractional_ai_playbook.py
+    symbol: data
+    command: primary_responsibilities
+    evidence_id: ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  steps:
+  - id: step:1:repository-and-ecosystem-architecture-reviews
+    name: Repository and ecosystem architecture reviews
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Repository
+      and ecosystem architecture reviews
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:strategic-ai-systems-design-and-agent-memory-architecture
+    name: Strategic AI systems design and agent memory architecture
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Strategic
+      AI systems design and agent memory architecture
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:revenue-prioritization-and-project-deprecation-guidance
+    name: Revenue prioritization and project deprecation guidance
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:Revenue
+      prioritization and project deprecation guidance
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:ai-development-workflow-coding-agent-governance
+    name: AI development workflow & coding agent governance
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_fractional_ai_playbook.py:AI development
+      workflow & coding agent governance
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_fractional_ai_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_fractional_ai_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:hiring_goals
+  name: hiring_goals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: hiring_goals
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps:
+  - id: step:1:explore-how-to-connect-disparate-agency-systems-productive-slack-google-workspace-finance-business-tools-into-an-agency-wide-brain-.
+    name: Explore how to connect disparate agency systems (Productive, Slack, Google
+      Workspace, finance/business tools) into an agency-wide 'brain'.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Explore
+      how to connect disparate agency systems (Productive, Slack, Google Workspace,
+      finance/business tools) into an agency-wide 'brain'.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:bring-together-information-and-collective-agency-knowledge-to-spot-issues-and-operational-opportunities.
+    name: Bring together information and collective agency knowledge to spot issues
+      and operational opportunities.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Bring
+      together information and collective agency knowledge to spot issues and operational
+      opportunities.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:automate-operational-heavy-lifting-without-necessarily-building-a-complex-bespoke-platform.
+    name: Automate operational heavy lifting without necessarily building a complex
+      bespoke platform.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Automate
+      operational heavy lifting without necessarily building a complex bespoke platform.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:understand-what-is-achievable-using-existing-saas-tools-identify-biggest-opportunities-and-formulate-a-practical-discovery-roadmap.
+    name: Understand what is achievable using existing SaaS tools, identify biggest
+      opportunities, and formulate a practical discovery roadmap.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Understand
+      what is achievable using existing SaaS tools, identify biggest opportunities,
+      and formulate a practical discovery roadmap.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:capability_priorities
+  name: capability_priorities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: capability_priorities
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:behaviour_expectations
+  name: behaviour_expectations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: behaviour_expectations
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps:
+  - id: step:1:pragmatic-vendor-neutral-architect-who-evaluates-existing-saas-investments-before-recommending-custom-software-builds.
+    name: Pragmatic, vendor-neutral architect who evaluates existing SaaS investments
+      before recommending custom software builds.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Pragmatic,
+      vendor-neutral architect who evaluates existing SaaS investments before recommending
+      custom software builds.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:consultative-advisor-who-challenges-operational-assumptions-constructively-and-shapes-phased-low-risk-roadmaps.
+    name: Consultative advisor who challenges operational assumptions constructively
+      and shapes phased, low-risk roadmaps.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Consultative
+      advisor who challenges operational assumptions constructively and shapes phased,
+      low-risk roadmaps.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:strategic-partner-who-bridges-commercial-operational-agency-realities-resourcing-project-management-financials-with-modern-ai-capabilities.
+    name: Strategic partner who bridges commercial/operational agency realities (resourcing,
+      project management, financials) with modern AI capabilities.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Strategic
+      partner who bridges commercial/operational agency realities (resourcing, project
+      management, financials) with modern AI capabilities.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:risks
+  name: risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps:
+  - id: step:1:risk-of-prescribing-bespoke-ai-software-when-out-of-the-box-saas-integrations-and-modern-low-code-tools-suffice.
+    name: Risk of prescribing bespoke AI software when out-of-the-box SaaS integrations
+      and modern low-code tools suffice.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Risk
+      of prescribing bespoke AI software when out-of-the-box SaaS integrations and
+      modern low-code tools suffice.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:mitigated-by-candidate-s-explicit-principle-of-maximizing-existing-investments-slack-google-workspace-productive-apis-and-phased-discovery.
+    name: Mitigated by candidate's explicit principle of maximizing existing investments
+      (Slack, Google Workspace, Productive APIs) and phased discovery.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Mitigated
+      by candidate's explicit principle of maximizing existing investments (Slack,
+      Google Workspace, Productive APIs) and phased discovery.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:requirement_assessments
+  name: requirement_assessments
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: requirement_assessments
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:key_strengths
+  name: key_strengths
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: key_strengths
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps:
+  - id: step:1:extensive-leadership-in-creative-agency-technology-systems-integration-and-workflow-automation-wpp-hogarth-mostelli-.
+    name: Extensive leadership in creative agency technology, systems integration,
+      and workflow automation (WPP, Hogarth, Mostelli).
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Extensive
+      leadership in creative agency technology, systems integration, and workflow
+      automation (WPP, Hogarth, Mostelli).
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:deep-expertise-in-synthesizing-distributed-operational-knowledge-across-agency-tooling-resourcing-finance-project-management-communication-.
+    name: Deep expertise in synthesizing distributed operational knowledge across
+      agency tooling (resourcing, finance, project management, communication).
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Deep
+      expertise in synthesizing distributed operational knowledge across agency tooling
+      (resourcing, finance, project management, communication).
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:pragmatic-approach-focusing-on-existing-saas-tools-apis-and-low-code-orchestration-before-proposing-custom-engineering.
+    name: Pragmatic approach focusing on existing SaaS tools, APIs, and low-code orchestration
+      before proposing custom engineering.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Pragmatic
+      approach focusing on existing SaaS tools, APIs, and low-code orchestration before
+      proposing custom engineering.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:proven-ability-to-guide-founders-and-leadership-teams-through-structured-discovery-hypothesis-testing-and-actionable-roadmapping.
+    name: Proven ability to guide founders and leadership teams through structured
+      discovery, hypothesis testing, and actionable roadmapping.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_system_architect_adviser_playbook.py:Proven
+      ability to guide founders and leadership teams through structured discovery,
+      hypothesis testing, and actionable roadmapping.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+    - Detect
+  component_ids: []
+  control_roles:
+  - Generate
+  - Detect
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:gaps_identified
+  name: gaps_identified
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: gaps_identified
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_system_architect_adviser_playbook.py:violations
+  name: violations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_system_architect_adviser_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_system_architect_adviser_playbook.py
+    symbol: data
+    command: violations
+    evidence_id: ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_system_architect_adviser_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_system_architect_adviser_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:hiring_goals
+  name: hiring_goals
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: hiring_goals
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps:
+  - id: step:1:deliver-advanced-mentoring-and-program-delivery-on-forward-deployed-engineering-fde-mindset-and-customer-discovery.
+    name: Deliver advanced mentoring and program delivery on Forward Deployed Engineering
+      (FDE) mindset and customer discovery.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Deliver
+      advanced mentoring and program delivery on Forward Deployed Engineering (FDE)
+      mindset and customer discovery.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:architect-enterprise-scale-ai-genai-solutions-including-rag-agentic-ai-multi-agent-platforms-and-llmops.
+    name: Architect enterprise-scale AI/GenAI solutions including RAG, Agentic AI,
+      multi-agent platforms, and LLMOps.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Architect
+      enterprise-scale AI/GenAI solutions including RAG, Agentic AI, multi-agent platforms,
+      and LLMOps.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:guide-enterprise-integration-security-boundaries-ai-governance-guardrails-and-responsible-ai-frameworks.
+    name: Guide enterprise integration, security boundaries, AI governance, guardrails,
+      and responsible AI frameworks.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Guide
+      enterprise integration, security boundaries, AI governance, guardrails, and
+      responsible AI frameworks.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:lead-executive-communication-architecture-trade-off-defense-ai-economics-and-problem-decomposition.
+    name: Lead executive communication, architecture trade-off defense, AI economics,
+      and problem decomposition.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Lead
+      executive communication, architecture trade-off defense, AI economics, and problem
+      decomposition.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:5:mentor-architecture-leaders-solution-consultants-and-engineering-practitioners.
+    name: Mentor architecture leaders, solution consultants, and engineering practitioners.
+    sequence: 5
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Mentor
+      architecture leaders, solution consultants, and engineering practitioners.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:capability_priorities
+  name: capability_priorities
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: capability_priorities
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:behaviour_expectations
+  name: behaviour_expectations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: behaviour_expectations
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps:
+  - id: step:1:pragmatic-customer-centric-enterprise-architect-who-excels-at-problem-decomposition-in-high-ambiguity-environments.
+    name: Pragmatic, customer-centric Enterprise Architect who excels at problem decomposition
+      in high-ambiguity environments.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Pragmatic,
+      customer-centric Enterprise Architect who excels at problem decomposition in
+      high-ambiguity environments.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:seasoned-mentor-and-facilitator-who-breaks-down-complex-ai-concepts-into-actionable-engineering-frameworks.
+    name: Seasoned mentor and facilitator who breaks down complex AI concepts into
+      actionable engineering frameworks.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Seasoned
+      mentor and facilitator who breaks down complex AI concepts into actionable engineering
+      frameworks.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:rigorous-technical-leader-focused-on-enterprise-security-guardrails-architecture-trade-offs-and-measurable-business-roi.
+    name: Rigorous technical leader focused on enterprise security, guardrails, architecture
+      trade-offs, and measurable business ROI.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Rigorous
+      technical leader focused on enterprise security, guardrails, architecture trade-offs,
+      and measurable business ROI.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:risks
+  name: risks
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: risks
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps:
+  - id: step:1:risk-of-over-indexing-on-academic-ai-concepts-rather-than-production-fde-practices-and-enterprise-delivery.
+    name: Risk of over-indexing on academic AI concepts rather than production FDE
+      practices and enterprise delivery.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Risk
+      of over-indexing on academic AI concepts rather than production FDE practices
+      and enterprise delivery.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:mitigated-by-candidate-s-20-years-of-battle-tested-enterprise-solution-engineering-across-global-organizations-bat-wpp-mostelli-.
+    name: Mitigated by candidate's 20+ years of battle-tested enterprise solution
+      engineering across global organizations (BAT, WPP, Mostelli).
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Mitigated
+      by candidate's 20+ years of battle-tested enterprise solution engineering across
+      global organizations (BAT, WPP, Mostelli).
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Prevent
+    - Generate
+    - Detect
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  - Detect
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:requirement_assessments
+  name: requirement_assessments
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: requirement_assessments
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:key_strengths
+  name: key_strengths
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: key_strengths
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps:
+  - id: step:1:20-years-of-proven-enterprise-systems-architecture-and-software-engineering-leadership.
+    name: 20+ years of proven enterprise systems architecture and software engineering
+      leadership.
+    sequence: 1
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:20+
+      years of proven enterprise systems architecture and software engineering leadership.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:2:deep-hands-on-experience-in-agentic-ai-rag-systems-context-engineering-and-llmops.
+    name: Deep hands-on experience in Agentic AI, RAG systems, context engineering,
+      and LLMOps.
+    sequence: 2
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Deep
+      hands-on experience in Agentic AI, RAG systems, context engineering, and LLMOps.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:3:extensive-experience-in-client-discovery-stakeholder-engagement-and-executive-mentorship.
+    name: Extensive experience in client discovery, stakeholder engagement, and executive
+      mentorship.
+    sequence: 3
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Extensive
+      experience in client discovery, stakeholder engagement, and executive mentorship.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  - id: step:4:strong-track-record-in-enterprise-integration-cloud-platforms-azure-aws-gcp-and-ai-governance.
+    name: Strong track record in enterprise integration, cloud platforms (Azure, AWS,
+      GCP), and AI governance.
+    sequence: 4
+    depends_on: []
+    implementation: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:Strong
+      track record in enterprise integration, cloud platforms (Azure, AWS, GCP), and
+      AI governance.
+    evidence_ids:
+    - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+    confidence: high
+    control_roles:
+    - Generate
+  component_ids: []
+  control_roles:
+  - Generate
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:gaps_identified
+  name: gaps_identified
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: gaps_identified
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:declared_flow:src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py:violations
+  name: violations
+  type: declared_flow
+  description: Flow declared in src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py:data
+  trigger:
+    type: unknown
+    event: unspecified
+    source: code_declaration
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  entrypoint:
+    path: src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+    symbol: data
+    command: violations
+    evidence_id: ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  steps: []
+  component_ids: []
+  control_roles: []
+  artefacts: []
+  implementation:
+  - src/scripts/generate_upwork_ea_ai_solution_consultants_playbook.py
+  evidence_ids:
+  - ev-reg-src-scripts-generate_upwork_ea_ai_solution_consultants_playbook.py-data
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-audit-agent-rules:execution-workflow
+  name: Cas Audit Agent Rules Workflow
+  type: governance
+  description: Audit, deduplicate, and optimize agent instruction and rules files
+    (AGENTS.md, GEMINI.md, .agents/rules/*.md) for token economy, discoverability,
+    progressive disclosure, and governance invariants. Use when asked to review agent
+    rules, optimize AGENTS.md, eliminate duplicate agent instructions, or enforce
+    repository rule hygiene.
+  trigger:
+    type: cli_command
+    event: skill:cas-audit-agent-rules
+    source: skill
+    evidence_id: ev-skill-cas-audit-agent-rules
+  entrypoint:
+    path: .cas/cas-audit-agent-rules/SKILL.md
+    symbol: cas-audit-agent-rules
+    evidence_id: ev-skill-cas-audit-agent-rules
+  steps:
+  - id: step:1:single-source-of-truth-dedupli
+    name: Single Source of Truth & Deduplication
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:2:token-budget-size-compliance
+    name: Token Budget & Size Compliance
+    sequence: 2
+    depends_on:
+    - step:1:single-source-of-truth-dedupli
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:3:progressive-disclosure-rules-v
+    name: Progressive Disclosure (Rules vs. Skills)
+    sequence: 3
+    depends_on:
+    - step:2:token-budget-size-compliance
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:4:discoverability-filtering
+    name: Discoverability Filtering
+    sequence: 4
+    depends_on:
+    - step:3:progressive-disclosure-rules-v
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:5:ephemeral-hygiene
+    name: Ephemeral Hygiene
+    sequence: 5
+    depends_on:
+    - step:4:discoverability-filtering
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:6:check-existing-rule-files
+    name: 'Check existing rule files:'
+    sequence: 6
+    depends_on:
+    - step:5:ephemeral-hygiene
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:7:measure-file-sizes-and-check-f
+    name: Measure file sizes and check for symlinks.
+    sequence: 7
+    depends_on:
+    - step:6:check-existing-rule-files
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:8:update-agents.md-with-streamli
+    name: Update `AGENTS.md` with streamlined, high-signal invariants and boundaries.
+    sequence: 8
+    depends_on:
+    - step:7:measure-file-sizes-and-check-f
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:9:establish-the-symlink
+    name: 'Establish the symlink:'
+    sequence: 9
+    depends_on:
+    - step:8:update-agents.md-with-streamli
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:10:ensure-all-mandatory-governanc
+    name: Ensure all mandatory governance invariants are preserved (e.g., critical
+      SDD/TDD enforcement banner, 4-tier transitive lineage, ADR schema invariants,
+      two-phase commit sequence).
+    sequence: 10
+    depends_on:
+    - step:9:establish-the-symlink
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:11:verify-the-symlink-and-file-si
+    name: 'Verify the symlink and file sizes:'
+    sequence: 11
+    depends_on:
+    - step:10:ensure-all-mandatory-governanc
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:12:verify-git-status
+    name: 'Verify git status:'
+    sequence: 12
+    depends_on:
+    - step:11:verify-the-symlink-and-file-si
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:13:run-governance-validation-if-a
+    name: 'Run governance validation if applicable:'
+    sequence: 13
+    depends_on:
+    - step:12:verify-git-status
+    implementation: .cas/cas-audit-agent-rules/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-audit-agent-rules
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .cas/cas-audit-agent-rules/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-audit-agent-rules
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-refactor-knowledge-links:execution-workflow
+  name: Cas Refactor Knowledge Links Workflow
+  type: governance
+  description: Refactor CAS knowledge artefacts into an explicit navigable relationship
+    graph without changing their semantic content. Use when asked to connect, link,
+    trace, graph, or improve relationships between Architecture Work, Architecture
+    Evolution Maps, Architecture Intent Documents, alignment reports, ADRs, patterns,
+    or other CAS knowledge files, especially under knowledge/projects or knowledge/global.
+    Always invoke before adding frontmatter relationship metadata or Obsidian-style
+    markdown links to CAS knowledge artefacts.
+  trigger:
+    type: cli_command
+    event: skill:cas-refactor-knowledge-links
+    source: skill
+    evidence_id: ev-skill-cas-refactor-knowledge-links
+  entrypoint:
+    path: .cas/cas-refactor-knowledge-links/SKILL.md
+    symbol: cas-refactor-knowledge-links
+    evidence_id: ev-skill-cas-refactor-knowledge-links
+  steps:
+  - id: step:1:preserve-existing-artefact-mea
+    name: Preserve existing artefact meaning and body content.
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:2:keep-the-search-edit-scope-to-
+    name: Keep the search/edit scope to the user's target path.
+    sequence: 2
+    depends_on:
+    - step:1:preserve-existing-artefact-mea
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:3:reuse-existing-artefact-identi
+    name: Reuse existing artefact identifiers, filenames, and frontmatter fields.
+    sequence: 3
+    depends_on:
+    - step:2:keep-the-search-edit-scope-to-
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:4:add-only-relationships-that-ca
+    name: Add only relationships that can be justified from current files.
+    sequence: 4
+    depends_on:
+    - step:3:reuse-existing-artefact-identi
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:5:prefer-the-smallest-additive-c
+    name: Prefer the smallest additive change that makes traceability explicit.
+    sequence: 5
+    depends_on:
+    - step:4:add-only-relationships-that-ca
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:6:discover-artefacts
+    name: Discover Artefacts
+    sequence: 6
+    depends_on:
+    - step:5:prefer-the-smallest-additive-c
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:7:infer-relationships
+    name: Infer Relationships
+    sequence: 7
+    depends_on:
+    - step:6:discover-artefacts
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:8:update-frontmatter
+    name: Update Frontmatter
+    sequence: 8
+    depends_on:
+    - step:7:infer-relationships
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:9:update-markdown-body
+    name: Update Markdown Body
+    sequence: 9
+    depends_on:
+    - step:8:update-frontmatter
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:10:validate
+    name: Validate
+    sequence: 10
+    depends_on:
+    - step:9:update-markdown-body
+    implementation: .cas/cas-refactor-knowledge-links/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-knowledge-links
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .cas/cas-refactor-knowledge-links/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-refactor-knowledge-links
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-add-or-modify-feature:execution-workflow
+  name: Cas Add Or Modify Feature Workflow
+  type: governance
+  description: MANDATORY skill for any feature request or structural modification.
+    Use when adding features, extending functionality, modifying existing behaviour,
+    or introducing integrations. This skill MUST be invoked before making any code
+    changes to ensure architectural alignment, pattern reuse, and governance compliance.
+  trigger:
+    type: cli_command
+    event: skill:cas-add-or-modify-feature
+    source: skill
+    evidence_id: ev-skill-cas-add-or-modify-feature
+  entrypoint:
+    path: .cas/cas-add-or-modify-feature/SKILL.md
+    symbol: cas-add-or-modify-feature
+    evidence_id: ev-skill-cas-add-or-modify-feature
+  steps:
+  - id: step:1:understand-the-request-verify-
+    name: Understand the Request & Verify Intent
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:2:load-context
+    name: Load Context
+    sequence: 2
+    depends_on:
+    - step:1:understand-the-request-verify-
+    implementation: .cas/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:3:validate-against-rules-pattern
+    name: Validate Against Rules & Pattern Guardrails
+    sequence: 3
+    depends_on:
+    - step:2:load-context
+    implementation: .cas/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:4:design-route-implementation-pl
+    name: Design & Route Implementation Plan
+    sequence: 4
+    depends_on:
+    - step:3:validate-against-rules-pattern
+    implementation: .cas/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:5:produce-output
+    name: Produce Output
+    sequence: 5
+    depends_on:
+    - step:4:design-route-implementation-pl
+    implementation: .cas/cas-add-or-modify-feature/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-add-or-modify-feature
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .cas/cas-add-or-modify-feature/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-add-or-modify-feature
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-refactor-module:execution-workflow
+  name: Cas Refactor Module Workflow
+  type: governance
+  description: MANDATORY skill for refactoring an existing module from a specific
+    target path using repository architecture rules and pattern catalogue guidance
+    while preserving observable behaviour. Use when asked to refactor, restructure,
+    decouple, simplify, decompose, or remove hardcoding/coupling in existing code
+    while preserving observable behaviour.
+  trigger:
+    type: cli_command
+    event: skill:cas-refactor-module
+    source: skill
+    evidence_id: ev-skill-cas-refactor-module
+  entrypoint:
+    path: .cas/cas-refactor-module/SKILL.md
+    symbol: cas-refactor-module
+    evidence_id: ev-skill-cas-refactor-module
+  steps:
+  - id: step:1:preserve-observable-behaviour.
+    name: Preserve observable behaviour.
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:2:follow-.cas-rules-architecture
+    name: Follow `.cas/rules/architecture_rules.md`.
+    sequence: 2
+    depends_on:
+    - step:1:preserve-observable-behaviour.
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:3:respect-the-requested-constrai
+    name: Respect the requested constraints when they do not conflict with 1 or 2.
+    sequence: 3
+    depends_on:
+    - step:2:follow-.cas-rules-architecture
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:4:reuse-existing-patterns-from-.
+    name: Reuse existing patterns from `.cas/patterns/patterns-catalogue.yaml` and
+      enforce their `invariants` and `anti_patterns`.
+    sequence: 4
+    depends_on:
+    - step:3:respect-the-requested-constrai
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:5:prefer-the-smallest-structural
+    name: Prefer the smallest structural change that satisfies the request.
+    sequence: 5
+    depends_on:
+    - step:4:reuse-existing-patterns-from-.
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:6:understand-current-state
+    name: Understand Current State
+    sequence: 6
+    depends_on:
+    - step:5:prefer-the-smallest-structural
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:7:identify-refactoring-opportuni
+    name: Identify Refactoring Opportunities
+    sequence: 7
+    depends_on:
+    - step:6:understand-current-state
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:8:validate-against-rules-pattern
+    name: Validate Against Rules & Pattern Guardrails
+    sequence: 8
+    depends_on:
+    - step:7:identify-refactoring-opportuni
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+  - id: step:9:design-refactoring
+    name: Design Refactoring
+    sequence: 9
+    depends_on:
+    - step:8:validate-against-rules-pattern
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:10:produce-output
+    name: Produce Output
+    sequence: 10
+    depends_on:
+    - step:9:design-refactoring
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:11:populate-the-output-fields
+    name: Populate the Output Fields
+    sequence: 11
+    depends_on:
+    - step:10:produce-output
+    implementation: .cas/cas-refactor-module/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-refactor-module
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  artefacts: []
+  implementation:
+  - .cas/cas-refactor-module/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-refactor-module
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-sync-archgov-reviews:execution-workflow
+  name: Cas Sync Archgov Reviews Workflow
+  type: governance
+  description: Synchronize external ArchGov review decisions for reference architectures
+    and ADRs into local Git state, detect approvals, and trigger downstream lifecycle
+    steps (ADR generation, pattern institutionalization) on-demand or via scheduled
+    background checks.
+  trigger:
+    type: cli_command
+    event: skill:cas-sync-archgov-reviews
+    source: skill
+    evidence_id: ev-skill-cas-sync-archgov-reviews
+  entrypoint:
+    path: .cas/cas-sync-archgov-reviews/SKILL.md
+    symbol: cas-sync-archgov-reviews
+    evidence_id: ev-skill-cas-sync-archgov-reviews
+  steps:
+  - id: step:1:outbound-push-automatically-ba
+    name: '**Outbound Push**: Automatically batch-publish local unpublished candidate
+      Reference Architectures and ADRs so architects can review and ratify them directly
+      within the ArchGov web portal.'
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:2:inbound-pull-synchronize-remot
+    name: '**Inbound Pull**: Synchronize remote review decisions from ArchGov back
+      into Git state, reconciling `knowledge/projects/<project>/governance/archgov-sync.yaml`,
+      updating artifact frontmatter, logging immutable audit records, and unblocking
+      downstream ADR generation and pattern institutionalization.'
+    sequence: 2
+    depends_on:
+    - step:1:outbound-push-automatically-ba
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Detect
+    - Correct
+  - id: step:3:two-way-synchronization-push-t
+    name: '**Two-Way Synchronization (Push then Pull)**:'
+    sequence: 3
+    depends_on:
+    - step:2:inbound-pull-synchronize-remot
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:4:simulation-dry-run-mode
+    name: '**Simulation & Dry-Run Mode**:'
+    sequence: 4
+    depends_on:
+    - step:3:two-way-synchronization-push-t
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:5:inspect-artifact-status
+    name: '**Inspect Artifact Status**:'
+    sequence: 5
+    depends_on:
+    - step:4:simulation-dry-run-mode
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:6:background-scheduling
+    name: '**Background Scheduling**:'
+    sequence: 6
+    depends_on:
+    - step:5:inspect-artifact-status
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:7:step-1---project-context-scope
+    name: '**Step 1 - Project Context & Scope Resolution**:'
+    sequence: 7
+    depends_on:
+    - step:6:background-scheduling
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:8:step-2---phase-1-outbound-batc
+    name: '**Step 2 - Phase 1: Outbound Batch Publication (Push)**:'
+    sequence: 8
+    depends_on:
+    - step:7:step-1---project-context-scope
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:9:step-3---phase-2-inbound-revie
+    name: '**Step 3 - Phase 2: Inbound Review Synchronization (Pull)**:'
+    sequence: 9
+    depends_on:
+    - step:8:step-2---phase-1-outbound-batc
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:10:step-4---evaluate-diffs-scan-a
+    name: '**Step 4 - Evaluate Diffs & Scan Artifact State**:'
+    sequence: 10
+    depends_on:
+    - step:9:step-3---phase-2-inbound-revie
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:11:step-5---downstream-verificati
+    name: '**Step 5 - Downstream Verification**:'
+    sequence: 11
+    depends_on:
+    - step:10:step-4---evaluate-diffs-scan-a
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:12:step-6---report-to-architect-4
+    name: '**Step 6 - Report to Architect (4-Quadrant Governance Dashboard)**:'
+    sequence: 12
+    depends_on:
+    - step:11:step-5---downstream-verificati
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:13:outbound-dispatches-push-newly
+    name: '**Outbound Dispatches (Push)**: Newly published or staged candidate drafts,
+      including assigned `archgov_artifact_id` and review cycle IDs.'
+    sequence: 13
+    depends_on:
+    - step:12:step-6---report-to-architect-4
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:14:in-flight-remote-reviews-archg
+    name: '**In-Flight Remote Reviews (ArchGov)**: Active reviews currently under
+      consideration, detailing local status, remote status, forum (Design Authority
+      vs ARB), and assigned reviewer.'
+    sequence: 14
+    depends_on:
+    - step:13:outbound-dispatches-push-newly
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:15:ratified-governance-decisions-
+    name: '**Ratified Governance Decisions & Downstream Chaining**: Approved reference
+      architectures and accepted ADRs, verifying downstream ADR or global pattern
+      generation.'
+    sequence: 15
+    depends_on:
+    - step:14:in-flight-remote-reviews-archg
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:16:local-offline-governance-artif
+    name: '**Local / Offline Governance Artifacts**: Artefacts not published to ArchGov,
+      detailing local decision status and recommended next actions.'
+    sequence: 16
+    depends_on:
+    - step:15:ratified-governance-decisions-
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:17:step-7---governance-validation
+    name: '**Step 7 - Governance Validation & Knowledge Sync Gate**:'
+    sequence: 17
+    depends_on:
+    - step:16:local-offline-governance-artif
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:18:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge add <modified-paths>`'
+    sequence: 18
+    depends_on:
+    - step:17:step-7---governance-validation
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:19:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge commit -m "<type>(scope): <description>"`'
+    sequence: 19
+    depends_on:
+    - step:18:git--c-users-avfranco-cas-know
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:20:git--c-users-avfranco-cas-know
+    name: '`git -C /Users/avfranco/cas-knowledge push origin main`'
+    sequence: 20
+    depends_on:
+    - step:19:git--c-users-avfranco-cas-know
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:21:git-add-modified-paths
+    name: '`git add <modified-paths>`'
+    sequence: 21
+    depends_on:
+    - step:20:git--c-users-avfranco-cas-know
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:22:git-commit--m-type-scope-descr
+    name: '`git commit -m "<type>(scope): <description>"`'
+    sequence: 22
+    depends_on:
+    - step:21:git-add-modified-paths
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  - id: step:23:git-push-origin-branch
+    name: '`git push origin <branch>`'
+    sequence: 23
+    depends_on:
+    - step:22:git-commit--m-type-scope-descr
+    implementation: .cas/cas-sync-archgov-reviews/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-sync-archgov-reviews
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Correct
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Detect
+  - Correct
+  artefacts: []
+  implementation:
+  - .cas/cas-sync-archgov-reviews/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-sync-archgov-reviews
+  confidence: high
+  status: discovered
+- id: flow:governance:cas-drawio-generator:execution-workflow
+  name: Cas Drawio Generator Workflow
+  type: governance
+  description: Generates C4-style draw.io compatible XML diagrams (.drawio.xml) for
+    system architecture, containers, components, and runtime flows. Use when the user
+    needs to visualize architectural structures or flows based on codebase analysis
+    or requirements.
+  trigger:
+    type: cli_command
+    event: skill:cas-drawio-generator
+    source: skill
+    evidence_id: ev-skill-cas-drawio-generator
+  entrypoint:
+    path: .cas/cas-drawio-generator/SKILL.md
+    symbol: cas-drawio-generator
+    evidence_id: ev-skill-cas-drawio-generator
+  steps:
+  - id: step:1:analyze-context-identify-the-s
+    name: '**Analyze Context**: Identify the system boundaries, actors, containers,
+      or components to be visualized.'
+    sequence: 1
+    depends_on: []
+    implementation: .cas/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:2:select-template-choose-the-app
+    name: '**Select Template**: Choose the appropriate C4 level or custom flow.'
+    sequence: 2
+    depends_on:
+    - step:1:analyze-context-identify-the-s
+    implementation: .cas/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:3:plan-layout-map-elements-to-a-
+    name: '**Plan Layout**: Map elements to a 10px grid. Use standard box sizes:'
+    sequence: 3
+    depends_on:
+    - step:2:select-template-choose-the-app
+    implementation: .cas/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  - id: step:4:generate-xml-construct-the-mxf
+    name: '**Generate XML**: Construct the `<mxfile>` using the specifications in
+      [drawio-specs.md](references/drawio-specs.md).'
+    sequence: 4
+    depends_on:
+    - step:3:plan-layout-map-elements-to-a-
+    implementation: .cas/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+    - Generate
+  - id: step:5:save-verify-save-as-.drawio.xm
+    name: '**Save & Verify**: Save as `.drawio.xml` and run through the verification
+      checklist in the reference file.'
+    sequence: 5
+    depends_on:
+    - step:4:generate-xml-construct-the-mxf
+    implementation: .cas/cas-drawio-generator/SKILL.md
+    evidence_ids:
+    - ev-skill-cas-drawio-generator
+    confidence: high
+    component_id: ''
+    control_roles:
+    - Prevent
+  component_ids: []
+  control_roles:
+  - Prevent
+  - Generate
+  artefacts: []
+  implementation:
+  - .cas/cas-drawio-generator/SKILL.md
+  evidence_ids:
+  - ev-skill-cas-drawio-generator
+  confidence: high
+  status: discovered
